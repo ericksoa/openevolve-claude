@@ -11,23 +11,42 @@ Combine the best of both worlds:
 
 ## Quick Start
 
+### 1. Install the Skill
+
 ```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/openevolve-claude
-cd openevolve-claude
+# Option A: Clone and copy skill
+git clone https://github.com/ericksoa/openevolve-claude
+cp openevolve-claude/.claude/commands/evolve.md ~/.claude/commands/
 
-# Install Python dependencies
-pip install openevolve
+# Option B: Direct download
+curl -o ~/.claude/commands/evolve.md \
+  https://raw.githubusercontent.com/ericksoa/openevolve-claude/main/.claude/commands/evolve.md
+```
 
-# Build the Rust benchmarks
-cd showcase/string-search/rust
-cargo build --release
-cd ..
+### 2. Use It
 
-# Run evolution
-openevolve-run initial_program.rs evaluator.py \
-  --config config.yaml \
-  --iterations 200
+```bash
+claude
+> /evolve sorting algorithm for integers
+```
+
+That's it! The skill will:
+- Check for Rust toolchain and offer to install via rustup
+- Clone this repo for examples (optional)
+- Set up the `.evolve/` directory
+- Search the web for relevant benchmarks
+- Generate infrastructure and run evolution
+
+### Manual Setup (Optional)
+
+If you prefer manual installation:
+
+```bash
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Clone repo for examples
+git clone https://github.com/ericksoa/openevolve-claude ~/.evolve/openevolve-claude
 ```
 
 ## Architecture

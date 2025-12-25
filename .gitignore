@@ -19,3 +19,4 @@ venv/
 
 # OS
 .DS_Store
+.evolve/**/external/

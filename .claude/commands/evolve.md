@@ -1,6 +1,6 @@
 ---
 description: Evolve novel algorithms through LLM-driven mutation and selection
-allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Task, TodoWrite, WebSearch, WebFetch
+allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Task, TodoWrite, WebSearch, WebFetch, AskUserQuestion
 argument-hint: <problem description>
 ---
 
@@ -22,6 +22,74 @@ Examples:
 - `/evolve fibonacci with matrix exponentiation`
 
 ## Execution
+
+### Step -1: Bootstrap (First Run Only)
+
+On first invocation, check and set up the environment. Skip this step if `.evolve/.bootstrapped` exists.
+
+1. **Check Rust Toolchain**:
+   ```bash
+   ~/.cargo/bin/cargo --version 2>/dev/null || cargo --version
+   ```
+
+   If cargo is not found, use AskUserQuestion to offer installation:
+   ```
+   Rust toolchain is required but not found.
+
+   Options:
+   1. Install via rustup (recommended)
+   2. I'll install it manually
+   ```
+
+   If user chooses rustup:
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+   source ~/.cargo/env
+   ```
+
+2. **Check Python 3.10+**:
+   ```bash
+   python3 --version
+   ```
+
+   If Python < 3.10 or not found, inform user:
+   "Python 3.10+ is required. Please install from python.org or via your package manager."
+
+3. **Clone openevolve-claude (if not present)**:
+   Check if examples/templates are available:
+   ```bash
+   if [ ! -d ~/.evolve/openevolve-claude ]; then
+     # Offer to clone
+   fi
+   ```
+
+   Use AskUserQuestion:
+   ```
+   Clone openevolve-claude repository for examples and templates?
+
+   Options:
+   1. Yes, clone to ~/.evolve/openevolve-claude
+   2. No, I'll generate everything from scratch
+   ```
+
+   If yes:
+   ```bash
+   git clone --depth 1 https://github.com/ericksoa/openevolve-claude ~/.evolve/openevolve-claude
+   ```
+
+4. **Create local .evolve directory**:
+   ```bash
+   mkdir -p .evolve
+   ```
+
+5. **Mark bootstrap complete**:
+   ```bash
+   touch .evolve/.bootstrapped
+   ```
+
+   Report: "Bootstrap complete! Environment ready for evolution."
+
+---
 
 ### Step 0-pre: Benchmark Discovery (Web Search)
 

@@ -51,9 +51,11 @@ This skill integrates [OpenEvolve](https://github.com/codelion/openevolve) with 
 
 ## Requirements
 
-- Python 3.10+
-- Rust toolchain (rustc, cargo)
-- OpenEvolve: `pip install openevolve`
+The skill automatically checks for and helps install:
+- **Rust toolchain** - offers to install via rustup if missing
+- **Python 3.10+** - guides you to install if needed
+
+Just run `/evolve` and follow the prompts! No manual setup required.
 
 ## Configuration
 
