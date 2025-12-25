@@ -1,4 +1,4 @@
-# AlphaEvolve Skill
+# OpenEvolve Skill
 
 Evolutionary algorithm discovery powered by OpenEvolve. Evolves novel solutions to hard problems through massively parallel mutation and selection, with Rust benchmarks for precise performance measurement.
 

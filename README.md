@@ -1,4 +1,4 @@
-# AlphaEvolve for Claude Code
+# OpenEvolve-Claude
 
 Evolutionary algorithm discovery for Claude Code, powered by [OpenEvolve](https://github.com/codelion/openevolve). Evolves novel solutions to hard programming problems through massively parallel LLM-driven mutation with Rust benchmarks for precise performance measurement.
 
@@ -13,8 +13,8 @@ Combine the best of both worlds:
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/alphaevolve-claude
-cd alphaevolve-claude
+git clone https://github.com/YOUR_USERNAME/openevolve-claude
+cd openevolve-claude
 
 # Install Python dependencies
 pip install openevolve
@@ -198,7 +198,7 @@ Key innovations:
 ## Project Structure
 
 ```
-alphaevolve-claude/
+openevolve-claude/
 ├── skill.md                  # Claude Code skill definition
 ├── README.md                 # This file
 ├── src/                      # TypeScript utilities (optional)
