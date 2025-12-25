@@ -1,6 +1,6 @@
 //! Benchmark runner for string search algorithms
 //!
-//! Outputs JSON results for the OpenEvolve evaluator
+//! Outputs JSON results for the evaluator
 
 use std::time::{Duration, Instant};
 use std::io::{self, Read};
@@ -31,7 +31,7 @@ struct BenchmarkResult {
 struct BenchmarkOutput {
     results: Vec<BenchmarkResult>,
     evolved_vs_best_baseline: f64,  // >1 means evolved is faster
-    score: f64,  // Main fitness score for OpenEvolve
+    score: f64,  // Main fitness score
 }
 
 fn benchmark_algorithm<S: StringSearch>(

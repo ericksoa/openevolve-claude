@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-OpenEvolve Evaluator for Rust String Search
+Evaluator for Rust String Search Evolution
 
 This evaluator:
 1. Copies the evolved code to the Rust project
@@ -184,7 +184,7 @@ def run_tests() -> tuple[bool, str]:
 
 def evaluate(program_path: str) -> dict:
     """
-    Main evaluation function called by OpenEvolve
+    Main evaluation function for evolution
 
     Args:
         program_path: Path to the evolved Rust code file

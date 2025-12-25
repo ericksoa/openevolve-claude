@@ -1,7 +1,7 @@
 //! String Search Algorithms
 //!
 //! This module contains various string search implementations.
-//! The `evolved` module contains the algorithm being evolved by OpenEvolve.
+//! The `evolved` module contains the algorithm being evolved.
 
 pub mod baselines;
 pub mod evolved;

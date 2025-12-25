@@ -1,17 +1,14 @@
 //! Evolved String Search Algorithm
 //!
-//! This module contains the algorithm being evolved by OpenEvolve.
+//! This module contains the algorithm being evolved.
 //! The initial implementation is a simple Horspool variant.
-//! OpenEvolve will mutate this code to discover better algorithms.
-//!
-//! IMPORTANT: OpenEvolve will replace the contents of this file.
-//! Keep the module structure and trait implementation intact.
+//! Evolution will mutate this code to discover better algorithms.
 
 use crate::StringSearch;
 
 /// The evolved string search algorithm
 ///
-/// This implementation will be mutated by OpenEvolve to discover
+/// This implementation will be mutated to discover
 /// novel, high-performance string search algorithms.
 pub struct EvolvedSearch {
     // Preprocessing data structures can be added here
@@ -67,7 +64,7 @@ impl StringSearch for EvolvedSearch {
         }
 
         // Build shift table inline for now
-        // (OpenEvolve may discover better preprocessing)
+        // (evolution may discover better preprocessing)
         let mut shift = [m; 256];
         for (i, &byte) in pattern.iter().enumerate().take(m - 1) {
             shift[byte as usize] = m - 1 - i;

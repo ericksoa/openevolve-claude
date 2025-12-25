@@ -1,13 +1,17 @@
-# OpenEvolve-Claude
+# Evolve
 
-Evolutionary algorithm discovery for Claude Code, powered by [OpenEvolve](https://github.com/codelion/openevolve). Evolves novel solutions to hard programming problems through massively parallel LLM-driven mutation with Rust benchmarks for precise performance measurement.
+Evolutionary algorithm discovery for Claude Code. Evolves novel solutions to hard programming problems through LLM-driven mutation with Rust benchmarks for precise performance measurement.
 
-## The Vision
+## How It Works
 
-Combine the best of both worlds:
-- **OpenEvolve**: Battle-tested evolutionary framework with MAP-Elites, island populations, and LLM ensembles
-- **Claude Code**: Intelligent agents that understand code context and can apply evolved solutions
-- **Rust Benchmarks**: Nanosecond-precision performance measurement without JIT variance
+The `/evolve` skill implements an evolutionary algorithm natively in Claude Code:
+
+1. **Generate Mutations**: Claude spawns 8 parallel Task agents, each applying a different mutation strategy (tweak, unroll, specialize, vectorize, memoize, restructure, hybrid, alien)
+2. **Evaluate**: Each mutation is compiled and benchmarked against baselines using Rust
+3. **Select**: Best performers become parents for the next generation
+4. **Repeat**: 3-5 generations of evolution
+
+Claude Code itself acts as the LLM ensemble—no external dependencies required.
 
 ## Quick Start
 
@@ -28,26 +32,16 @@ curl -o ~/.claude/commands/evolve.md \
 ```bash
 claude
 > /evolve sorting algorithm for integers
+> /evolve string search - beat Boyer-Moore
+> /evolve integer parsing - beat std library
 ```
 
 That's it! The skill will:
 - Check for Rust toolchain and offer to install via rustup
-- Clone this repo for examples (optional)
-- Set up the `.evolve/` directory
 - Search the web for relevant benchmarks
-- Generate infrastructure and run evolution
-
-### Manual Setup (Optional)
-
-If you prefer manual installation:
-
-```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Clone repo for examples
-git clone https://github.com/ericksoa/openevolve-claude ~/.evolve/openevolve-claude
-```
+- Generate Rust benchmark infrastructure
+- Run 3-5 generations of evolution
+- Report the champion algorithm
 
 ## Architecture
 
@@ -59,22 +53,22 @@ git clone https://github.com/ericksoa/openevolve-claude ~/.evolve/openevolve-cla
                                   │
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                        OpenEvolve                                │
+│                 Claude Code Task Agents                          │
+│            (8 parallel mutation strategies)                      │
 │                                                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │   Island 1   │  │   Island 2   │  │   Island 3   │          │
-│  │              │  │              │  │              │          │
-│  │ ┌──┐┌──┐┌──┐ │  │ ┌──┐┌──┐┌──┐ │  │ ┌──┐┌──┐┌──┐ │          │
-│  │ │P1││P2││P3│ │  │ │P4││P5││P6│ │  │ │P7││P8││P9│ │          │
-│  │ └──┘└──┘└──┘ │  │ └──┘└──┘└──┘ │  │ └──┘└──┘└──┘ │          │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
-│         │                 │                 │                   │
-│         └────────── Migration ──────────────┘                   │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐               │
+│  │  tweak  │ │ unroll  │ │specialize│ │vectorize│               │
+│  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘               │
+│       │           │           │           │                      │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐               │
+│  │ memoize │ │restructure│ │ hybrid │ │  alien  │               │
+│  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘               │
+│       │           │           │           │                      │
+│       └───────────┴───────────┴───────────┘                      │
 │                           │                                      │
-│  ┌────────────────────────┴────────────────────────────┐        │
-│  │                  LLM Ensemble                        │        │
-│  │  Claude Opus (creative) + Sonnet + Haiku (tweaks)   │        │
-│  └─────────────────────────────────────────────────────┘        │
+│                     Collect Results                              │
+│                    Select Top Performers                         │
+│                     Repeat 3-5 Generations                       │
 └─────────────────────────────────┬───────────────────────────────┘
                                   │
                                   ▼
@@ -83,129 +77,38 @@ git clone https://github.com/ericksoa/openevolve-claude ~/.evolve/openevolve-cla
 │                                                                  │
 │  1. Copy evolved code → rust/src/evolved.rs                     │
 │  2. cargo build --release (LTO, opt-level=3)                    │
-│  3. Run benchmarks against baselines:                           │
-│     • Naive O(nm)                                                │
-│     • KMP O(n+m)                                                 │
-│     • Boyer-Moore O(n/m) best                                   │
-│     • Horspool                                                   │
-│     • Two-Way (glibc memmem)                                    │
-│  4. Return fitness: correctness × performance × baseline_bonus  │
+│  3. Run benchmarks against baselines                            │
+│  4. Return JSON: { fitness, ops_per_second, correctness }       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Showcases
+## Results
 
-### String Search (The Awe-Inspiring Demo)
+Example evolutions achieved:
 
-Everyone knows "find needle in haystack". But can we evolve an algorithm that beats 40-year-old classics like Boyer-Moore?
-
-```
-showcase/string-search/
-├── initial_program.rs    # Seed: simple Horspool variant
-├── evaluator.py          # Compiles Rust, runs benchmarks
-├── config.yaml           # OpenEvolve settings
-└── rust/
-    ├── Cargo.toml
-    └── src/
-        ├── lib.rs        # Core traits
-        ├── baselines.rs  # KMP, Boyer-Moore, Horspool, Two-Way
-        ├── evolved.rs    # THE CODE BEING EVOLVED
-        └── benchmark.rs  # Performance measurement
-```
-
-**Baselines we're competing against:**
-
-| Algorithm | Complexity | Notes |
-|-----------|------------|-------|
-| Naive | O(nm) | Simple, slow |
-| KMP | O(n+m) | Failure function |
-| Boyer-Moore | O(n/m) best | Bad char + good suffix |
-| Horspool | O(n/m) best | Simplified BM |
-| Two-Way | O(n) | Used by glibc |
-
-**Run it:**
-
-```bash
-cd showcase/string-search
-pip install openevolve
-cd rust && cargo build --release && cd ..
-openevolve-run initial_program.rs evaluator.py --config config.yaml
-```
-
-## Configuration
-
-```yaml
-# config.yaml
-evolution:
-  iterations: 200           # More = better solutions
-  population_size: 50       # Diversity vs compute
-  num_islands: 4            # Parallel populations
-  migration_interval: 10    # Cross-pollination frequency
-
-llm:
-  primary:
-    provider: anthropic
-    model: claude-sonnet-4-20250514
-    temperature: 0.7        # Balanced exploration
-
-  secondary:
-    provider: anthropic
-    model: claude-sonnet-4-20250514
-    temperature: 0.9        # Creative mutations
-
-  fast:
-    provider: anthropic
-    model: claude-haiku-4-20250514
-    temperature: 0.3        # Quick tweaks
-
-evaluation:
-  timeout: 300              # Max seconds per candidate
-  parallel_evaluations: 4   # Concurrent benchmarks
-```
+| Problem | Champion | Improvement |
+|---------|----------|-------------|
+| Integer parsing | Custom parser | +51% vs std |
+| Sorting | 11-bit radix sort | +14% vs std::sort_unstable |
+| String search | Rarebyte+memchr | +27% vs Boyer-Moore (scalar) |
 
 ## Fitness Function
 
 ```python
-def calculate_fitness(evolved_result, best_baseline):
-    # Correctness is non-negotiable
-    if not evolved_result.all_correct:
-        return 0.0
+# Base: speed ratio to best baseline
+speed_ratio = evolved_speed / best_baseline_speed
 
-    # Base score from raw performance
-    perf_score = log(searches_per_second) / 20  # normalized
+# Scale to 0-1, cap at 2x improvement
+fitness = min(speed_ratio, 2.0) / 2.0
 
-    # Bonus for beating baselines
-    if evolved_result.speed > best_baseline:
-        improvement = evolved_result.speed / best_baseline - 1
-        baseline_bonus = improvement * 0.5  # 50% per 100% improvement
-    else:
-        baseline_bonus = 0
+# Bonus for beating all baselines
+if evolved_speed > best_baseline_speed:
+    fitness = min(fitness + 0.1, 1.0)
 
-    return perf_score + baseline_bonus
+# Correctness gate: 0 if tests fail
+if not correctness:
+    fitness = 0.0
 ```
-
-## Installation as Claude Code Skill
-
-```bash
-# Copy skill definition
-cp skill.md ~/.claude/skills/evolve.md
-
-# Now use in Claude Code
-> /evolve "Optimize the sorting algorithm in src/sort.rs"
-```
-
-## How OpenEvolve Works
-
-1. **Prompt Sampler**: Creates context-rich prompts with past programs and scores
-2. **LLM Ensemble**: Multiple models generate diverse mutations
-3. **Evaluator Pool**: Tests candidates and assigns fitness scores
-4. **Program Database**: Stores successful programs, guides evolution
-5. **MAP-Elites**: Maintains diversity across quality dimensions
-
-Key innovations:
-- **Island model**: Separate populations prevent premature convergence
-- **Quality-diversity**: Keeps diverse solutions, not just the best
-- **Cascade evaluation**: Fast rejection of broken code before expensive benchmarks
 
 ## Why Rust Benchmarks?
 
@@ -217,48 +120,23 @@ Key innovations:
 ## Project Structure
 
 ```
-openevolve-claude/
-├── skill.md                  # Claude Code skill definition
-├── README.md                 # This file
-├── src/                      # TypeScript utilities (optional)
-│   ├── types.ts
-│   ├── orchestrator.ts
-│   └── ...
-└── showcase/
-    └── string-search/
-        ├── initial_program.rs
-        ├── evaluator.py
-        ├── config.yaml
-        ├── requirements.txt
-        └── rust/
-            ├── Cargo.toml
-            └── src/
-                ├── lib.rs
-                ├── baselines.rs
-                ├── evolved.rs
-                └── benchmark.rs
+.evolve/<problem>/           # Created per evolution
+├── rust/
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs           # Trait definition
+│       ├── baselines.rs     # Known algorithms to beat
+│       ├── evolved.rs       # Champion code
+│       └── benchmark.rs     # Performance measurement
+├── evaluator.py             # Fitness evaluation
+└── mutations/               # All tested mutations
 ```
-
-## Future Showcases
-
-- **Sorting**: Evolve a sort that adapts to input characteristics
-- **Pathfinding**: Discover novel A* heuristics
-- **Compression**: Evolve domain-specific encoders
-- **Regex**: Optimize pattern matching for specific workloads
 
 ## Credits
 
-- [OpenEvolve](https://github.com/codelion/openevolve) by Asankhaya Sharma
-- [AlphaEvolve](https://deepmind.google/discover/blog/alphaevolve/) by DeepMind
-- [Claude Code](https://claude.ai/code) by Anthropic
+- Inspired by [AlphaEvolve](https://deepmind.google/discover/blog/alphaevolve/) concepts
+- Built with [Claude Code](https://claude.ai/code) by Anthropic
 
 ## License
 
 MIT
-
----
-
-**Sources:**
-- [OpenEvolve GitHub](https://github.com/codelion/openevolve)
-- [OpenEvolve on Hugging Face](https://huggingface.co/blog/codelion/openevolve)
-- [OpenEvolve PyPI](https://pypi.org/project/openevolve/)
