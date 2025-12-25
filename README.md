@@ -4,12 +4,28 @@ Evolutionary algorithm discovery for Claude Code. Evolves novel solutions to har
 
 ## How It Works
 
-The `/evolve` skill implements an evolutionary algorithm natively in Claude Code:
+The `/evolve` skill implements a **true genetic algorithm** with semantic crossover:
 
-1. **Generate Mutations**: Claude spawns 8 parallel Task agents, each applying a different mutation strategy (tweak, unroll, specialize, vectorize, memoize, restructure, hybrid, alien)
-2. **Evaluate**: Each mutation is compiled and benchmarked against baselines using Rust
-3. **Select**: Best performers become parents for the next generation
-4. **Repeat**: 3-5 generations of evolution
+### Generation 1: Divergent Exploration
+- Spawn 8 parallel mutation agents with different strategies
+- Extract **innovations** from each solution (what makes it fast?)
+- Select top 4 with **diversity pressure** (can't all be the same algorithm family)
+
+### Generation 2+: Crossover + Mutation
+- **4 crossover agents**: Combine innovations from parent pairs
+- **4 mutation agents**: Refine top performers
+- Selection with elitism (never lose the champion)
+
+### Why Crossover Matters
+```
+Gen 1: Discovers radix sort (fast distribution) + quicksort (fast partition)
+Gen 2: Crossover → radix+quick hybrid (uses both techniques)
+Gen 3: Adds insertion sort base case from shellsort lineage
+Gen 4: Incorporates heapsort as depth-limit fallback
+Gen 5: Final hybrid has traits from 4 original algorithm families
+```
+
+Each generation **combines innovations** rather than just refining one approach.
 
 Claude Code itself acts as the LLM ensemble—no external dependencies required.
 
@@ -48,27 +64,48 @@ That's it! The skill will:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Claude Code /evolve                          │
-│  "Optimize the string search algorithm for DNA sequences"       │
+│         "Optimize sorting algorithm for integers"                │
 └─────────────────────────────────┬───────────────────────────────┘
                                   │
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                 Claude Code Task Agents                          │
-│            (8 parallel mutation strategies)                      │
+│                    GENERATION 1: Exploration                     │
 │                                                                  │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐               │
-│  │  tweak  │ │ unroll  │ │specialize│ │vectorize│               │
-│  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘               │
-│       │           │           │           │                      │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐               │
-│  │ memoize │ │restructure│ │ hybrid │ │  alien  │               │
-│  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘               │
-│       │           │           │           │                      │
-│       └───────────┴───────────┴───────────┘                      │
-│                           │                                      │
-│                     Collect Results                              │
-│                    Select Top Performers                         │
-│                     Repeat 3-5 Generations                       │
+│  8 Parallel Mutation Agents:                                    │
+│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐                   │
+│  │ radix  │ │ quick  │ │ heap   │ │ shell  │ ...               │
+│  └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘                   │
+│      │          │          │          │                          │
+│      ▼          ▼          ▼          ▼                          │
+│  [Evaluate] [Evaluate] [Evaluate] [Evaluate]                    │
+│      │          │          │          │                          │
+│      ▼          ▼          ▼          ▼                          │
+│  [Extract Innovations: what makes each solution fast?]          │
+│                                                                  │
+│  Select Top 4 with Diversity (different algorithm families)     │
+└─────────────────────────────────┬───────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│               GENERATION 2+: Crossover + Mutation                │
+│                                                                  │
+│  Population: [radix, quicksort, heapsort, shellsort]            │
+│                                                                  │
+│  CROSSOVER (4 agents):              MUTATION (4 agents):        │
+│  ┌──────────────────┐               ┌──────────────────┐        │
+│  │ radix × quick    │               │ tweak(radix)     │        │
+│  │ radix × heap     │               │ specialize(radix)│        │
+│  │ quick × shell    │               │ vectorize(quick) │        │
+│  │ heap × shell     │               │ unroll(quick)    │        │
+│  └────────┬─────────┘               └────────┬─────────┘        │
+│           │                                   │                  │
+│           └───────────┬───────────────────────┘                  │
+│                       ▼                                          │
+│           [Evaluate 8 offspring]                                │
+│           [Extract innovations]                                  │
+│           [Select top 4 + elitism]                              │
+│                                                                  │
+│  Repeat for 3-5 generations...                                  │
 └─────────────────────────────────┬───────────────────────────────┘
                                   │
                                   ▼
