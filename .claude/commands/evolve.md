@@ -6,288 +6,433 @@ argument-hint: <problem description>
 
 # /evolve - Evolutionary Algorithm Discovery
 
-Evolve novel algorithms through LLM-driven mutation and selection with **true genetic recombination**. Automatically generates Rust benchmarks and evaluators for any problem.
+Evolve novel algorithms through LLM-driven mutation and selection with **true genetic recombination**. Runs adaptively—continuing while improvement is possible, stopping when plateaued.
 
-## Core Innovation: Semantic Crossover
-
-Unlike simple "make it faster" loops, this skill implements real genetic algorithm principles:
+## Core Features
 
 1. **Population-based**: Maintains top 4 diverse solutions, not just the winner
-2. **Innovation extraction**: Identifies what makes each solution fast
-3. **Crossover**: Combines innovations from multiple parents
-4. **Diversity pressure**: Prevents convergence to a single algorithm family
-
-This means more generations = genuinely better results through trait combination.
+2. **Semantic crossover**: Combines innovations from multiple parents
+3. **Adaptive generations**: Continues while improving, stops on plateau
+4. **Budget control**: User sets token/generation limits
+5. **Checkpointing**: Resume evolution from where you left off
 
 ## Usage
 
 ```
 /evolve <problem description>
+/evolve <problem description> --budget <tokens|generations>
+/evolve --resume  # Continue previous evolution
 ```
 
-Examples:
-- `/evolve integer parsing - beat std library`
-- `/evolve string search - beat Boyer-Moore`
-- `/evolve sorting algorithm for nearly-sorted arrays`
-- `/evolve hash function with minimal collisions`
-- `/evolve fibonacci with matrix exponentiation`
+**Examples**:
+```
+/evolve sorting algorithm for integers
+/evolve string search --budget 50k        # ~50,000 tokens max
+/evolve integer parsing --budget 20gen    # Max 20 generations
+/evolve hash function --budget unlimited  # Run until plateau
+/evolve --resume                          # Continue last evolution
+```
 
-## Execution
+**Budget Options**:
+| Budget | Meaning | Approx. Generations |
+|--------|---------|---------------------|
+| `10k` | 10,000 tokens | ~2-3 generations |
+| `50k` | 50,000 tokens | ~10-12 generations |
+| `100k` | 100,000 tokens | ~20-25 generations |
+| `5gen` | 5 generations | Fixed count |
+| `unlimited` | No limit | Until plateau |
+| (none) | Default 50k | ~10-12 generations |
 
-### Step -1: Bootstrap (First Run Only)
+---
 
-On first invocation, check and set up the environment. Skip this step if `.evolve/.bootstrapped` exists.
+## Execution Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Step -1: Bootstrap (first run only)                            │
+│  Step 0-pre: Search for existing benchmarks                     │
+│  Step 0: Generate benchmark infrastructure                      │
+│  Step 1: Establish baseline                                     │
+│                                                                  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  EVOLUTION LOOP (adaptive)                                 │  │
+│  │                                                            │  │
+│  │  while budget_remaining AND improving:                     │  │
+│  │    - Generation N: crossover + mutation                    │  │
+│  │    - Evaluate offspring                                    │  │
+│  │    - Update population                                     │  │
+│  │    - Check stopping criteria                               │  │
+│  │    - Checkpoint state                                      │  │
+│  │    - If plateau: ask user to continue?                     │  │
+│  │                                                            │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  Step Final: Report results                                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Step -1: Bootstrap (First Run Only)
+
+Skip if `.evolve/.bootstrapped` exists.
 
 1. **Check Rust Toolchain**:
    ```bash
    ~/.cargo/bin/cargo --version 2>/dev/null || cargo --version
    ```
-
-   If cargo is not found, use AskUserQuestion to offer installation:
-   ```
-   Rust toolchain is required but not found.
-
-   Options:
-   1. Install via rustup (recommended)
-   2. I'll install it manually
-   ```
-
-   If user chooses rustup:
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-   source ~/.cargo/env
-   ```
+   If missing, offer installation via AskUserQuestion.
 
 2. **Check Python 3.10+**:
    ```bash
    python3 --version
    ```
 
-   If Python < 3.10 or not found, inform user:
-   "Python 3.10+ is required. Please install from python.org or via your package manager."
-
-3. **Create local .evolve directory**:
+3. **Create directories and mark complete**:
    ```bash
    mkdir -p .evolve
-   ```
-
-4. **Mark bootstrap complete**:
-   ```bash
    touch .evolve/.bootstrapped
    ```
 
-   Report: "Bootstrap complete! Environment ready for evolution."
+---
+
+## Step 0-pre: Benchmark Discovery
+
+Search web for existing benchmarks before generating synthetic ones.
+
+Use WebSearch: `"<algorithm> benchmark rust github"`
+
+Present options via AskUserQuestion, or proceed to synthetic benchmark.
 
 ---
 
-### Step 0-pre: Benchmark Discovery (Web Search)
+## Step 0: Generate Benchmark Infrastructure
 
-Before generating synthetic benchmarks, search the web for existing high-quality benchmarks:
+Create in `.evolve/<problem-name>/`:
 
-1. **Web Search for Benchmarks**:
-   Use WebSearch to find relevant benchmarks. Construct queries like:
-   - `"<algorithm> benchmark rust github"`
-   - `"<algorithm> performance comparison rust"`
-   - `"<algorithm> crate benchmark rust"`
-
-   Look for:
-   - GitHub repos with benchmark suites
-   - Crates.io packages with `bench` directories
-   - Published performance comparisons
-
-2. **Evaluate Search Results**:
-   For each promising result, assess:
-   - Repository activity (recent commits, stars)
-   - Benchmark quality (realistic test data, multiple implementations)
-   - API compatibility (can we implement their trait?)
-
-   Use WebFetch to examine promising repos if needed.
-
-3. **Present Options to User**:
-   Use AskUserQuestion:
-   ```
-   Found benchmark options for {problem}:
-
-   1. {repo1} - {description} ({stars} stars)
-   2. {repo2} - {description} ({stars} stars)
-   3. Generate synthetic benchmark from scratch
-   ```
-
-4. **If User Selects External**:
-   - Clone to `.evolve/<problem>/external/`
-   - Analyze the benchmark interface
-   - Generate compatible `evolved.rs`
-   - Adapt `evaluator.py` to run their benchmark
-   - Skip to Step 1 (Establish Baseline)
-
-5. **If Synthetic or No Good Results**: Proceed to Step 0 (generate synthetic benchmark)
-
----
-
-### Step 0: Generate Benchmark Infrastructure
-
-If no external benchmark is used, create a complete Rust benchmark harness in `.evolve/<problem-name>/`:
-
-#### 0a. Analyze the Problem
-
-1. Parse the problem description to understand:
-   - What function/algorithm to optimize
-   - Input/output types
-   - Success criteria (speed, memory, accuracy)
-   - Known baseline algorithms to compare against
-
-2. Create directory structure:
-   ```
-   .evolve/<problem-name>/
-   ├── rust/
-   │   ├── Cargo.toml
-   │   └── src/
-   │       ├── lib.rs        # Trait definition
-   │       ├── baselines.rs  # Known algorithms to beat
-   │       ├── evolved.rs    # Current best (mutations go here)
-   │       └── benchmark.rs  # Benchmark binary
-   ├── evaluator.py          # Fitness evaluation script
-   ├── population.json       # Current population state
-   └── mutations/            # Store all mutations by generation
-   ```
-
-#### 0b. Generate Cargo.toml
-
-```toml
-[package]
-name = "<problem_name>"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-rand = "0.8"
-
-[profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
-panic = "abort"
-
-[[bin]]
-name = "benchmark"
-path = "src/benchmark.rs"
+```
+.evolve/<problem-name>/
+├── rust/
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs        # Trait definition
+│       ├── baselines.rs  # Known algorithms to beat
+│       ├── evolved.rs    # Current champion
+│       └── benchmark.rs  # Benchmark binary
+├── evaluator.py          # Fitness evaluation
+├── evolution.json        # Full evolution state (for resume)
+└── mutations/            # All tested mutations
 ```
 
-#### 0c. Generate lib.rs with Trait
+### evolution.json (Master State File)
 
-Define a trait that all implementations must satisfy:
-
-```rust
-//! <Problem> Benchmark
-pub mod baselines;
-pub mod evolved;
-
-/// Trait for <problem> implementations
-pub trait <TraitName> {
-    fn <method>(&self, <inputs>) -> <output>;
-}
-
-#[cfg(test)]
-mod tests {
-    // Correctness tests for all implementations
-}
-```
-
-#### 0d. Generate baselines.rs
-
-Implement 2-4 known baseline algorithms:
-- A naive/simple implementation (the "bad" algorithm to dramatically beat)
-- The standard library approach (if applicable)
-- 1-2 optimized known algorithms
-
-These are the targets to beat.
-
-#### 0e. Generate evolved.rs
-
-Start with the naive/simple implementation that:
-- Implements the trait correctly
-- Passes all tests
-- Is intentionally suboptimal (this is what we evolve FROM)
-
-#### 0f. Generate benchmark.rs
-
-Create a benchmark binary that:
-1. Generates realistic test data (mix of edge cases and common cases)
-2. Verifies correctness of all implementations
-3. Times each implementation with warmup
-4. Outputs JSON with results:
-
-```rust
-#[derive(Serialize)]
-struct FullResults {
-    results: Vec<BenchmarkResult>,
-    correctness: bool,
-}
-```
-
-#### 0g. Generate evaluator.py
-
-Python script that:
-1. Accepts an optional path to evolved code
-2. Copies it to evolved.rs if provided
-3. Runs `cargo build --release`
-4. Runs the benchmark
-5. Computes fitness score (0.0-1.0)
-6. Outputs JSON:
+This file enables resumption and tracks all evolution state:
 
 ```json
 {
-  "fitness": 0.85,
-  "ops_per_second": 12345678,
-  "vs_best_baseline": 15.2,
-  "correctness": true,
-  "all_results": {...}
+  "problem": "sorting algorithm for integers",
+  "created": "2024-01-15T10:30:00Z",
+  "updated": "2024-01-15T11:45:00Z",
+
+  "budget": {
+    "type": "tokens",
+    "limit": 50000,
+    "used": 23450,
+    "remaining": 26550
+  },
+
+  "generation": 5,
+  "status": "running",
+
+  "baseline": {
+    "naive": 1289,
+    "std": 114592,
+    "std_unstable": 168417
+  },
+
+  "champion": {
+    "id": "gen4_crossover_radix_shell",
+    "fitness": 0.94,
+    "ops_per_second": 185000,
+    "generation_discovered": 4
+  },
+
+  "population": [
+    {
+      "id": "gen4_crossover_radix_shell",
+      "fitness": 0.94,
+      "ops_per_second": 185000,
+      "algorithm_family": "hybrid_radix_shell",
+      "key_innovations": ["11-bit radix", "insertion base case", "gap presort"],
+      "parents": ["gen3_radix_quick", "gen2_shellsort"],
+      "code_path": "mutations/gen4_crossover_radix_shell.rs"
+    }
+    // ... 3 more
+  ],
+
+  "history": [
+    {
+      "generation": 1,
+      "best_fitness": 0.89,
+      "best_ops": 156000,
+      "best_id": "gen1_radix",
+      "improvement": null,
+      "tokens_used": 4500
+    },
+    {
+      "generation": 2,
+      "best_fitness": 0.91,
+      "best_ops": 172000,
+      "best_id": "gen2_crossover_radix_quick",
+      "improvement": 0.02,
+      "tokens_used": 4200
+    },
+    {
+      "generation": 3,
+      "best_fitness": 0.91,
+      "best_ops": 173000,
+      "best_id": "gen2_crossover_radix_quick",
+      "improvement": 0.00,
+      "plateau_count": 1,
+      "tokens_used": 4100
+    }
+  ],
+
+  "stopping": {
+    "plateau_count": 0,
+    "plateau_threshold": 3,
+    "min_improvement": 0.005,
+    "max_generations": null
+  }
 }
 ```
 
-#### 0h. Verify Setup
+---
 
-Run the evaluator to ensure everything compiles and works:
-```bash
-cd .evolve/<problem-name> && python3 evaluator.py
+## Step 1: Establish Baseline & Get Budget
+
+1. Run evaluator on naive implementation
+2. Report baseline speeds
+3. **Ask user for budget** via AskUserQuestion:
+
+```
+Evolution ready for: sorting algorithm for integers
+
+Baselines:
+  bubble (naive):    1,289 ops/sec  ← starting point
+  std:             114,592 ops/sec
+  std_unstable:    168,417 ops/sec  ← target to beat
+
+Token budget? (Each generation ≈ 4,000-5,000 tokens)
+
+Options:
+1. Quick (10k tokens, ~2-3 generations)
+2. Standard (50k tokens, ~10-12 generations) [Recommended]
+3. Deep (100k tokens, ~20-25 generations)
+4. Unlimited (run until plateau, ask every 5 gens)
+5. Custom amount
 ```
 
-Report baseline results to user before proceeding.
-
-### Step 1: Establish Baseline
-
-1. Run evaluator on initial (naive) implementation
-2. Report all baseline speeds to user
-3. Identify the targets to beat
+Store budget in `evolution.json`.
 
 ---
 
-## Step 2: Evolution Loop (Population-Based with Crossover)
+## Step 2: Evolution Loop (Adaptive)
 
-Run 3-5 generations with **true genetic recombination**.
+### Token Estimation
+
+Approximate tokens per generation:
+- 8 mutation/crossover agents: ~3,000 tokens
+- Innovation extraction: ~500 tokens
+- Evaluation overhead: ~500 tokens
+- **Total: ~4,000-5,000 tokens/generation**
 
 ### Generation 1: Divergent Exploration
 
-#### 2a. Generate Initial Mutations (PARALLEL - 8 agents)
+Spawn 8 parallel mutation agents with strategies:
+- tweak, unroll, specialize, vectorize, memoize, restructure, hybrid, alien
 
-Spawn 8 mutation agents in parallel using the Task tool. Each agent receives:
-- The current seed code
-- The trait definition and requirements
-- A specific mutation strategy
+Evaluate all, extract innovations, select top 4 with diversity.
 
-**Mutation strategies**:
-- **tweak**: Micro-optimizations (cache values, reorder branches, inline)
-- **unroll**: Loop unrolling, batch processing
-- **specialize**: Fast paths for common cases (small inputs, specific values)
-- **vectorize**: SIMD-friendly patterns, word-at-a-time processing
-- **memoize**: Lookup tables, precomputation
-- **restructure**: Different algorithmic approach entirely
-- **hybrid**: Combine techniques from multiple known algorithms
-- **alien**: Radically different approach (e.g., different complexity class)
+**Update evolution.json** after each generation.
 
-**Mutation agent prompt template**:
+### Generation 2+: Crossover + Mutation
+
+Each generation:
+1. **Budget check**: Is there budget remaining?
+2. **4 crossover agents**: Combine parent pairs
+3. **4 mutation agents**: Refine top performers
+4. **Evaluate** all 8 offspring
+5. **Extract innovations** from successful ones
+6. **Select** new population with diversity + elitism
+7. **Update** evolution.json with new state
+8. **Check stopping criteria**
+
+### Adaptive Stopping Criteria
+
+After each generation, evaluate:
+
+```python
+def should_stop(evolution_state):
+    # 1. Budget exhausted
+    if budget_used >= budget_limit:
+        return True, "budget_exhausted"
+
+    # 2. Plateau detected (no improvement for N generations)
+    if plateau_count >= plateau_threshold:
+        return True, "plateau"
+
+    # 3. Target achieved (if specified)
+    if champion_fitness >= target_fitness:
+        return True, "target_achieved"
+
+    # 4. Max generations (if specified)
+    if generation >= max_generations:
+        return True, "max_generations"
+
+    return False, None
+```
+
+### Plateau Detection
+
+Track improvement across generations:
+
+```python
+def update_plateau_status(current_fitness, previous_fitness, min_improvement=0.005):
+    improvement = current_fitness - previous_fitness
+
+    if improvement < min_improvement:
+        plateau_count += 1
+    else:
+        plateau_count = 0  # Reset on improvement
+
+    return plateau_count
+```
+
+**Plateau threshold**: 3 generations without meaningful improvement (>0.5%)
+
+### User Checkpoint (On Plateau or Every N Generations)
+
+When plateau detected OR every 5 generations with `unlimited` budget:
+
+```
+Generation 8 Complete:
+  Champion: 185K ops/sec (+14,254% vs bubble, +10% vs std_unstable)
+
+  ⚠️  Plateau detected: No improvement for 3 generations
+
+  Budget used: 34,200 / 50,000 tokens (68%)
+
+  Options:
+  1. Continue evolution (may find breakthrough)
+  2. Stop and save champion
+  3. Try radical mutations only (higher variance)
+```
+
+Use AskUserQuestion to let user decide.
+
+### Breakthrough Detection
+
+If improvement after plateau:
+
+```
+🎉 Breakthrough in Generation 9!
+  Previous best: 185K ops/sec
+  New champion:  201K ops/sec (+8.6%)
+
+  Innovation: SIMD-friendly radix bucket distribution
+
+  Plateau reset. Continuing evolution...
+```
+
+---
+
+## Step 3: Checkpointing & Resume
+
+### After Each Generation
+
+Write complete state to `evolution.json`:
+- Current population
+- Champion
+- History with fitness trajectory
+- Budget usage
+- Plateau count
+
+### Resume Command
+
+When user runs `/evolve --resume`:
+
+1. Find most recent `evolution.json` in `.evolve/*/`
+2. Load state
+3. Report current status:
+
+```
+Resuming evolution: sorting algorithm for integers
+
+Status: Paused at generation 5
+Champion: 185K ops/sec (gen4_crossover_radix_shell)
+Budget remaining: 26,550 / 50,000 tokens
+
+Last 3 generations:
+  Gen 3: 173K ops/sec (plateau 1)
+  Gen 4: 185K ops/sec (breakthrough!)
+  Gen 5: 185K ops/sec (plateau 1)
+
+Continue evolution?
+```
+
+4. Resume from saved population state
+
+---
+
+## Step 4: Finalize
+
+When evolution stops (any reason):
+
+```
+Evolution Complete!
+
+Problem: sorting algorithm for integers
+Generations: 12
+Total tokens: 48,750
+Stop reason: plateau (3 generations without improvement)
+
+Evolution Trajectory:
+  Gen  1: 156K ops/sec  radix_sort discovered
+  Gen  2: 172K ops/sec  radix+quicksort hybrid (+10%)
+  Gen  3: 173K ops/sec  minor refinement (+0.5%)
+  Gen  4: 185K ops/sec  breakthrough: added shellsort presort (+7%)
+  Gen  5: 185K ops/sec  plateau
+  ...
+  Gen 12: 189K ops/sec  final refinement
+
+Baselines:
+  bubble:        1.3K ops/sec (naive starting point)
+  std:         115K ops/sec
+  std_unstable: 168K ops/sec
+
+Champion: 189K ops/sec
+  vs bubble:       +14,538% (146x faster)
+  vs std_unstable: +12.5%
+
+Key Innovations in Champion:
+  - 11-bit radix buckets (Gen 1)
+  - Sign-bit flip for negatives (Gen 1)
+  - Insertion sort for n < 32 (Gen 4)
+  - Nearly-sorted detection (Gen 4)
+
+Champion saved to: .evolve/sorting/rust/src/evolved.rs
+State saved to: .evolve/sorting/evolution.json
+
+To continue evolution later: /evolve --resume
+```
+
+---
+
+## Mutation & Crossover Prompts
+
+### Mutation Agent Prompt
+
 ```
 You are an algorithm optimizer. Improve this Rust code for SPEED.
 
@@ -306,105 +451,10 @@ Requirements:
 - Use unsafe if it helps (with proper safety invariants)
 
 Return ONLY the complete Rust code for evolved.rs, no explanations.
-The code must start with the imports and struct definition.
 ```
 
-#### 2b. Evaluate All Mutations
+### Crossover Agent Prompt
 
-For each mutation:
-1. Write to `.evolve/<problem>/mutations/gen1_<strategy>.rs`
-2. Run evaluator: `python3 evaluator.py <path>`
-3. Parse JSON result
-4. Track: fitness, ops_per_second, correctness
-
-#### 2c. Extract Innovations (CRITICAL FOR CROSSOVER)
-
-For each successful mutation (correctness=true), spawn an analysis agent:
-
-**Innovation extraction prompt**:
-```
-Analyze this algorithm implementation and extract its key innovations.
-
-CODE:
-<code>
-
-PERFORMANCE: <ops_per_second> ops/sec
-
-Respond in this exact JSON format:
-{
-  "algorithm_family": "<e.g., radix_sort, quicksort, lookup_table, simd, etc.>",
-  "key_innovations": [
-    "<specific technique 1>",
-    "<specific technique 2>",
-    "<specific technique 3>"
-  ],
-  "strengths": [
-    "<what input types/sizes/patterns is this fast on>"
-  ],
-  "weaknesses": [
-    "<what input types/sizes/patterns is this slow on>"
-  ],
-  "complexity": {
-    "time": "<O(n), O(n log n), etc.>",
-    "space": "<O(1), O(n), etc.>"
-  }
-}
-```
-
-#### 2d. Select Top 4 with Diversity
-
-Rank by fitness, but enforce diversity:
-- Cannot have more than 2 solutions from the same `algorithm_family`
-- If top 4 would violate this, skip to next-best from different family
-
-Store population state in `population.json`:
-```json
-{
-  "generation": 1,
-  "population": [
-    {
-      "id": "gen1_radix",
-      "fitness": 0.89,
-      "ops_per_second": 156000,
-      "algorithm_family": "radix_sort",
-      "key_innovations": ["11-bit buckets", "sign-bit flip"],
-      "strengths": ["random data", "large arrays"],
-      "weaknesses": ["nearly-sorted", "small arrays"],
-      "code_path": "mutations/gen1_restructure.rs"
-    },
-    // ... 3 more
-  ]
-}
-```
-
-Report generation results to user:
-```
-Generation 1 Complete:
-  Population:
-    1. radix_sort     - 156K ops/sec (innovations: 11-bit buckets, sign-bit flip)
-    2. quicksort      - 142K ops/sec (innovations: median-of-3, tail recursion)
-    3. heapsort       - 98K ops/sec  (innovations: bottom-up heapify)
-    4. shellsort      - 89K ops/sec  (innovations: Ciura gaps)
-
-  Diversity: 4 algorithm families represented
-  Best vs baseline: +7126% (71x faster than bubble sort)
-```
-
----
-
-### Generation 2+: Crossover + Mutation
-
-#### 2e. Generate Crossover Offspring (PARALLEL - 4 agents)
-
-Spawn 4 crossover agents, each combining 2 parents from the population.
-
-**Crossover pairs** (ensure each parent participates at least once):
-- Parent 1 × Parent 2
-- Parent 1 × Parent 3
-- Parent 2 × Parent 4
-- Parent 3 × Parent 4
-
-**Crossover agent prompt template**:
 ```
 You are creating a HYBRID algorithm by combining two parent solutions.
 
@@ -439,181 +489,71 @@ Create a HYBRID solution that:
 
 The goal is a solution FASTER than either parent by combining their strengths.
 
-Requirements:
-- Must implement the trait exactly
-- Must pass all correctness tests
-- Should incorporate specific techniques from BOTH parents
-
 Return ONLY the complete Rust code for evolved.rs, no explanations.
 ```
 
-#### 2f. Generate Mutation Offspring (PARALLEL - 4 agents)
-
-Also spawn 4 mutation agents on the top 2 parents:
-- Mutate Parent 1 with strategies: tweak, specialize
-- Mutate Parent 2 with strategies: vectorize, unroll
-
-Use the same mutation prompt as Generation 1.
-
-#### 2g. Evaluate All Offspring (8 total)
-
-Same as 2b - evaluate all 8 offspring.
-
-#### 2h. Extract Innovations
-
-Same as 2c - extract innovations from successful offspring.
-
-#### 2i. Select New Population
-
-Combine parents + offspring (12 solutions total), select top 4 with diversity.
-
-**Elitism**: The best solution from the previous generation is always kept (cannot be displaced).
-
-Report generation results.
-
----
-
-### Step 3: Repeat for 3-5 Generations
-
-Continue the crossover + mutation cycle. Each generation:
-- 4 crossover offspring (combining parent innovations)
-- 4 mutation offspring (refining existing solutions)
-- Selection with diversity pressure
-
-**Stopping criteria**:
-- 5 generations completed, OR
-- No improvement for 2 consecutive generations, OR
-- Champion exceeds 2x best baseline performance
-
----
-
-### Step 4: Finalize
-
-1. Write champion (best overall) to `evolved.rs`
-2. Run final benchmark
-3. Report complete evolution history:
+### Innovation Extraction Prompt
 
 ```
-Evolution Complete!
+Analyze this algorithm implementation and extract its key innovations.
 
-Problem: <problem description>
-Generations: N
-Total mutations tested: M
-Crossovers performed: C
+CODE:
+<code>
 
-Evolution History:
-  Gen 1: radix_sort discovered (156K ops/sec)
-  Gen 2: radix+quicksort hybrid (178K ops/sec) - combined bucket distribution + partition
-  Gen 3: added insertion sort base case from shellsort (185K ops/sec)
-  Gen 4: no improvement (plateau)
-  Gen 5: breakthrough - SIMD-friendly radix (201K ops/sec)
+PERFORMANCE: <ops_per_second> ops/sec
 
-Baselines:
-  - bubble:       1.3K ops/sec (the naive starting point)
-  - std:        115K ops/sec
-  - std_unstable: 168K ops/sec
-
-Champion:   201K ops/sec
-Improvement: +15,369% vs bubble (154x faster)
-            +20% vs std_unstable
-
-Key Innovations in Champion:
-  - 11-bit radix buckets (from Gen 1 radix)
-  - Sign-bit flip for negative handling (from Gen 1 radix)
-  - Insertion sort for n < 32 (from Gen 3 crossover with shellsort)
-  - Cache-line aligned buffers (from Gen 5 mutation)
-
-Champion saved to: .evolve/<problem>/rust/src/evolved.rs
-```
-
----
-
-## Population Data Structures
-
-### population.json
-
-```json
+Respond in this exact JSON format:
 {
-  "generation": 3,
-  "champion": {
-    "id": "gen2_crossover_radix_quick",
-    "fitness": 0.92,
-    "ops_per_second": 178000
-  },
-  "population": [
-    {
-      "id": "gen2_crossover_radix_quick",
-      "fitness": 0.92,
-      "ops_per_second": 178000,
-      "algorithm_family": "hybrid_radix_quick",
-      "key_innovations": [
-        "11-bit radix for large arrays",
-        "quicksort partition for medium",
-        "insertion for small"
-      ],
-      "parents": ["gen1_radix", "gen1_quicksort"],
-      "strengths": ["all sizes", "random data"],
-      "weaknesses": ["nearly-sorted large arrays"],
-      "code_path": "mutations/gen2_crossover_radix_quick.rs"
-    }
-    // ... 3 more
-  ],
-  "history": [
-    {"generation": 1, "best_fitness": 0.89, "best_id": "gen1_radix"},
-    {"generation": 2, "best_fitness": 0.92, "best_id": "gen2_crossover_radix_quick"}
-  ]
+  "algorithm_family": "<e.g., radix_sort, quicksort, lookup_table, simd, etc.>",
+  "key_innovations": ["<technique 1>", "<technique 2>", ...],
+  "strengths": ["<fast on what>", ...],
+  "weaknesses": ["<slow on what>", ...],
+  "complexity": {"time": "<O(?)>", "space": "<O(?)>"}
 }
 ```
 
 ---
 
-## Fitness Function
+## Radical Mutation Mode
 
-```python
-# Base: speed ratio to best baseline
-speed_ratio = evolved_speed / best_baseline_speed
+When user chooses "radical mutations only" after plateau:
 
-# Scale to 0-1, cap at 2x improvement
-fitness = min(speed_ratio, 2.0) / 2.0
+Spawn 8 agents with high-variance strategies:
+- **alien**: Completely different algorithm family
+- **alien2**: Another alien approach
+- **restructure**: Fundamental reorganization
+- **complexity_change**: Try different complexity class (e.g., O(n²) → O(n))
+- **simd**: Explicit SIMD vectorization
+- **unsafe_aggressive**: Aggressive unsafe optimizations
+- **lookup_heavy**: Maximum precomputation
+- **branch_free**: Eliminate all branches
 
-# Bonus for beating all baselines
-if evolved_speed > best_baseline_speed:
-    fitness = min(fitness + 0.1, 1.0)
-
-# Correctness gate: 0 if tests fail
-if not correctness:
-    fitness = 0.0
-```
+This increases variance to escape local optima at the cost of more failed mutations.
 
 ---
 
 ## Key Principles
 
-1. **Correctness First**: Any mutation/crossover that fails tests gets fitness = 0
-2. **Parallel Execution**: Always spawn agents in parallel for speed
-3. **True Recombination**: Crossover combines innovations, not just picks winner
-4. **Diversity Pressure**: Population must represent multiple algorithm families
-5. **Elitism**: Never lose the best solution found so far
-6. **Innovation Tracking**: Know WHY each solution is fast, enabling intelligent crossover
-7. **Realistic Benchmarks**: Test data should reflect real-world usage patterns
+1. **Adaptive by default**: Continues while improving, stops on plateau
+2. **User control**: Budget limits prevent runaway token usage
+3. **Resumable**: Full state checkpointed after each generation
+4. **Transparent**: Clear reporting of improvement trajectory
+5. **Correctness first**: Failed tests = fitness 0
+6. **Diversity maintained**: Population represents multiple algorithm families
+7. **Elitism**: Never lose the best solution
 
 ---
 
-## Why This Works Better Than "Make It Faster" Loops
+## Token Budget Reference
 
-| Simple Loop | Population + Crossover |
-|-------------|------------------------|
-| Refines one lineage | Combines multiple lineages |
-| Plateus quickly | Escapes local optima via recombination |
-| Gen 5 ≈ Gen 2 with more attempts | Gen 5 has traits from 5 generations |
-| No diversity | Enforced algorithm diversity |
-| No memory of what worked | Innovations tracked and recombined |
+| Scenario | Tokens | Generations | Typical Improvement |
+|----------|--------|-------------|---------------------|
+| Quick test | 10k | 2-3 | Find basic algorithm |
+| Standard | 50k | 10-12 | Good optimization |
+| Deep | 100k | 20-25 | Near-optimal |
+| Very deep | 200k | 40-50 | Diminishing returns |
 
-Example of compounding benefits:
-- **Gen 1**: Discovers radix sort (fast distribution) and quicksort (fast partition)
-- **Gen 2**: Crossover creates radix+quick hybrid
-- **Gen 3**: Adds shellsort's gap sequence for nearly-sorted detection
-- **Gen 4**: Incorporates heapsort as depth-limit fallback
-- **Gen 5**: Final hybrid has traits from 4 original algorithm families
-
-Each generation COMBINES innovations rather than just refining one approach.
+Most improvements happen in first 5-10 generations. Deep runs help for:
+- Complex algorithm spaces
+- Multiple valid approaches to combine
+- Finding non-obvious optimizations
