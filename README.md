@@ -7,19 +7,20 @@ Evolutionary algorithm discovery for Claude Code. Evolves novel solutions to har
 The `/evolve` skill uses **parallel Claude Code agents** for true genetic algorithm evolution:
 
 ### Agent-Based Architecture
-- **8 parallel agents per generation**: Each explores a different mutation strategy
+- **Dynamic agent scaling**: Analyzes problem to spawn 10-32 agents based on viable strategies
 - **Semantic crossover**: Agents combine innovations from parent solutions
 - **Adaptive stopping**: Runs until plateau (3 gens without >0.5% improvement)
-- **Budget control**: `--budget 10k|50k|100k|unlimited`
+- **Smart budget**: Recommends budget based on problem complexity
 
 ### Generation 1: Divergent Exploration
-- Spawn 8 mutation agents in parallel (tweak, unroll, specialize, vectorize, memoize, restructure, hybrid, alien)
+- Analyze problem → determine viable algorithm families and optimization dimensions
+- Spawn N agents in parallel (one per viable strategy, typically 10-32)
 - Extract **innovations** from each solution (what makes it fast?)
 - Select top 4 with **diversity pressure** (max 2 from same algorithm family)
 
 ### Generation 2+: Crossover + Mutation
-- **4 crossover agents**: Combine innovations from parent pairs
-- **4 mutation agents**: Refine top performers
+- **N/2 crossover agents**: Combine innovations from parent pairs
+- **N/2 mutation agents**: Refine top performers
 - Elitism: Never lose the champion
 - Checkpoint state to `evolution.json` for resume
 
@@ -74,15 +75,15 @@ The skill will:
 ┌─────────────────────────────────────────────────────────────────┐
 │                    GENERATION 1: Exploration                     │
 │                                                                  │
-│  8 Parallel Mutation Agents:                                    │
-│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐                   │
-│  │ radix  │ │ quick  │ │ heap   │ │ shell  │ ...               │
-│  └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘                   │
-│      │          │          │          │                          │
-│      ▼          ▼          ▼          ▼                          │
-│  [Evaluate] [Evaluate] [Evaluate] [Evaluate]                    │
-│      │          │          │          │                          │
-│      ▼          ▼          ▼          ▼                          │
+│  Problem Analysis → N viable strategies (10-32 agents)          │
+│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌─────┐           │
+│  │ radix  │ │ quick  │ │ heap   │ │ shell  │ │ ... │           │
+│  └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘ └──┬──┘           │
+│      │          │          │          │         │                │
+│      ▼          ▼          ▼          ▼         ▼                │
+│  [Evaluate] [Evaluate] [Evaluate] [Evaluate]  [...]             │
+│      │          │          │          │         │                │
+│      ▼          ▼          ▼          ▼         ▼                │
 │  [Extract Innovations: what makes each solution fast?]          │
 │                                                                  │
 │  Select Top 4 with Diversity (different algorithm families)     │

@@ -134,6 +134,14 @@ This file enables resumption and tracks all evolution state:
   "created": "2024-01-15T10:30:00Z",
   "updated": "2024-01-15T11:45:00Z",
 
+  "problem_analysis": {
+    "algorithm_families": ["quicksort", "mergesort", "heapsort", "radix", "counting", "shell", "timsort", "introsort"],
+    "optimization_dimensions": ["cache", "simd", "branch_prediction", "small_array", "nearly_sorted", "memory"],
+    "viable_strategies": 26,
+    "gen1_agents": 26,
+    "gen2_agents": 16
+  },
+
   "budget": {
     "type": "tokens",
     "limit": 50000,
@@ -209,31 +217,102 @@ This file enables resumption and tracks all evolution state:
 
 ---
 
-## Step 1: Establish Baseline & Get Budget
+## Step 1: Establish Baseline & Analyze Problem
 
 1. Run evaluator on naive implementation
 2. Report baseline speeds
-3. **Ask user for budget** via AskUserQuestion:
+3. **Analyze problem to determine viable strategies**
+
+### Problem Analysis
+
+Analyze the problem to estimate:
+- **Algorithm families**: How many fundamentally different approaches exist?
+- **Optimization dimensions**: What can be optimized (cache, SIMD, branches, memory)?
+- **Input characteristics**: What variations matter (size, distribution, patterns)?
+
+```
+Example analysis for "sorting integers":
+
+Algorithm families (8+):
+  - Comparison: quicksort, mergesort, heapsort, shellsort, timsort
+  - Distribution: radix sort, counting sort, bucket sort
+  - Hybrid: introsort, pdqsort, pattern-defeating
+
+Optimization dimensions (6):
+  - Cache efficiency, SIMD, branch prediction, memory allocation
+  - Small-array specialization, nearly-sorted detection
+
+Estimated viable strategies: 14
+Recommended agents: 16 (Gen1), 12 (Gen2+)
+```
+
+### Agent Scaling Formula
+
+```python
+def estimate_agents(problem_analysis):
+    # Base: number of distinct algorithm families
+    algo_families = len(problem_analysis["algorithm_families"])
+
+    # Add optimization dimensions (each can be applied to top algos)
+    opt_dimensions = len(problem_analysis["optimization_dimensions"])
+
+    # Viable strategies = families + (top_3_families × opt_dimensions)
+    viable_strategies = algo_families + min(3, algo_families) * opt_dimensions
+
+    # Gen1: Explore all viable strategies (cap at 32)
+    gen1_agents = min(viable_strategies, 32)
+
+    # Gen2+: Crossover pairs + mutations (scale with population)
+    gen2_agents = min(viable_strategies // 2 + 4, 24)
+
+    return {
+        "gen1_agents": gen1_agents,
+        "gen2_agents": gen2_agents,
+        "viable_strategies": viable_strategies
+    }
+```
+
+### Smart Budget Recommendation
+
+Based on analysis, recommend budget and ask user:
 
 ```
 Evolution ready for: sorting algorithm for integers
 
 Baselines:
-  bubble (naive):    1,289 ops/sec  ← starting point
+  bubble (naive):    1,289 ops/sec
   std:             114,592 ops/sec
-  std_unstable:    168,417 ops/sec  ← target to beat
+  std_unstable:    168,417 ops/sec  ← target
 
-Token budget? (Each generation ≈ 4,000-5,000 tokens)
+Problem Analysis:
+  Algorithm families: 8 (comparison, distribution, hybrid)
+  Optimization dimensions: 6
+  Viable strategies: 14
 
-Options:
-1. Quick (10k tokens, ~2-3 generations)
-2. Standard (50k tokens, ~10-12 generations) [Recommended]
-3. Deep (100k tokens, ~20-25 generations)
-4. Unlimited (run until plateau, ask every 5 gens)
-5. Custom amount
+Recommended: 16 agents/gen, ~6k tokens/gen
+
+Budget Options:
+1. Quick (10k) - 2 gens, 8 agents each [minimal exploration]
+2. Standard (50k) - 8 gens, 16 agents Gen1, 12 Gen2+ [Recommended]
+3. Deep (100k) - 16 gens, 24 agents Gen1, 16 Gen2+ [thorough]
+4. Maximum (200k) - 32 gens, 32 agents Gen1, 24 Gen2+ [exhaustive]
+5. Unlimited - run until plateau
+
+⚡ For this problem, Standard (50k) should explore most viable algorithms.
+   Deep (100k) recommended if you want thorough hybrid combinations.
 ```
 
-Store budget in `evolution.json`.
+### Dynamic Scaling Examples
+
+| Problem | Algo Families | Opt Dims | Viable | Gen1 Agents | Gen2+ Agents |
+|---------|--------------|----------|--------|-------------|--------------|
+| Fibonacci | 4 | 2 | 10 | 10 | 8 |
+| Sorting | 8 | 6 | 26 | 26 | 16 |
+| String search | 6 | 4 | 18 | 18 | 12 |
+| Hash function | 10 | 5 | 25 | 25 | 16 |
+| Integer parsing | 3 | 4 | 15 | 15 | 10 |
+
+Store analysis and agent counts in `evolution.json`.
 
 ---
 
@@ -241,16 +320,46 @@ Store budget in `evolution.json`.
 
 ### Token Estimation
 
-Approximate tokens per generation:
-- 8 mutation/crossover agents: ~3,000 tokens
-- Innovation extraction: ~500 tokens
-- Evaluation overhead: ~500 tokens
-- **Total: ~4,000-5,000 tokens/generation**
+Tokens scale with agent count:
+```python
+def estimate_tokens_per_gen(agent_count):
+    return agent_count * 400 + 800  # ~400 tokens/agent + overhead
+
+# Examples:
+#   8 agents  → ~4,000 tokens/gen
+#  16 agents  → ~7,200 tokens/gen
+#  32 agents  → ~13,600 tokens/gen
+```
 
 ### Generation 1: Divergent Exploration
 
-Spawn 8 parallel mutation agents with strategies:
-- tweak, unroll, specialize, vectorize, memoize, restructure, hybrid, alien
+Spawn **N parallel mutation agents** where N = `gen1_agents` from problem analysis.
+
+Generate strategy list dynamically based on problem:
+```python
+def generate_strategies(problem_analysis, agent_count):
+    strategies = []
+
+    # 1. One agent per algorithm family
+    for family in problem_analysis["algorithm_families"]:
+        strategies.append(f"implement_{family}")
+
+    # 2. Optimization variants of top families
+    top_families = problem_analysis["algorithm_families"][:3]
+    for family in top_families:
+        for opt in problem_analysis["optimization_dimensions"]:
+            strategies.append(f"{family}_{opt}")
+
+    # 3. Fill remaining with general strategies
+    general = ["tweak", "unroll", "specialize", "vectorize",
+               "memoize", "restructure", "hybrid", "alien",
+               "simd", "branch_free", "cache_friendly", "unsafe_opt"]
+
+    while len(strategies) < agent_count:
+        strategies.extend(general)
+
+    return strategies[:agent_count]
+```
 
 Evaluate all, extract innovations, select top 4 with diversity.
 
@@ -258,11 +367,30 @@ Evaluate all, extract innovations, select top 4 with diversity.
 
 ### Generation 2+: Crossover + Mutation
 
+Each generation uses `gen2_agents` from problem analysis:
+
+```python
+def allocate_gen2_agents(agent_count, population):
+    # Half crossover, half mutation
+    crossover_count = agent_count // 2
+    mutation_count = agent_count - crossover_count
+
+    # Crossover: pair top performers
+    crossover_pairs = [(pop[i], pop[j])
+                       for i in range(len(pop))
+                       for j in range(i+1, len(pop))][:crossover_count]
+
+    # Mutation: apply diverse strategies to top performers
+    mutation_targets = population[:mutation_count]
+
+    return crossover_pairs, mutation_targets
+```
+
 Each generation:
 1. **Budget check**: Is there budget remaining?
-2. **4 crossover agents**: Combine parent pairs
-3. **4 mutation agents**: Refine top performers
-4. **Evaluate** all 8 offspring
+2. **N/2 crossover agents**: Combine parent pairs
+3. **N/2 mutation agents**: Refine top performers
+4. **Evaluate** all N offspring in parallel
 5. **Extract innovations** from successful ones
 6. **Select** new population with diversity + elitism
 7. **Update** evolution.json with new state
@@ -546,14 +674,22 @@ This increases variance to escape local optima at the cost of more failed mutati
 
 ## Token Budget Reference
 
-| Scenario | Tokens | Generations | Typical Improvement |
-|----------|--------|-------------|---------------------|
-| Quick test | 10k | 2-3 | Find basic algorithm |
-| Standard | 50k | 10-12 | Good optimization |
-| Deep | 100k | 20-25 | Near-optimal |
-| Very deep | 200k | 40-50 | Diminishing returns |
+Budget scales with problem complexity (agents × generations):
 
-Most improvements happen in first 5-10 generations. Deep runs help for:
-- Complex algorithm spaces
-- Multiple valid approaches to combine
-- Finding non-obvious optimizations
+| Budget | Simple (10 agents) | Medium (16 agents) | Complex (26 agents) |
+|--------|-------------------|-------------------|---------------------|
+| 10k | 2 gens | 1 gen | 1 gen |
+| 50k | 10 gens | 6 gens | 4 gens |
+| 100k | 20 gens | 12 gens | 7 gens |
+| 200k | 40 gens | 25 gens | 15 gens |
+
+**Rule of thumb**: More agents = better Gen1 exploration, more generations = better refinement.
+
+The system will recommend based on problem analysis:
+- Simple problems (fibonacci): fewer agents, more generations
+- Complex problems (sorting): more agents to explore algorithm space
+
+Most improvements happen in first 5-10 generations. More agents help for:
+- Large algorithm spaces (many valid approaches)
+- Problems with multiple optimization dimensions
+- Finding non-obvious hybrid combinations
