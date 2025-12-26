@@ -13,6 +13,136 @@ This showcase demonstrates an evolved bin packing heuristic that **beats Google 
 
 **Improvement over FunSearch: 7.4% relative (0.05 percentage points)**
 
+---
+
+## Why This Problem Matters
+
+### The Bin Packing Problem
+
+Bin packing is one of the most fundamental problems in computer science and operations research. Given a set of items with sizes and bins with fixed capacity, the goal is to pack all items using the minimum number of bins.
+
+**Real-world applications include:**
+
+- **Logistics & Shipping**: Packing boxes into containers, trucks, or cargo holds
+- **Cloud Computing**: Allocating virtual machines to physical servers
+- **Memory Management**: Allocating memory blocks to programs
+- **Cutting Stock**: Minimizing waste when cutting materials (steel, wood, fabric)
+- **Scheduling**: Packing tasks into time slots
+
+### Why Online Bin Packing?
+
+In the **online** variant, items arrive one at a time and must be placed immediately without knowledge of future items. This is the realistic scenario for most applications—you can't wait to see all packages before loading the first truck.
+
+### The FunSearch Breakthrough
+
+In December 2023, Google DeepMind published [FunSearch](https://www.nature.com/articles/s41586-023-06924-6), demonstrating that LLMs could discover novel algorithms by evolving code. Their bin packing result on the Weibull 5k benchmark achieved **0.68% excess**—meaning they used only 0.68% more bins than the theoretical minimum.
+
+This was a significant result because:
+1. It beat decades of hand-crafted heuristics
+2. The discovered formula was non-obvious and wouldn't be found by traditional optimization
+3. It demonstrated LLMs could contribute to mathematical discovery
+
+### Why Beating FunSearch Matters
+
+Improving on FunSearch's result demonstrates that:
+1. **Evolutionary approaches can compound**: Starting from FunSearch's insights, we found further improvements
+2. **Different mathematical formulations exist**: Our log-transform approach is fundamentally different from FunSearch's polynomial approach
+3. **The search space is rich**: Even well-studied problems have undiscovered heuristics
+
+---
+
+## The Evolution Journey
+
+### Generation 1: Exploring the Landscape (10 mutations)
+
+The first generation explored diverse strategies to understand what works:
+
+| Mutation | Excess % | Approach | Why It Failed/Succeeded |
+|----------|----------|----------|------------------------|
+| `gen1_funsearch_inspired` | 3.99% | Tried to approximate FunSearch | Missing key terms |
+| `gen1_perfect_fit` | 3.98% | Heavy bonus for exact fits | Over-prioritized rare perfect fits |
+| `gen1_waste_min` | 89.6% | Simple waste minimization | **Failed badly** - too greedy, created fragmentation |
+| `gen1_polynomial` | 3.98% | Various polynomial terms | Couldn't match FunSearch's specific formula |
+| `gen1_threshold_cascade` | 3.98% | Cascading thresholds | Too complex, no clear signal |
+| `gen1_ratio` | 3.98% | Item-to-bin ratios | Missed position-based terms |
+
+**Key Learning**: Simple approaches like waste minimization (89.6% excess!) catastrophically fail. The problem requires sophisticated balancing of multiple objectives.
+
+### Generation 2: Discovering FunSearch's Secret (8 mutations)
+
+Generation 2 focused on understanding what made FunSearch work:
+
+| Mutation | Excess % | Approach | Why It Failed/Succeeded |
+|----------|----------|----------|------------------------|
+| `gen2_funsearch_poly` | **0.68%** | Exact FunSearch replication | **Matched baseline!** Validated our understanding |
+| `gen2_cubic` | 89.6% | Higher-order polynomials | Overfit, created instabilities |
+| `gen2_item_aware` | 89.6% | Item-size adaptive | Lost the position-based scoring |
+| `gen2_gap_penalty` | 5.69% | Penalize gaps explicitly | Penalty too aggressive |
+
+**Key Learning**: The FunSearch formula has three critical components:
+1. `(bin - max_cap)² / item` — Position-based preference for bins near max capacity
+2. `bin² / item²` + `bin² / item³` — Polynomial utilization terms
+3. Sign flip when `bin > item` + adjacent difference — Creates non-linear dynamics
+
+### Generation 3-5: Exploring Alternatives (24 mutations)
+
+With FunSearch understood, we explored whether different mathematical formulations could do better:
+
+| Mutation | Excess % | Approach | Insight |
+|----------|----------|----------|---------|
+| `gen3_exact_funsearch` | 0.68% | Exact copy | Confirmed baseline |
+| `gen3_sigmoid` | 3.14% | Sigmoid transitions | Smoother but less precise |
+| `gen5_logarithmic` | 4.93% | Early log attempts | **Promising direction** but wrong formulation |
+| `gen4_deep_sigmoid` | 2.74% | Complex sigmoid network | Better than simple, not enough |
+
+**Key Learning**: Logarithmic functions showed promise for capturing non-linear relationships, but early attempts used them incorrectly (on raw values instead of ratios).
+
+### Generation 6-7: Closing the Gap (14 mutations)
+
+These generations refined the most promising approaches:
+
+| Mutation | Excess % | Approach | Insight |
+|----------|----------|----------|---------|
+| `gen6_lookup` | **0.75%** | Precomputed waste scores | Close! But brittle to distribution changes |
+| `gen6_funsearch_exact` | 0.68% | FunSearch baseline | Anchor point |
+| `gen7_negation` | 1.64% | Modified sign flip rules | Interesting but not better |
+| `gen7_adj_diff` | 2.72% | Alternative differencing | Different isn't always better |
+
+**Key Learning**: The lookup table approach (0.75%) showed that modeling the Weibull distribution directly could help, but hardcoded tables lack generality.
+
+### Generation 8: The Breakthrough (4 mutations)
+
+The final generation combined insights from all previous attempts:
+
+| Mutation | Excess % | Approach | Insight |
+|----------|----------|----------|---------|
+| `gen8_adaptive_threshold` | 1.50% | Item-size adaptive thresholds | Good idea, imperfect execution |
+| `gen8_second_order` | 1.57% | Second-order differences | Added complexity without benefit |
+
+### The Winning Mutation: Log-Transform Champion
+
+The champion emerged from combining:
+1. **FunSearch's proven position term**: `(bin - max_cap)² / item`
+2. **Logarithmic utilization**: `ln(waste+1) / ln(item+1)` instead of polynomial terms
+3. **Log-ratio term**: `ln(bin/item) / ln(item+1)` for relative sizing
+
+**Why logarithms work better:**
+- Polynomials (`bin²/item²`) grow quadratically, creating unstable gradients for large values
+- Logarithms compress the range, giving more uniform sensitivity across all item sizes
+- The ratio `ln(waste)/ln(item)` naturally captures "waste relative to item size"
+
+```rust
+// FunSearch's polynomial terms:
+bin² / item² + bin² / item³
+
+// Our log-transform replacement:
+ln(waste+1) / ln(item+1) * 2.0 + ln(bin/item) / ln(item+1)
+```
+
+This simple substitution reduced excess from **0.6842%** to **0.6339%**.
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -36,9 +166,9 @@ The benchmark outputs JSON with results for each algorithm. You should see:
 "funsearch": avg_excess_percent: ~0.6842
 ```
 
-The exact numbers may vary slightly due to floating-point precision, but evolved should consistently beat funsearch.
+---
 
-## Benchmark Details
+## Technical Details
 
 ### Dataset: Weibull 5k
 
@@ -78,6 +208,8 @@ Following FunSearch's exact protocol:
    - Select bin with highest priority
    - Update bin's remaining capacity
 3. Count bins actually used (remaining != capacity)
+
+---
 
 ## The Winning Algorithm
 
@@ -129,17 +261,7 @@ fn priority(&self, item: u32, bins: &[u32]) -> Vec<f64> {
 4. **Preserved** FunSearch's quadratic max-difference term `(b - max_cap)² / item`
 5. **Preserved** the sign flip and adjacent difference operations
 
-## File Structure
-
-```
-rust/
-├── Cargo.toml          # Build configuration
-└── src/
-    ├── lib.rs          # Trait definition + bin packing algorithm
-    ├── baselines.rs    # First Fit, Best Fit, Worst Fit, FunSearch
-    ├── evolved.rs      # Our winning algorithm
-    └── benchmark.rs    # Benchmark harness with Weibull 5k data
-```
+---
 
 ## Reproducing from Scratch
 
@@ -178,10 +300,28 @@ Expected ordering (best to worst):
 4. first_fit: ~4.23%
 5. worst_fit: ~151% (pathological)
 
+---
+
+## File Structure
+
+```
+rust/
+├── Cargo.toml          # Build configuration
+└── src/
+    ├── lib.rs          # Trait definition + bin packing algorithm
+    ├── baselines.rs    # First Fit, Best Fit, Worst Fit, FunSearch
+    ├── evolved.rs      # Our winning algorithm
+    └── benchmark.rs    # Benchmark harness with Weibull 5k data
+```
+
+---
+
 ## References
 
 - FunSearch paper: "Mathematical discoveries from program search with large language models" (Nature, 2024)
 - Original FunSearch bin packing code: https://github.com/google-deepmind/funsearch
+
+---
 
 ## Deterministic Reproduction
 
