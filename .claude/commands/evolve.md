@@ -8,6 +8,327 @@ argument-hint: <problem description>
 
 Evolve novel algorithms through LLM-driven mutation and selection with **true genetic recombination**. Runs adaptively—continuing while improvement is possible, stopping when plateaued.
 
+---
+
+## Evaluation Contract (Hard Requirements)
+
+These requirements are non-negotiable and must be enforced by the evolution loop:
+
+1. **Three-way split**: Every candidate MUST be evaluated on TRAIN + VALID + HOLDOUT/TEST datasets.
+   - TRAIN: Used for fitness scoring and selection
+   - VALID: Used for promotion gate (no regression allowed)
+   - HOLDOUT/TEST: Never used for selection; reported only for final analysis
+
+2. **Selection vs Promotion**:
+   - Selection is based on TRAIN performance only
+   - Promotion to champion requires: (a) no regression on VALID mean, (b) meets acceptance criteria below
+
+3. **Determinism Requirements**:
+   - Fixed random seeds OR explicit seed lists for all stochastic operations
+   - Fixed build mode (always `--release`, no debug builds during eval)
+   - Log and record: Rust toolchain version, git commit hash, platform info
+   - Command to reproduce any evaluation must be logged
+
+4. **Data Integrity**:
+   - TRAIN/VALID/HOLDOUT must be generated once at bootstrap and never modified
+   - Store checksums of test data in evolution.json
+   - If data changes, evolution must restart from scratch
+
+---
+
+## Acceptance Criteria (To Keep a Candidate)
+
+A candidate is accepted into the population only if ALL of the following hold:
+
+1. **TRAIN improvement**: Candidate improves mean TRAIN objective by at least ε (epsilon).
+   - Default ε = 0.001 (0.1% relative improvement)
+   - Configurable via `--epsilon <value>` or in evolution.json
+
+2. **VALID non-regression**: Candidate must not regress on VALID mean.
+   - Regression threshold: VALID_new >= VALID_old * 0.995 (allow 0.5% noise margin)
+
+3. **Instance consistency** (at least ONE must hold):
+   - Improves on at least K out of N instances (paired comparison), where K = ceil(N * 0.6)
+   - OR improves median across all instances
+
+4. **Noise handling**:
+   - If TRAIN improvement is within 2× noise floor, rerun evaluation R times (default R=3)
+   - Use median of R runs for final decision
+   - Noise floor estimated from baseline variance
+
+5. **Correctness**: Must pass all correctness tests (implicit, always required)
+
+```json
+// evolution.json acceptance config
+"acceptance": {
+  "epsilon": 0.001,
+  "valid_regression_tolerance": 0.005,
+  "instance_threshold_ratio": 0.6,
+  "noise_rerun_count": 3,
+  "noise_multiplier": 2.0
+}
+```
+
+---
+
+## Explanation Format (Falsifiable)
+
+Each generation MUST output structured explanations that enable learning from failures:
+
+### Required Fields Per Candidate
+
+```markdown
+### Candidate: gen3_simd_radix
+
+**Hypothesis** (1-2 sentences):
+SIMD-parallel bucket counting will reduce memory stalls during radix distribution phase.
+
+**Prediction** (specific, measurable):
+- Expect 10-20% improvement on large arrays (n > 10000)
+- Expect minimal change on small arrays (n < 1000)
+- Expect largest gains on uniformly distributed inputs
+
+**Evidence** (per-instance before/after):
+| Instance    | Baseline Bins | Candidate Bins | Baseline L1 | Candidate L1 | Baseline Excess | Candidate Excess | Delta |
+|-------------|---------------|----------------|-------------|--------------|-----------------|------------------|-------|
+| train_0     | 2012          | 2008           | 1998        | 1998         | 0.70%           | 0.50%            | -0.20 |
+| train_1     | 1983          | 1985           | 1975        | 1975         | 0.40%           | 0.51%            | +0.11 |
+| ...         | ...           | ...            | ...         | ...          | ...             | ...              | ...   |
+| **TRAIN μ** | 1998.2        | 1996.1         | 1987.8      | 1987.8       | 0.52%           | 0.42%            | -0.10 |
+| **VALID μ** | 2001.4        | 2000.8         | 1990.2      | 1990.2       | 0.56%           | 0.53%            | -0.03 |
+
+**Decision**: KEEP
+- Prediction confirmed: TRAIN improved by 0.10% (> ε=0.001)
+- VALID non-regression: 0.53% vs 0.56% (improved)
+- Instance check: 4/5 TRAIN instances improved
+
+**Next Mutation Plan** (one concrete change):
+Try 8-bit vs 11-bit radix to find optimal bucket count for cache efficiency.
+```
+
+### On Failure
+
+```markdown
+**Decision**: DROP
+- Prediction falsified: Expected 10-20% gain, observed 2% regression
+- Hypothesis update: SIMD overhead dominates for this data size distribution
+- Learning: Skip SIMD variants unless median instance size > 50000
+```
+
+---
+
+## Diversity & Exploration
+
+The evolution loop MUST maintain population diversity using at least ONE of these mechanisms:
+
+### Option 1: Islands (Multiple Populations)
+
+```python
+islands = {
+  "exploitation": {"focus": "refine_champion", "mutation_rate": 0.1},
+  "exploration": {"focus": "radical_changes", "mutation_rate": 0.5},
+  "hybrid": {"focus": "crossover_only", "mutation_rate": 0.0}
+}
+# Migration: Every 3 generations, copy best from each island to others
+```
+
+### Option 2: Novelty Metric
+
+Maintain a "probe set" of diverse inputs. Score candidates on behavioral novelty:
+```python
+def novelty_score(candidate, archive):
+    behavior = [candidate.eval(probe) for probe in probe_set]
+    distances = [euclidean(behavior, arch.behavior) for arch in archive]
+    return mean(sorted(distances)[:k])  # k-nearest novelty
+```
+
+### Option 3: MAP-Elites-Lite Bucketing
+
+Define 2-3 behavioral dimensions and maintain best-per-bucket:
+
+```python
+buckets = {
+  "complexity": ["simple (<10 ops)", "medium (10-50 ops)", "complex (>50 ops)"],
+  "strategy": ["comparison-based", "distribution-based", "hybrid"],
+  "specialization": ["general", "small-input", "large-input"]
+}
+# Keep best candidate in each bucket; crossover draws from different buckets
+```
+
+### Minimum Diversity Requirement
+
+Population of 4 must contain at least 2 distinct `algorithm_family` values. If diversity drops below threshold, force exploration:
+- Replace worst same-family candidate with random mutation from different family
+
+---
+
+## Complexity Budget
+
+Evolved algorithms must remain simple and efficient:
+
+### Runtime Complexity
+
+- `priority()` / core function must be **O(1) per element** (no nested loops over input)
+- No heap allocations in hot path
+- No I/O, no system calls, no threading primitives
+- No recursion deeper than O(log n)
+
+### Expression Complexity
+
+Cap maximum complexity to prevent overfitting:
+
+```python
+complexity_limits = {
+  "max_ast_nodes": 50,        # Approximate limit on expression tree size
+  "max_operations": 30,       # +, -, *, /, pow, sqrt, ln, exp, abs, min, max
+  "max_branches": 5,          # if/else, match arms
+  "max_constants": 10,        # Magic numbers
+  "max_nested_depth": 4       # Expression nesting depth
+}
+```
+
+### Preference Ordering
+
+Prefer simpler formulations (use as tiebreaker when fitness is equal):
+
+1. **Monotonic transforms**: prefer `a * x + b` over `a * x^2 + b * x + c`
+2. **Smooth functions**: prefer `ln(x)`, `sqrt(x)` over piecewise/discontinuous
+3. **Fewer magic constants**: prefer derived constants over tuned literals
+4. **No lookup tables**: unless proven >20% faster than computed
+
+### Discouraged Patterns
+
+Flag and penalize:
+- Piecewise functions with >3 branches
+- Constants that appear tuned to specific instances (overfitting signal)
+- Redundant terms that cancel out
+- Dead code paths
+
+---
+
+## Logging & Artifacts
+
+### Per-Generation JSONL Log
+
+Write to `.evolve/<problem>/generations.jsonl` (append-only):
+
+```jsonl
+{"gen": 1, "timestamp": "2024-12-26T10:30:00Z", "candidates": [...], "champion_id": "gen1_log", "train_best": 0.5836, "valid_best": 0.5901, "test_best": 0.5842}
+{"gen": 2, "timestamp": "2024-12-26T10:35:00Z", "candidates": [...], "champion_id": "gen1_log", "train_best": 0.5836, "valid_best": 0.5901, "test_best": 0.5842}
+```
+
+### Candidate Record Schema
+
+Each candidate entry in the JSONL:
+
+```json
+{
+  "id": "gen3_simd_radix",
+  "parent_ids": ["gen2_radix", "gen1_quicksort"],
+  "mutation_type": "crossover",
+  "git_diff_hash": "a1b2c3d4",
+  "code_path": "mutations/gen3_simd_radix.rs",
+
+  "metrics": {
+    "train": {"mean": 0.5720, "median": 0.5650, "std": 0.0234, "per_instance": [...]},
+    "valid": {"mean": 0.5834, "median": 0.5801, "std": 0.0198, "per_instance": [...]},
+    "test": {"mean": 0.5756, "median": 0.5712, "std": 0.0201, "per_instance": [...]}
+  },
+
+  "acceptance": {
+    "result": "KEEP",
+    "train_improvement": 0.0116,
+    "valid_regression": false,
+    "instances_improved": "4/5"
+  },
+
+  "explanation": {
+    "hypothesis": "SIMD-parallel bucket counting reduces memory stalls",
+    "prediction": "10-20% improvement on large arrays",
+    "outcome": "Confirmed: 11.6% improvement on TRAIN"
+  }
+}
+```
+
+### Best-So-Far Manifest
+
+Maintain `.evolve/<problem>/champion.json`:
+
+```json
+{
+  "id": "gen3_simd_radix",
+  "generation": 3,
+  "discovered_at": "2024-12-26T10:35:00Z",
+  "code_path": "rust/src/evolved.rs",
+  "metrics": {
+    "train": 0.5720,
+    "valid": 0.5834,
+    "test": 0.5756
+  },
+  "lineage": ["baseline", "gen1_radix", "gen2_radix", "gen3_simd_radix"],
+  "key_innovations": ["11-bit radix", "SIMD bucket count"],
+  "reproduce_command": "cd .evolve/bin-packing/rust && cargo run --release --bin benchmark"
+}
+```
+
+### Reproducibility Commands
+
+Log exact commands to reproduce any state:
+
+```bash
+# Logged in generations.jsonl
+"reproduce": {
+  "setup": "git checkout a1b2c3d4 && cd .evolve/bin-packing/rust",
+  "build": "~/.cargo/bin/cargo build --release",
+  "eval": "~/.cargo/bin/cargo run --release --bin benchmark -- --seed 42",
+  "expected_output_hash": "sha256:abc123..."
+}
+```
+
+---
+
+## Operational Guardrails
+
+### Separation of Concerns
+
+1. **Never edit evaluator AND candidate in same step**
+   - If evaluator needs fixing, do that first, verify baselines unchanged, then resume evolution
+   - Exception: explicit user request to modify both
+
+2. **One change at a time**
+   - Each candidate represents exactly ONE mutation or crossover
+   - No "while I'm here" improvements
+   - Diffs should be minimal and focused
+
+### Regression Handling
+
+3. **Automatic revert on regression**
+   - If new champion regresses on VALID by >1%, automatic rollback
+   - Alert user: "Reverted gen4_x: VALID regressed 2.3%"
+
+4. **Preserve lineage**
+   - Never delete mutation files
+   - Never overwrite evolved.rs without backup
+   - Keep full history in mutations/ directory
+
+### Safety Checks
+
+5. **Pre-flight validation**
+   - Before evaluating candidate: verify it compiles
+   - Before promoting: verify correctness tests pass
+   - Before committing: verify VALID non-regression
+
+6. **Checkpoint before risky operations**
+   - Save evolution.json before each generation
+   - Save champion.json before any promotion
+
+7. **Bounds on evolution**
+   - Max 100 generations without user confirmation
+   - Max 1000 candidates total per evolution run
+   - Alert if >50% of candidates fail to compile
+
+---
+
 ## Core Features
 
 1. **Population-based**: Maintains top 4 diverse solutions, not just the winner
@@ -119,8 +440,14 @@ Create in `.evolve/<problem-name>/`:
 │       ├── baselines.rs  # Known algorithms to beat
 │       ├── evolved.rs    # Current champion
 │       └── benchmark.rs  # Benchmark binary
+├── data/
+│   ├── train/            # Training instances (for selection)
+│   ├── valid/            # Validation instances (for promotion gate)
+│   └── test/             # Holdout instances (never used for selection)
 ├── evaluator.py          # Fitness evaluation
 ├── evolution.json        # Full evolution state (for resume)
+├── champion.json         # Best-so-far manifest
+├── generations.jsonl     # Per-generation log (append-only)
 └── mutations/            # All tested mutations
 ```
 
@@ -133,6 +460,22 @@ This file enables resumption and tracks all evolution state:
   "problem": "sorting algorithm for integers",
   "created": "2024-01-15T10:30:00Z",
   "updated": "2024-01-15T11:45:00Z",
+
+  "reproducibility": {
+    "rust_toolchain": "1.75.0",
+    "git_commit": "a1b2c3d4e5f6",
+    "platform": "darwin-arm64",
+    "train_data_hash": "sha256:abc123...",
+    "valid_data_hash": "sha256:def456...",
+    "test_data_hash": "sha256:789ghi..."
+  },
+
+  "acceptance": {
+    "epsilon": 0.001,
+    "valid_regression_tolerance": 0.005,
+    "instance_threshold_ratio": 0.6,
+    "noise_rerun_count": 3
+  },
 
   "problem_analysis": {
     "algorithm_families": ["quicksort", "mergesort", "heapsort", "radix", "counting", "shell", "timsort", "introsort"],
@@ -162,7 +505,10 @@ This file enables resumption and tracks all evolution state:
     "id": "gen4_crossover_radix_shell",
     "fitness": 0.94,
     "ops_per_second": 185000,
-    "generation_discovered": 4
+    "generation_discovered": 4,
+    "train_metric": 0.5720,
+    "valid_metric": 0.5834,
+    "test_metric": 0.5756
   },
 
   "population": [
@@ -543,6 +889,11 @@ Champion: 189K ops/sec
   vs bubble:       +14,538% (146x faster)
   vs std_unstable: +12.5%
 
+Metrics:
+  TRAIN: 0.5720
+  VALID: 0.5834 (no regression from baseline)
+  TEST:  0.5756 (holdout, for reference only)
+
 Key Innovations in Champion:
   - 11-bit radix buckets (Gen 1)
   - Sign-bit flip for negatives (Gen 1)
@@ -669,6 +1020,8 @@ This increases variance to escape local optima at the cost of more failed mutati
 5. **Correctness first**: Failed tests = fitness 0
 6. **Diversity maintained**: Population represents multiple algorithm families
 7. **Elitism**: Never lose the best solution
+8. **Generalization**: VALID gate prevents overfitting to TRAIN
+9. **Reproducibility**: Full determinism with logged seeds and versions
 
 ---
 
