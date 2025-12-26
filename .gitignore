@@ -17,6 +17,11 @@ venv/
 .vscode/
 *.swp
 
+# Local Claude settings
+.claude/settings.local.json
+
 # OS
 .DS_Store
-.evolve/**/external/
+
+# Evolution artifacts (regenerate with /evolve)
+.evolve/
