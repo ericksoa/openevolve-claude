@@ -1,6 +1,8 @@
-# Evolve
+# OpenEvolve
 
-Evolutionary algorithm discovery for Claude Code. Evolves novel solutions to hard programming problems through LLM-driven mutation with Rust benchmarks for precise performance measurement.
+**Genetic algorithm optimization for any algorithmic problem.** Uses parallel Claude Code agents to evolve faster solutions through mutation, crossover, and selection—with Rust benchmarks for precise fitness measurement.
+
+Works on: sorting, searching, parsing, hashing, compression, numeric algorithms, data structures, and any problem where performance can be measured.
 
 ## How It Works
 
@@ -24,14 +26,19 @@ The `/evolve` skill uses **parallel Claude Code agents** for true genetic algori
 - Elitism: Never lose the champion
 - Checkpoint state to `evolution.json` for resume
 
-### Why Crossover Matters
-```
-Gen 1: Discovers radix sort (fast distribution) + quicksort (fast partition)
-Gen 2: Crossover → radix+quick hybrid (uses both techniques)
-Gen 3: Adds insertion sort base case from shellsort lineage
-```
+### Why Genetic Algorithms?
 
-Each generation **combines innovations** rather than just refining one approach.
+Unlike "make it faster" prompting, true genetic algorithms:
+- **Explore diverse solutions** in parallel (not just refining one approach)
+- **Combine innovations** from different algorithm families via crossover
+- **Maintain population diversity** to avoid local optima
+- **Preserve winners** while still exploring new territory
+
+```
+Gen 1: Discovers lookup tables (O(1)) + fast doubling (O(log n))
+Gen 2: Crossover → hybrid with table for small n, doubling for large
+Gen 3: Mutation adds unsafe access to eliminate bounds checks
+```
 
 ## Quick Start
 
@@ -51,117 +58,100 @@ curl -o ~/.claude/commands/evolve.md \
 
 ```bash
 claude
-> /evolve sorting algorithm for integers
-> /evolve fibonacci - beat naive recursion --budget 10k
-> /evolve string search --budget 50k
-> /evolve --resume   # Continue previous evolution
+> /evolve fibonacci sequence
+> /evolve integer sorting
+> /evolve substring search
+> /evolve hash function for strings
+> /evolve JSON parser
+> /evolve LRU cache
 ```
 
-The skill will:
-- Check for Rust toolchain (offers to install via rustup)
-- Generate Rust benchmark infrastructure
-- Run evolution with adaptive stopping (or until budget exhausted)
-- Report the champion algorithm
+The system will:
+1. Analyze the problem → estimate viable algorithm families
+2. Generate Rust benchmarks with baselines to beat
+3. Spawn 10-32 agents in parallel (scales with problem complexity)
+4. Run evolution until plateau or budget exhausted
+5. Report champion with full innovation lineage
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Claude Code /evolve                          │
-│         "Optimize sorting algorithm for integers"                │
+│                         /evolve <problem>                        │
+│                                                                  │
+│  1. Analyze problem → identify algorithm families & optimizations│
+│  2. Scale agents: 10-32 based on viable strategies              │
+│  3. Generate Rust benchmark with trait + baselines              │
 └─────────────────────────────────┬───────────────────────────────┘
                                   │
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    GENERATION 1: Exploration                     │
 │                                                                  │
-│  Problem Analysis → N viable strategies (10-32 agents)          │
-│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌─────┐           │
-│  │ radix  │ │ quick  │ │ heap   │ │ shell  │ │ ... │           │
-│  └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘ └──┬──┘           │
-│      │          │          │          │         │                │
-│      ▼          ▼          ▼          ▼         ▼                │
-│  [Evaluate] [Evaluate] [Evaluate] [Evaluate]  [...]             │
-│      │          │          │          │         │                │
-│      ▼          ▼          ▼          ▼         ▼                │
-│  [Extract Innovations: what makes each solution fast?]          │
-│                                                                  │
-│  Select Top 4 with Diversity (different algorithm families)     │
+│  Spawn N agents in parallel (one per viable strategy)           │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────┐       │
+│  │ algo_1  │ │ algo_2  │ │ algo_3  │ │ algo_4  │ │ ... │       │
+│  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘ └──┬──┘       │
+│       └───────────┴───────────┴───────────┴─────────┘           │
+│                               │                                  │
+│                    [Evaluate all in parallel]                   │
+│                    [Extract innovations from each]               │
+│                    [Select top 4 with diversity]                │
 └─────────────────────────────────┬───────────────────────────────┘
                                   │
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │               GENERATION 2+: Crossover + Mutation                │
 │                                                                  │
-│  Population: [radix, quicksort, heapsort, shellsort]            │
+│  CROSSOVER (N/2 agents):           MUTATION (N/2 agents):       │
+│  ┌──────────────────┐              ┌──────────────────┐         │
+│  │ parent1 × parent2│              │ tweak(best)      │         │
+│  │ parent1 × parent3│              │ specialize(best) │         │
+│  │ parent2 × parent4│              │ vectorize(best)  │         │
+│  │       ...        │              │       ...        │         │
+│  └────────┬─────────┘              └────────┬─────────┘         │
+│           └──────────────┬──────────────────┘                   │
+│                          ▼                                       │
+│              [Evaluate N offspring]                             │
+│              [Extract innovations]                               │
+│              [Select top 4 + elitism]                           │
 │                                                                  │
-│  CROSSOVER (4 agents):              MUTATION (4 agents):        │
-│  ┌──────────────────┐               ┌──────────────────┐        │
-│  │ radix × quick    │               │ tweak(radix)     │        │
-│  │ radix × heap     │               │ specialize(radix)│        │
-│  │ quick × shell    │               │ vectorize(quick) │        │
-│  │ heap × shell     │               │ unroll(quick)    │        │
-│  └────────┬─────────┘               └────────┬─────────┘        │
-│           │                                   │                  │
-│           └───────────┬───────────────────────┘                  │
-│                       ▼                                          │
-│           [Evaluate 8 offspring]                                │
-│           [Extract innovations]                                  │
-│           [Select top 4 + elitism]                              │
-│                                                                  │
-│  Repeat until plateau or budget exhausted...                    │
+│  Repeat until: plateau (3 gens) OR budget exhausted             │
 └─────────────────────────────────┬───────────────────────────────┘
                                   │
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Rust Evaluator                               │
 │                                                                  │
-│  1. Copy evolved code → rust/src/evolved.rs                     │
-│  2. cargo build --release (LTO, opt-level=3)                    │
-│  3. Run benchmarks against baselines                            │
-│  4. Return JSON: { fitness, ops_per_second, correctness }       │
+│  cargo build --release → benchmark → JSON fitness score         │
+│  Correctness gate: tests fail = fitness 0                       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Demo: Bubble Sort → 71x Faster
+## Example Results
 
-Watch `/evolve` transform a naive O(n²) bubble sort into a fast O(n) radix sort:
+| Problem | What Evolved | Improvement |
+|---------|--------------|-------------|
+| **Fibonacci** | Lookup table + unsafe access | **834M ops/sec** (30x vs iterative) |
+| **Sorting** | Radix + insertion hybrid | **71x** vs bubble sort |
+| **Integer parsing** | SWAR + lookup | +51% vs std |
+| **String search** | Rare-byte + memchr | +27% vs Boyer-Moore |
+
+### Fibonacci Evolution (2 generations)
 
 ```
-> /evolve sorting algorithm for integers
+Baselines:
+  naive (recursive):  4.6M ops/sec
+  iterative:         27.4M ops/sec
+  matrix exp:        94.8M ops/sec
+  lookup table:     810.4M ops/sec
 
-Starting evolution...
+Gen 1: 10 agents → discovered lookup, matrix, fast-doubling
+Gen 2: crossover → unsafe lookup with get_unchecked
 
-Baseline:
-  bubble:       1,289 ops/sec  ← The slow algorithm
-  std:        114,592 ops/sec
-  std_unstable: 168,417 ops/sec
-
-Generation 1: Spawning 8 mutations...
-  ✓ quicksort:   89,234 ops/sec
-  ✓ radix:      156,892 ops/sec  ← Winner!
-  ✓ heapsort:    78,456 ops/sec
-  ...
-
-Champion: Radix sort with sign-bit handling
-  91,835 ops/sec → 71x faster than bubble sort!
+Champion: 834.5M ops/sec (+3% vs lookup baseline, +18,142% vs naive)
+Innovation: bounds-free array access via unsafe
 ```
-
-The evolved algorithm:
-- Uses 11-bit radix sort for large arrays
-- Falls back to insertion sort for small arrays (≤64)
-- Handles signed integers via sign-bit flipping
-
-See [`showcase/sort-demo/`](showcase/sort-demo/) for the full benchmark.
-
-## Results
-
-| Problem | Champion | Improvement |
-|---------|----------|-------------|
-| **Fibonacci** | Unsafe lookup table | **834M ops/sec** (30x vs iterative) |
-| **Sorting** | Radix sort | **71x** faster than bubble sort |
-| Integer parsing | Custom parser | +51% vs std |
-| String search | Rarebyte+memchr | +27% vs Boyer-Moore (scalar) |
 
 ## Fitness Function
 
