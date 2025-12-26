@@ -1,4 +1,4 @@
-# OpenEvolve
+# /evolve
 
 **Genetic algorithm optimization for any algorithmic problem.** Uses parallel Claude Code agents to evolve faster solutions through mutation, crossover, and selection—with Rust benchmarks for precise fitness measurement.
 
@@ -45,13 +45,8 @@ Gen 3: Mutation adds unsafe access to eliminate bounds checks
 ### 1. Install the Skill
 
 ```bash
-# Option A: Clone and copy skill
-git clone https://github.com/ericksoa/openevolve-claude
-cp openevolve-claude/.claude/commands/evolve.md ~/.claude/commands/
-
-# Option B: Direct download
-curl -o ~/.claude/commands/evolve.md \
-  https://raw.githubusercontent.com/ericksoa/openevolve-claude/main/.claude/commands/evolve.md
+# Copy the skill to your Claude commands directory
+cp .claude/commands/evolve.md ~/.claude/commands/
 ```
 
 ### 2. Use It
@@ -193,11 +188,6 @@ if not correctness:
 ├── evolution.json           # Checkpoint for resume
 └── mutations/               # All tested mutations
 ```
-
-## Credits
-
-- Inspired by [AlphaEvolve](https://deepmind.google/discover/blog/alphaevolve/) concepts
-- Built with [Claude Code](https://claude.ai/code) by Anthropic
 
 ## License
 
