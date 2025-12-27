@@ -1,0 +1,25 @@
+[package]
+name = "tsp-2opt-gpu"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "tsp_2opt"
+path = "src/lib.rs"
+
+[[bin]]
+name = "benchmark"
+path = "src/benchmark.rs"
+
+[[bin]]
+name = "benchmark_metal"
+path = "src/benchmark_metal.rs"
+
+[dependencies]
+metal = "0.31"
+objc = "0.2"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
