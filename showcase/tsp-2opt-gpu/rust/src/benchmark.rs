@@ -1,15 +1,32 @@
 //! TSP 2-opt Benchmark
 //!
 //! Benchmarks various 2-opt priority functions on TSPLIB instances.
+//! Uses multi-start local search with fixed random seeds for reproducibility.
 //! Outputs JSON for fitness evaluation.
 
 use std::time::Instant;
 use tsp_2opt::{
     baselines::{Balanced, BestImprovement, EdgeRatio, GreedyDelta, LKInspired, LongEdgeRemoval, RelativeGain},
     evolved::Evolved,
-    nearest_neighbor_tour, tour_length, two_opt_search, BenchmarkResult, DistanceMatrix,
+    two_opt_search, BenchmarkResult, DistanceMatrix,
     InstanceResult, TwoOptPriority,
 };
+
+/// Fixed random seeds for reproducible multi-start
+const RANDOM_SEEDS: [u64; 10] = [42, 137, 256, 389, 512, 617, 743, 851, 929, 1024];
+
+/// Generate a deterministic pseudo-random tour from a seed
+fn seeded_random_tour(n: usize, seed: u64) -> Vec<usize> {
+    let mut tour: Vec<usize> = (0..n).collect();
+    // Simple LCG PRNG for reproducibility
+    let mut state = seed;
+    for i in (1..n).rev() {
+        state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+        let j = (state >> 33) as usize % (i + 1);
+        tour.swap(i, j);
+    }
+    tour
+}
 
 /// TSPLIB instance data
 struct TspInstance {
@@ -97,30 +114,36 @@ fn get_instances() -> Vec<TspInstance> {
     ]
 }
 
-/// Run benchmark for a single priority function
+/// Run benchmark for a single priority function using multi-start
 fn benchmark_priority<P: TwoOptPriority>(priority: &P, instances: &[TspInstance]) -> BenchmarkResult {
     let start = Instant::now();
     let mut instance_results = Vec::new();
     let max_iterations = 10000;
+    let num_starts = RANDOM_SEEDS.len();
 
     for inst in instances {
         let dm = DistanceMatrix::from_coords(inst.coords);
+        let n = inst.coords.len();
 
-        // Start with nearest neighbor tour
-        let mut tour = nearest_neighbor_tour(&dm);
-        let _initial_len = tour_length(&tour, &dm);
+        // Multi-start: try multiple random starting tours, keep best
+        let mut best_len = f64::MAX;
 
-        // Run 2-opt with this priority function
-        let final_len = two_opt_search(&mut tour, &dm, priority, max_iterations);
+        for &seed in &RANDOM_SEEDS {
+            let mut tour = seeded_random_tour(n, seed);
+            let final_len = two_opt_search(&mut tour, &dm, priority, max_iterations);
+            if final_len < best_len {
+                best_len = final_len;
+            }
+        }
 
-        let gap_percent = (final_len - inst.optimal) / inst.optimal * 100.0;
+        let gap_percent = (best_len - inst.optimal) / inst.optimal * 100.0;
 
         instance_results.push(InstanceResult {
             name: inst.name.to_string(),
             optimal: inst.optimal,
-            found: final_len,
+            found: best_len,
             gap_percent,
-            iterations: max_iterations,
+            iterations: max_iterations * num_starts,
         });
     }
 
@@ -155,6 +178,8 @@ fn main() {
     println!("  \"benchmark\": \"tsp-2opt\",");
     println!("  \"instances\": [\"eil51\", \"berlin52\", \"kroA100\"],");
     println!("  \"optimal_values\": {{\"eil51\": 426, \"berlin52\": 7542, \"kroA100\": 21282}},");
+    println!("  \"multi_start\": true,");
+    println!("  \"num_starts\": {},", RANDOM_SEEDS.len());
     println!("  \"results\": [");
 
     for (i, result) in results.iter().enumerate() {
