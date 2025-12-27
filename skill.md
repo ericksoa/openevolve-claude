@@ -15,27 +15,27 @@ Invoke with `/evolve` followed by what you want to optimize:
 ## How It Works
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        /evolve                               │
-└─────────────────────────────┬───────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                 Claude Code Task Agents                      │
-│            (8 parallel mutation strategies)                  │
-│                                                              │
-│  tweak | unroll | specialize | vectorize                    │
-│  memoize | restructure | hybrid | alien                     │
-└─────────────────────────────┬───────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Rust Evaluator                             │
-│  • Compile with optimizations (LTO, release mode)           │
-│  • Run comprehensive benchmarks                              │
-│  • Compare against baselines                                 │
-│  • Return fitness score                                      │
-└─────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                         /evolve                           │
+└────────────────────────────┬──────────────────────────────┘
+                             │
+                             ▼
+┌───────────────────────────────────────────────────────────┐
+│                Claude Code Task Agents                    │
+│           (8 parallel mutation strategies)                │
+│                                                           │
+│   tweak | unroll | specialize | vectorize                 │
+│   memoize | restructure | hybrid | alien                  │
+└────────────────────────────┬──────────────────────────────┘
+                             │
+                             ▼
+┌───────────────────────────────────────────────────────────┐
+│                     Rust Evaluator                        │
+│   • Compile with optimizations (LTO, release mode)        │
+│   • Run comprehensive benchmarks                          │
+│   • Compare against baselines                             │
+│   • Return fitness score                                  │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ## Requirements

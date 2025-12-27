@@ -623,27 +623,27 @@ Log exact commands to reproduce any state:
 ## Execution Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  Step -1: Bootstrap (first run only)                            │
-│  Step 0-pre: Search for existing benchmarks                     │
-│  Step 0: Generate benchmark infrastructure                      │
-│  Step 1: Establish baseline                                     │
-│                                                                  │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  EVOLUTION LOOP (adaptive)                                 │  │
-│  │                                                            │  │
-│  │  while budget_remaining AND improving:                     │  │
-│  │    - Generation N: crossover + mutation                    │  │
-│  │    - Evaluate offspring                                    │  │
-│  │    - Update population                                     │  │
-│  │    - Check stopping criteria                               │  │
-│  │    - Checkpoint state                                      │  │
-│  │    - If plateau: ask user to continue?                     │  │
-│  │                                                            │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  Step Final: Report results                                     │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Step -1: Bootstrap (first run only)                        │
+│  Step 0-pre: Search for existing benchmarks                 │
+│  Step 0: Generate benchmark infrastructure                  │
+│  Step 1: Establish baseline                                 │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  EVOLUTION LOOP (adaptive)                            │  │
+│  │                                                       │  │
+│  │  while budget_remaining AND improving:                │  │
+│  │    - Generation N: crossover + mutation               │  │
+│  │    - Evaluate offspring                               │  │
+│  │    - Update population                                │  │
+│  │    - Check stopping criteria                          │  │
+│  │    - Checkpoint state                                 │  │
+│  │    - If plateau: ask user to continue?                │  │
+│  │                                                       │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                             │
+│  Step Final: Report results                                 │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -1008,14 +1008,14 @@ def estimate_tokens_per_gen(agent_count):
 Display budget status after every generation:
 
 ```
-┌─────────────────────────────────────────────────┐
-│  Generation 4 Complete                          │
-│                                                 │
-│  Budget: ████████████░░░░░░░░ 58% (29k/50k)    │
-│                                                 │
-│  This gen: 7,200 tokens (16 agents)            │
-│  Remaining: ~2-3 more generations              │
-└─────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────┐
+│  Generation 4 Complete                        │
+│                                               │
+│  Budget: ████████████░░░░░░░░ 58% (29k/50k)   │
+│                                               │
+│  This gen: 7,200 tokens (16 agents)           │
+│  Remaining: ~2-3 more generations             │
+└───────────────────────────────────────────────┘
 ```
 
 ### Token Tracking in evolution.json
