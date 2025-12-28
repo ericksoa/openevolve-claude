@@ -32,6 +32,11 @@ path = "src/micro_bench.rs"
 rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+rayon = "1.10"
+
+[[bin]]
+name = "fast_bench"
+path = "src/fast_bench.rs"
 
 [profile.release]
 opt-level = 3

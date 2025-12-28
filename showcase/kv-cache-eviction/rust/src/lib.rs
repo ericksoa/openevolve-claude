@@ -227,6 +227,97 @@ pub fn benchmark_scorer<S: EvictionScorer + ?Sized>(
     }
 }
 
+/// Fast sampled eviction evaluation - samples positions and layers
+pub fn evaluate_eviction_fast<S: EvictionScorer + ?Sized>(
+    pattern: &AttentionPattern,
+    scorer: &S,
+    compression_ratio: f64,
+    position_samples: usize,
+    layer_samples: usize,
+) -> f64 {
+    let mut total_error = 0.0;
+    let mut count = 0;
+
+    let start_pos = pattern.seq_len / 4;
+    let end_pos = pattern.seq_len;
+    let pos_step = ((end_pos - start_pos) / position_samples).max(1);
+
+    let layer_step = (pattern.num_layers / layer_samples).max(1);
+
+    // Sample query positions evenly
+    for query_pos in (start_pos..end_pos).step_by(pos_step) {
+        let budget = ((query_pos + 1) as f64 * compression_ratio).ceil() as usize;
+
+        // Sample layers evenly
+        for layer in (0..pattern.num_layers).step_by(layer_step) {
+            let token_infos = pattern.get_token_infos(layer, query_pos);
+
+            // Score all tokens
+            let mut scored: Vec<(usize, f64)> = token_infos
+                .iter()
+                .map(|t| (t.position, scorer.score(t)))
+                .collect();
+
+            // Sort by score descending (highest score = keep)
+            scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+            // Keep top `budget` tokens
+            let kept: std::collections::HashSet<usize> =
+                scored.iter().take(budget).map(|(pos, _)| *pos).collect();
+
+            // Compute attention reconstruction error
+            let full_attn = &pattern.attention[layer][query_pos];
+
+            // Original attention sum (should be ~1.0 for softmax)
+            let original_sum: f64 = full_attn.iter().take(query_pos + 1).sum();
+
+            // Attention to kept tokens only
+            let kept_sum: f64 = (0..=query_pos)
+                .filter(|p| kept.contains(p))
+                .map(|p| full_attn[p])
+                .sum();
+
+            // Error = fraction of attention lost to evicted tokens
+            let error = (original_sum - kept_sum) / original_sum.max(1e-10);
+            total_error += error;
+            count += 1;
+        }
+    }
+
+    total_error / count as f64
+}
+
+/// Fast benchmark - samples fewer positions and layers
+pub fn benchmark_scorer_fast<S: EvictionScorer + ?Sized>(
+    scorer: &S,
+    patterns: &[AttentionPattern],
+    position_samples: usize,
+    layer_samples: usize,
+) -> ScorerResult {
+    let mut error_25 = 0.0;
+    let mut error_50 = 0.0;
+    let mut error_75 = 0.0;
+
+    for pattern in patterns {
+        error_25 += evaluate_eviction_fast(pattern, scorer, 0.25, position_samples, layer_samples);
+        error_50 += evaluate_eviction_fast(pattern, scorer, 0.50, position_samples, layer_samples);
+        error_75 += evaluate_eviction_fast(pattern, scorer, 0.75, position_samples, layer_samples);
+    }
+
+    let n = patterns.len() as f64;
+    error_25 /= n;
+    error_50 /= n;
+    error_75 /= n;
+
+    ScorerResult {
+        name: scorer.name().to_string(),
+        avg_error: (error_25 + error_50 + error_75) / 3.0,
+        error_at_25: error_25,
+        error_at_50: error_50,
+        error_at_75: error_75,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
