@@ -1,11 +1,11 @@
 //! Evolved KV-Cache Eviction Scorer
 //!
-//! Generation 10 Champion: gen10_cross_position
+//! Generation 11 Champion: gen11_window_140
 //!
 //! Improvements over hybrid baseline:
-//! - TRAIN: +2.86% (0.0582 -> 0.0565)
-//! - VALID: +3.10% (0.0566 -> 0.0548)
-//! - TEST:  +4.20% (0.0662 -> 0.0634)
+//! - TRAIN: +2.97% (0.0582 -> 0.0565)
+//! - VALID: +3.25% (0.0566 -> 0.0547)
+//! - TEST:  +4.46% (0.0662 -> 0.0633)
 //!
 //! Evolution history:
 //! - Gen6: gen6_balanced (+1.44%) - balanced weights across signals
@@ -13,19 +13,20 @@
 //! - Gen8: gen8_window_128 (+2.31%) - even larger window (128 vs 96)
 //! - Gen9: gen9_recency_35 (+2.65%) - boosted recency weight (35% vs 30%)
 //! - Gen10: gen10_cross_position (+2.86%) - stronger position correction (0.3 vs 0.2)
+//! - Gen11: gen11_window_140 (+2.97%) - optimal window at 140 tokens
 //!
 //! Key insights:
-//! - Window size optimal at 128
+//! - Window size optimal at 140 (128 was close, but 140 is better)
 //! - Recency weight 35% with reduced other weights
 //! - Position power 0.3 for stronger position bias correction
 
 use crate::{EvictionScorer, TokenInfo};
 
-/// Gen10 Champion: Recency 35% + Strong position correction
+/// Gen11 Champion: Recency window 140 + Strong position correction
 ///
 /// Key parameters:
 /// - Attention: 37% (0.23-0.05*layer + 0.14+0.05*layer)
-/// - Recency: 35% with 128-token window
+/// - Recency: 35% with 140-token window
 /// - Position: 14% with power 0.3 (stronger correction)
 /// - Norm penalty: 14% for outliers
 pub struct Evolved;
@@ -46,13 +47,13 @@ impl EvictionScorer for Evolved {
         let attn_component = recent_weight * token.recent_attn
             + cumulative_weight * token.cumulative_attn;
 
-        // Component 2: Recency (35% with 128-token window)
-        let recency_window = 128;
+        // Component 2: Recency (35% with 140-token window)
+        let recency_window = 140;
         let recency_component = if token.relative_pos < recency_window {
             0.35 * (1.0 - token.relative_pos as f64 / recency_window as f64)
         } else { 0.0 };
 
-        // Component 3: Position (14% with STRONGER power 0.3)
+        // Component 3: Position (14% with power 0.3)
         let position_factor = (token.position as f64 / token.sequence_len as f64).powf(0.3);
         let position_component = 0.14 * position_factor;
 
@@ -63,7 +64,7 @@ impl EvictionScorer for Evolved {
     }
 
     fn name(&self) -> &'static str {
-        "gen10_cross_position"
+        "gen11_window_140"
     }
 }
 
