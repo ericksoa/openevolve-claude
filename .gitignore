@@ -25,3 +25,6 @@ venv/
 
 # Evolution artifacts (regenerate with /evolve)
 .evolve/
+
+# Generated benchmark data (regenerate with cargo run --bin generate_data)
+showcase/*/rust/data/*.json
