@@ -1,11 +1,11 @@
 //! Evolved KV-Cache Eviction Scorer
 //!
-//! Generation 16 Champion: gen16_window_440
+//! Generation 17 Champion: gen17_recency_40_440
 //!
 //! Improvements over hybrid baseline:
-//! - TRAIN: +3.44% (0.0582 -> 0.0562)
-//! - VALID: +3.80% (0.0566 -> 0.0545)
-//! - TEST:  +6.48% (0.0662 -> 0.0619)
+//! - TRAIN: +3.55% (0.0582 -> 0.0561)
+//! - VALID: +3.95% (0.0566 -> 0.0544)
+//! - TEST:  +6.65% (0.0662 -> 0.0618)
 //!
 //! Evolution history:
 //! - Gen6: gen6_balanced (+1.44%) - balanced weights across signals
@@ -18,22 +18,23 @@
 //! - Gen13: gen13_window_200 (+5.38%) - window 200, broke 5% TEST barrier
 //! - Gen14: gen14_window_256 (+5.91%) - window 256 = half cache size
 //! - Gen15: gen15_window_350 (+6.38%) - window 350 tokens, exceeds 6% TEST
-//! - Gen16: gen16_window_440 (+6.48%) - window 440, plateau reached at 86% cache
+//! - Gen16: gen16_window_440 (+6.48%) - window 440, plateau at 86% cache
+//! - Gen17: gen17_recency_40_440 (+6.65%) - recency 40%, new optimal weight
 //!
 //! Key insights:
-//! - Window size trend: 80 -> 96 -> 128 -> 140 -> 160 -> 200 -> 256 -> 350 -> 440
-//! - Plateau reached at 420-440 tokens (82-86% of cache size)
-//! - Recency weight 35% remains optimal
+//! - Window size plateau at 420-440 tokens (82-86% of cache)
+//! - Recency weight evolved: 30% -> 35% -> 40%
+//! - Higher recency weight trades off attention weight
 //! - Position power 0.3 for position bias correction
-//! - FINAL improvement: +6.48% over hybrid baseline
+//! - TOTAL improvement: +6.65% over hybrid baseline
 
 use crate::{EvictionScorer, TokenInfo};
 
-/// Gen16 Champion: Recency window 440
+/// Gen17 Champion: Recency 40% with window 440
 ///
 /// Key parameters:
-/// - Attention: 37% (0.23-0.05*layer + 0.14+0.05*layer)
-/// - Recency: 35% with 440-token window (86% of cache)
+/// - Attention: 32% (0.18-0.05*layer + 0.14+0.05*layer)
+/// - Recency: 40% with 440-token window
 /// - Position: 14% with power 0.3
 /// - Norm penalty: 14% for outliers
 pub struct Evolved;
@@ -48,16 +49,16 @@ impl EvictionScorer for Evolved {
 
         let layer_ratio = token.layer_idx as f64 / token.num_layers as f64;
 
-        // Component 1: Attention (37%)
-        let recent_weight = 0.23 - 0.05 * layer_ratio;
+        // Component 1: Attention (32%)
+        let recent_weight = 0.18 - 0.05 * layer_ratio;
         let cumulative_weight = 0.14 + 0.05 * layer_ratio;
         let attn_component = recent_weight * token.recent_attn
             + cumulative_weight * token.cumulative_attn;
 
-        // Component 2: Recency (35% with 440-token window)
+        // Component 2: Recency (40% with 440-token window)
         let recency_window = 440;
         let recency_component = if token.relative_pos < recency_window {
-            0.35 * (1.0 - token.relative_pos as f64 / recency_window as f64)
+            0.40 * (1.0 - token.relative_pos as f64 / recency_window as f64)
         } else { 0.0 };
 
         // Component 3: Position (14% with power 0.3)
@@ -71,7 +72,7 @@ impl EvictionScorer for Evolved {
     }
 
     fn name(&self) -> &'static str {
-        "gen16_window_440"
+        "gen17_recency_40_440"
     }
 }
 
