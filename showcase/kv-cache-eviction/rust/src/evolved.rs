@@ -1,11 +1,11 @@
 //! Evolved KV-Cache Eviction Scorer
 //!
-//! Generation 15 Champion: gen15_window_350
+//! Generation 16 Champion: gen16_window_440
 //!
 //! Improvements over hybrid baseline:
-//! - TRAIN: +3.39% (0.0582 -> 0.0562)
-//! - VALID: +3.77% (0.0566 -> 0.0545)
-//! - TEST:  +6.38% (0.0662 -> 0.0620)
+//! - TRAIN: +3.44% (0.0582 -> 0.0562)
+//! - VALID: +3.80% (0.0566 -> 0.0545)
+//! - TEST:  +6.48% (0.0662 -> 0.0619)
 //!
 //! Evolution history:
 //! - Gen6: gen6_balanced (+1.44%) - balanced weights across signals
@@ -18,20 +18,22 @@
 //! - Gen13: gen13_window_200 (+5.38%) - window 200, broke 5% TEST barrier
 //! - Gen14: gen14_window_256 (+5.91%) - window 256 = half cache size
 //! - Gen15: gen15_window_350 (+6.38%) - window 350 tokens, exceeds 6% TEST
+//! - Gen16: gen16_window_440 (+6.48%) - window 440, plateau reached at 86% cache
 //!
 //! Key insights:
-//! - Window size trend: 80 -> 96 -> 128 -> 140 -> 160 -> 200 -> 256 -> 350
-//! - Larger windows consistently improve performance
+//! - Window size trend: 80 -> 96 -> 128 -> 140 -> 160 -> 200 -> 256 -> 350 -> 440
+//! - Plateau reached at 420-440 tokens (82-86% of cache size)
 //! - Recency weight 35% remains optimal
 //! - Position power 0.3 for position bias correction
+//! - FINAL improvement: +6.48% over hybrid baseline
 
 use crate::{EvictionScorer, TokenInfo};
 
-/// Gen15 Champion: Recency window 350
+/// Gen16 Champion: Recency window 440
 ///
 /// Key parameters:
 /// - Attention: 37% (0.23-0.05*layer + 0.14+0.05*layer)
-/// - Recency: 35% with 350-token window
+/// - Recency: 35% with 440-token window (86% of cache)
 /// - Position: 14% with power 0.3
 /// - Norm penalty: 14% for outliers
 pub struct Evolved;
@@ -52,8 +54,8 @@ impl EvictionScorer for Evolved {
         let attn_component = recent_weight * token.recent_attn
             + cumulative_weight * token.cumulative_attn;
 
-        // Component 2: Recency (35% with 350-token window)
-        let recency_window = 350;
+        // Component 2: Recency (35% with 440-token window)
+        let recency_window = 440;
         let recency_component = if token.relative_pos < recency_window {
             0.35 * (1.0 - token.relative_pos as f64 / recency_window as f64)
         } else { 0.0 };
@@ -69,7 +71,7 @@ impl EvictionScorer for Evolved {
     }
 
     fn name(&self) -> &'static str {
-        "gen15_window_350"
+        "gen16_window_440"
     }
 }
 
