@@ -4,9 +4,14 @@
 //! of a neural network for mixed-precision quantization.
 //!
 //! This is relevant to NVIDIA TensorRT and inference optimization.
+//!
+//! Two modes of operation:
+//! 1. Synthetic mode: Uses generated sensitivity curves (fast, for prototyping)
+//! 2. Real mode: Uses actual GPT-2 quantization with perplexity measurement
 
 pub mod baselines;
 pub mod evolved;
+pub mod eval_bridge;
 
 use serde::{Deserialize, Serialize};
 

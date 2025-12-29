@@ -5,8 +5,11 @@
 //! - First/Last FP16 (common practice)
 //! - Sensitivity-based (HAWQ-style)
 //! - Layer-type aware (heuristic rules)
+//!
+//! Also includes real quantization baselines for GPT-2 evaluation.
 
 use crate::{BitAllocationHeuristic, BitWidth, LayerInfo, LayerType};
+use crate::eval_bridge::{AllocationPlan, GPT2_LAYER_PATTERNS};
 
 /// Uniform INT8 quantization - the simplest baseline
 /// This is what TensorRT does by default
@@ -197,4 +200,129 @@ impl BitAllocationHeuristic for ParetoOptimal {
 
         best_bw
     }
+}
+
+// ============================================================================
+// Real Quantization Baselines for GPT-2
+// ============================================================================
+
+/// All FP32 - unquantized baseline
+pub fn gpt2_all_fp32() -> AllocationPlan {
+    let allocations: Vec<_> = GPT2_LAYER_PATTERNS
+        .iter()
+        .map(|&p| (p.to_string(), "fp32".to_string()))
+        .collect();
+    AllocationPlan::from_iter(allocations)
+}
+
+/// All FP16 - standard mixed precision baseline
+pub fn gpt2_all_fp16() -> AllocationPlan {
+    let allocations: Vec<_> = GPT2_LAYER_PATTERNS
+        .iter()
+        .map(|&p| (p.to_string(), "fp16".to_string()))
+        .collect();
+    AllocationPlan::from_iter(allocations)
+}
+
+/// All INT8 - weight-only INT8 quantization
+pub fn gpt2_all_int8() -> AllocationPlan {
+    let allocations: Vec<_> = GPT2_LAYER_PATTERNS
+        .iter()
+        .map(|&p| (p.to_string(), "int8".to_string()))
+        .collect();
+    AllocationPlan::from_iter(allocations)
+}
+
+/// LayerNorm FP32, rest INT8
+/// LayerNorm layers are known to be sensitive to quantization
+pub fn gpt2_layernorm_fp32_rest_int8() -> AllocationPlan {
+    let allocations: Vec<_> = GPT2_LAYER_PATTERNS
+        .iter()
+        .map(|&p| {
+            let bw = if p.contains("ln_") || p == "ln_f" {
+                "fp32"
+            } else {
+                "int8"
+            };
+            (p.to_string(), bw.to_string())
+        })
+        .collect();
+    AllocationPlan::from_iter(allocations)
+}
+
+/// Embeddings + LayerNorm FP32, rest INT8
+/// Embeddings are also sensitive
+pub fn gpt2_emb_ln_fp32_rest_int8() -> AllocationPlan {
+    let allocations: Vec<_> = GPT2_LAYER_PATTERNS
+        .iter()
+        .map(|&p| {
+            let bw = if p.contains("ln_") || p == "ln_f" || p == "wte" || p == "wpe" {
+                "fp32"
+            } else {
+                "int8"
+            };
+            (p.to_string(), bw.to_string())
+        })
+        .collect();
+    AllocationPlan::from_iter(allocations)
+}
+
+/// All INT4 - aggressive compression
+pub fn gpt2_all_int4() -> AllocationPlan {
+    let allocations: Vec<_> = GPT2_LAYER_PATTERNS
+        .iter()
+        .map(|&p| (p.to_string(), "int4".to_string()))
+        .collect();
+    AllocationPlan::from_iter(allocations)
+}
+
+/// LayerNorm FP32, rest INT4
+pub fn gpt2_layernorm_fp32_rest_int4() -> AllocationPlan {
+    let allocations: Vec<_> = GPT2_LAYER_PATTERNS
+        .iter()
+        .map(|&p| {
+            let bw = if p.contains("ln_") || p == "ln_f" {
+                "fp32"
+            } else {
+                "int4"
+            };
+            (p.to_string(), bw.to_string())
+        })
+        .collect();
+    AllocationPlan::from_iter(allocations)
+}
+
+/// Position-aware: edges FP16, middle INT8
+pub fn gpt2_edges_fp16_middle_int8() -> AllocationPlan {
+    let total = GPT2_LAYER_PATTERNS.len();
+    let allocations: Vec<_> = GPT2_LAYER_PATTERNS
+        .iter()
+        .enumerate()
+        .map(|(i, &p)| {
+            let pos = i as f64 / (total - 1) as f64;
+            let bw = if pos < 0.1 || pos > 0.9 {
+                "fp16"
+            } else if p.contains("ln_") || p == "ln_f" {
+                "fp32"  // Always protect layer norms
+            } else {
+                "int8"
+            };
+            (p.to_string(), bw.to_string())
+        })
+        .collect();
+    AllocationPlan::from_iter(allocations)
+}
+
+/// Get all real quantization baselines with names
+pub fn all_gpt2_baselines() -> Vec<(&'static str, AllocationPlan)> {
+    vec![
+        ("all_fp32", gpt2_all_fp32()),
+        ("all_fp16", gpt2_all_fp16()),
+        ("all_int8", gpt2_all_int8()),
+        ("ln_fp32_rest_int8", gpt2_layernorm_fp32_rest_int8()),
+        ("emb_ln_fp32_rest_int8", gpt2_emb_ln_fp32_rest_int8()),
+        ("all_int4", gpt2_all_int4()),
+        ("ln_fp32_rest_int4", gpt2_layernorm_fp32_rest_int4()),
+        ("edges_fp16_middle_int8", gpt2_edges_fp16_middle_int8()),
+    ]
 }

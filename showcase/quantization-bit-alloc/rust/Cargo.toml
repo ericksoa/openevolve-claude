@@ -14,5 +14,9 @@ name = "benchmark"
 path = "src/benchmark.rs"
 
 [[bin]]
+name = "benchmark_real"
+path = "src/benchmark_real.rs"
+
+[[bin]]
 name = "generate_data"
 path = "src/generate_data.rs"
