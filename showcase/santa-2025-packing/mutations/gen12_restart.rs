@@ -1,4 +1,4 @@
-//! Evolved Packing Algorithm - Generation 10 DIVERSE STARTS
+//! Evolved Packing Algorithm - Generation 12 RESTART ON STUCK
 //!
 //! This module contains the evolved packing heuristics.
 //! The code is designed to be mutated by LLM-guided evolution.
@@ -9,34 +9,50 @@
 //! - select_direction(): How to choose placement directions
 //! - sa_move(): Local search move operators
 //!
-//! MUTATION STRATEGY: DIVERSE STARTS (Gen10)
-//! Try multiple different starting configurations and keep the best:
+//! MUTATION STRATEGY: RESTART ON STUCK (Gen12)
+//! Add restart mechanism to escape bad packing paths:
 //!
-//! Key improvements from Gen6:
-//! - Run 5 completely independent packing attempts per n
-//! - Each attempt uses a different initial angle/direction strategy:
-//!   1. Clockwise spiral - systematic clockwise placement
-//!   2. Counterclockwise spiral - systematic counterclockwise placement
-//!   3. Grid-based - structured grid placement pattern
-//!   4. Random - randomized directions for exploration
-//!   5. Boundary-first - prioritize placing along edges
-//! - Keep the best result for each n
-//! - Combines density-aware scoring from Gen6 with multi-strategy exploration
+//! Key improvements from Gen10:
+//! - Track best score achieved so far
+//! - If no improvement for 30 consecutive n values, restart fresh
+//! - Try a different strategy combination on each restart
+//! - Keep track of best solution across all restarts
+//! - This can help escape bad packing paths that accumulate errors
 //!
-//! Target: Beat Gen6's 94.14 at n=200 with diverse exploration
+//! Target: Beat Gen10's ~91.35 at n=200 with restart mechanism
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
 use std::f64::consts::PI;
 
 /// Strategy for initial placement direction
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlacementStrategy {
     ClockwiseSpiral,
     CounterclockwiseSpiral,
     Grid,
     Random,
     BoundaryFirst,
+}
+
+impl PlacementStrategy {
+    /// Get all strategies in a specific order based on restart count
+    fn get_strategy_order(restart_count: usize) -> Vec<PlacementStrategy> {
+        // Rotate strategy priorities based on restart count
+        let all = vec![
+            PlacementStrategy::ClockwiseSpiral,
+            PlacementStrategy::CounterclockwiseSpiral,
+            PlacementStrategy::Grid,
+            PlacementStrategy::Random,
+            PlacementStrategy::BoundaryFirst,
+        ];
+        let offset = restart_count % all.len();
+        let mut result = Vec::with_capacity(all.len());
+        for i in 0..all.len() {
+            result.push(all[(i + offset) % all.len()]);
+        }
+        result
+    }
 }
 
 /// Evolved packing configuration
@@ -74,31 +90,39 @@ pub struct EvolvedConfig {
     pub gap_penalty_weight: f64,
     pub local_density_radius: f64,
     pub fill_move_prob: f64,
+
+    // RESTART ON STUCK parameters (Gen12)
+    pub stuck_threshold: usize,        // N values without improvement before restart
+    pub max_restarts: usize,           // Maximum number of restarts allowed
+    pub restart_improvement_margin: f64, // Minimum improvement ratio to consider progress
 }
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
-        // Gen10 DIVERSE STARTS: Multi-strategy configuration
+        // Gen12 RESTART ON STUCK: Multi-strategy configuration with restart mechanism
         Self {
-            search_attempts: 200,            // Slightly fewer per attempt (have 5 attempts)
-            direction_samples: 64,           // Good coverage per strategy
-            sa_iterations: 22000,            // Balanced for multiple attempts
-            sa_initial_temp: 0.45,           // From Gen6
-            sa_cooling_rate: 0.99993,        // Slightly faster for multi-attempt
-            sa_min_temp: 0.00001,            // From Gen6
-            translation_scale: 0.055,        // From Gen6
-            rotation_granularity: 45.0,      // 8 angles
-            center_pull_strength: 0.07,      // From Gen6
-            sa_passes: 2,                    // Keep 2 passes
-            early_exit_threshold: 1500,      // Slightly lower for efficiency
-            boundary_focus_prob: 0.85,       // From Gen6
-            // DIVERSE STARTS parameters
-            num_strategies: 5,               // 5 different strategies
+            search_attempts: 200,
+            direction_samples: 64,
+            sa_iterations: 22000,
+            sa_initial_temp: 0.45,
+            sa_cooling_rate: 0.99993,
+            sa_min_temp: 0.00001,
+            translation_scale: 0.055,
+            rotation_granularity: 45.0,
+            center_pull_strength: 0.07,
+            sa_passes: 2,
+            early_exit_threshold: 1500,
+            boundary_focus_prob: 0.85,
+            num_strategies: 5,
             // Density parameters from Gen6
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
             fill_move_prob: 0.15,
+            // RESTART ON STUCK parameters
+            stuck_threshold: 30,           // Restart if no improvement for 30 consecutive n
+            max_restarts: 3,               // Allow up to 3 restarts per segment
+            restart_improvement_margin: 0.001, // 0.1% improvement threshold
         }
     }
 }
@@ -114,6 +138,24 @@ enum BoundaryEdge {
     None,
 }
 
+/// Track packing state for restart mechanism
+#[derive(Clone)]
+struct PackingState {
+    trees: Vec<PlacedTree>,
+    strategy_trees: Vec<Vec<PlacedTree>>,
+    cumulative_score: f64,
+}
+
+impl PackingState {
+    fn new(num_strategies: usize) -> Self {
+        Self {
+            trees: Vec::new(),
+            strategy_trees: vec![Vec::new(); num_strategies],
+            cumulative_score: 0.0,
+        }
+    }
+}
+
 /// Main evolved packer
 pub struct EvolvedPacker {
     pub config: EvolvedConfig,
@@ -126,70 +168,199 @@ impl Default for EvolvedPacker {
 }
 
 impl EvolvedPacker {
-    /// Pack all n from 1 to max_n using DIVERSE STARTS strategy
+    /// Pack all n from 1 to max_n using RESTART ON STUCK strategy
     pub fn pack_all(&self, max_n: usize) -> Vec<Packing> {
         let mut rng = rand::thread_rng();
         let mut packings: Vec<Packing> = Vec::with_capacity(max_n);
 
-        // Track best configurations for each strategy
-        let strategies = [
-            PlacementStrategy::ClockwiseSpiral,
-            PlacementStrategy::CounterclockwiseSpiral,
-            PlacementStrategy::Grid,
-            PlacementStrategy::Random,
-            PlacementStrategy::BoundaryFirst,
-        ];
+        // Initialize best packings to track across restarts
+        let mut best_packings: Vec<Option<Packing>> = vec![None; max_n];
+        let mut best_scores: Vec<f64> = vec![f64::INFINITY; max_n];
 
-        // Maintain separate tree configurations for each strategy
-        let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
+        // Restart tracking
+        let mut restart_count = 0;
+        let mut current_start_n = 1;
 
-        for n in 1..=max_n {
-            let mut best_trees: Option<Vec<PlacedTree>> = None;
-            let mut best_side = f64::INFINITY;
+        while current_start_n <= max_n && restart_count <= self.config.max_restarts {
+            // Get strategies in order based on restart count
+            let strategies = PlacementStrategy::get_strategy_order(restart_count);
 
-            // Try each strategy independently
-            for (s_idx, &strategy) in strategies.iter().enumerate() {
-                let mut trees = strategy_trees[s_idx].clone();
+            // Initialize state from best known solution up to current_start_n - 1
+            let mut state = self.initialize_state_from_best(
+                &best_packings,
+                current_start_n,
+                strategies.len(),
+            );
 
-                // Place new tree using strategy-specific heuristics
-                let new_tree = self.find_placement_with_strategy(&trees, n, max_n, strategy, &mut rng);
-                trees.push(new_tree);
+            // Track improvement for stuck detection
+            let mut consecutive_no_improvement = 0;
 
-                // Run SA passes
-                for pass in 0..self.config.sa_passes {
-                    self.local_search(&mut trees, n, pass, strategy, &mut rng);
+            for n in current_start_n..=max_n {
+                let mut best_trees_for_n: Option<Vec<PlacedTree>> = None;
+                let mut best_side_for_n = f64::INFINITY;
+
+                // Try each strategy independently
+                for (s_idx, &strategy) in strategies.iter().enumerate() {
+                    let mut trees = state.strategy_trees[s_idx].clone();
+
+                    // Place new tree using strategy-specific heuristics
+                    let new_tree = self.find_placement_with_strategy(
+                        &trees, n, max_n, strategy, &mut rng,
+                    );
+                    trees.push(new_tree);
+
+                    // Run SA passes
+                    for pass in 0..self.config.sa_passes {
+                        self.local_search(&mut trees, n, pass, strategy, &mut rng);
+                    }
+
+                    let side = compute_side_length(&trees);
+
+                    // Update strategy's best configuration
+                    state.strategy_trees[s_idx] = trees.clone();
+
+                    // Check if this is the best across all strategies
+                    if side < best_side_for_n {
+                        best_side_for_n = side;
+                        best_trees_for_n = Some(trees);
+                    }
                 }
 
-                let side = compute_side_length(&trees);
+                // Store the best result for this n
+                let best = best_trees_for_n.unwrap();
+                state.trees = best.clone();
 
-                // Update strategy's best configuration
-                strategy_trees[s_idx] = trees.clone();
+                // Calculate score contribution for this n
+                let score_contribution = (best_side_for_n * best_side_for_n) / (n as f64);
+                state.cumulative_score += score_contribution;
 
-                // Check if this is the best across all strategies
-                if side < best_side {
-                    best_side = side;
-                    best_trees = Some(trees);
+                // Update global best if this is better
+                if best_side_for_n < best_scores[n - 1] {
+                    best_scores[n - 1] = best_side_for_n;
+                    let mut packing = Packing::new();
+                    for t in &best {
+                        packing.trees.push(t.clone());
+                    }
+                    best_packings[n - 1] = Some(packing);
                 }
-            }
 
-            // Store the best result
-            let best = best_trees.unwrap();
-            let mut packing = Packing::new();
-            for t in &best {
-                packing.trees.push(t.clone());
-            }
-            packings.push(packing);
+                // Update all strategies to use the best configuration going forward
+                for strat_trees in state.strategy_trees.iter_mut() {
+                    if compute_side_length(strat_trees) > best_side_for_n * 1.02 {
+                        *strat_trees = best.clone();
+                    }
+                }
 
-            // Update all strategies to use the best configuration going forward
-            // This helps propagate good solutions across strategies
-            for strat_trees in strategy_trees.iter_mut() {
-                if compute_side_length(strat_trees) > best_side * 1.02 {
-                    *strat_trees = best.clone();
+                // For cumulative score, we want it to be growing efficiently
+                // Check if current trajectory is better than previous best at this n
+                let global_score_at_n: f64 = (1..=n)
+                    .map(|i| {
+                        let s = best_scores[i - 1];
+                        (s * s) / (i as f64)
+                    })
+                    .sum();
+
+                if state.cumulative_score <= global_score_at_n * (1.0 + self.config.restart_improvement_margin) {
+                    // We're on track or better
+                    consecutive_no_improvement = 0;
+                } else {
+                    consecutive_no_improvement += 1;
+                }
+
+                // Check for stuck condition
+                if consecutive_no_improvement >= self.config.stuck_threshold
+                   && restart_count < self.config.max_restarts
+                   && n < max_n - 10 // Don't restart near the end
+                {
+                    // Restart from a earlier point where we had good progress
+                    let restart_from = (n.saturating_sub(self.config.stuck_threshold / 2)).max(1);
+                    current_start_n = restart_from;
+                    restart_count += 1;
+                    break;
+                }
+
+                // Update current_start_n if we complete successfully
+                if n == max_n {
+                    current_start_n = max_n + 1; // Exit condition
                 }
             }
         }
 
+        // Compile final packings from best known solutions
+        for n in 1..=max_n {
+            if let Some(packing) = best_packings[n - 1].take() {
+                packings.push(packing);
+            } else {
+                // Fallback: pack fresh if somehow missing
+                let trees = self.pack_single_n(n, &mut rng);
+                let mut packing = Packing::new();
+                for t in trees {
+                    packing.trees.push(t);
+                }
+                packings.push(packing);
+            }
+        }
+
         packings
+    }
+
+    /// Initialize state from best known packings
+    fn initialize_state_from_best(
+        &self,
+        best_packings: &[Option<Packing>],
+        start_n: usize,
+        num_strategies: usize,
+    ) -> PackingState {
+        let mut state = PackingState::new(num_strategies);
+
+        if start_n > 1 {
+            // Try to use best known solution for n = start_n - 1
+            if let Some(packing) = &best_packings[start_n - 2] {
+                state.trees = packing.trees.clone();
+                for strat_trees in state.strategy_trees.iter_mut() {
+                    *strat_trees = packing.trees.clone();
+                }
+                // Calculate cumulative score up to start_n - 1
+                for i in 1..start_n {
+                    if let Some(p) = &best_packings[i - 1] {
+                        let side = p.side_length();
+                        state.cumulative_score += (side * side) / (i as f64);
+                    }
+                }
+            }
+        }
+
+        state
+    }
+
+    /// Pack a single n value fresh (fallback)
+    fn pack_single_n(&self, n: usize, rng: &mut impl Rng) -> Vec<PlacedTree> {
+        let strategies = PlacementStrategy::get_strategy_order(0);
+        let mut best_trees: Vec<PlacedTree> = Vec::new();
+        let mut best_side = f64::INFINITY;
+
+        for &strategy in &strategies {
+            let mut trees: Vec<PlacedTree> = Vec::new();
+
+            for i in 1..=n {
+                let new_tree = self.find_placement_with_strategy(
+                    &trees, i, n, strategy, rng,
+                );
+                trees.push(new_tree);
+            }
+
+            for pass in 0..self.config.sa_passes {
+                self.local_search(&mut trees, n, pass, strategy, rng);
+            }
+
+            let side = compute_side_length(&trees);
+            if side < best_side {
+                best_side = side;
+                best_trees = trees;
+            }
+        }
+
+        best_trees
     }
 
     /// Find best placement for new tree using strategy-specific approach
@@ -1000,15 +1171,29 @@ mod tests {
     }
 
     #[test]
-    fn test_diverse_strategies() {
-        // Test that different strategies produce different initial placements
+    fn test_restart_mechanism() {
+        // Test that restart mechanism produces valid packings
         let packer = EvolvedPacker::default();
-        let packings = packer.pack_all(10);
+        let packings = packer.pack_all(30);
 
-        // Just verify it works and produces valid packings
+        // Verify all packings are valid
         for (i, p) in packings.iter().enumerate() {
-            assert_eq!(p.trees.len(), i + 1);
-            assert!(!p.has_overlaps());
+            assert_eq!(p.trees.len(), i + 1, "Packing {} should have {} trees", i, i + 1);
+            assert!(!p.has_overlaps(), "Packing {} should not have overlaps", i);
         }
+    }
+
+    #[test]
+    fn test_strategy_rotation() {
+        // Test that strategy order changes with restart count
+        let order0 = PlacementStrategy::get_strategy_order(0);
+        let order1 = PlacementStrategy::get_strategy_order(1);
+        let order5 = PlacementStrategy::get_strategy_order(5);
+
+        // Order should rotate
+        assert_eq!(order0[0], PlacementStrategy::ClockwiseSpiral);
+        assert_eq!(order1[0], PlacementStrategy::CounterclockwiseSpiral);
+        // Order 5 should be same as order 0 (5 strategies)
+        assert_eq!(order5[0], PlacementStrategy::ClockwiseSpiral);
     }
 }

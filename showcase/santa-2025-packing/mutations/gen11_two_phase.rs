@@ -1,4 +1,4 @@
-//! Evolved Packing Algorithm - Generation 10 DIVERSE STARTS
+//! Evolved Packing Algorithm - Generation 11 TWO-PHASE PARALLEL SEEDING
 //!
 //! This module contains the evolved packing heuristics.
 //! The code is designed to be mutated by LLM-guided evolution.
@@ -9,28 +9,32 @@
 //! - select_direction(): How to choose placement directions
 //! - sa_move(): Local search move operators
 //!
-//! MUTATION STRATEGY: DIVERSE STARTS (Gen10)
-//! Try multiple different starting configurations and keep the best:
+//! MUTATION STRATEGY: TWO-PHASE PARALLEL SEEDING (Gen11)
+//! Based on Gen10 DIVERSE STARTS, but with a two-phase optimization approach:
 //!
-//! Key improvements from Gen6:
-//! - Run 5 completely independent packing attempts per n
-//! - Each attempt uses a different initial angle/direction strategy:
-//!   1. Clockwise spiral - systematic clockwise placement
-//!   2. Counterclockwise spiral - systematic counterclockwise placement
-//!   3. Grid-based - structured grid placement pattern
-//!   4. Random - randomized directions for exploration
-//!   5. Boundary-first - prioritize placing along edges
-//! - Keep the best result for each n
-//! - Combines density-aware scoring from Gen6 with multi-strategy exploration
+//! Phase 1: Quick exploration (10000 SA iterations)
+//! - Run all 5 strategies with reduced compute
+//! - Quickly evaluate which strategies work best for current n
 //!
-//! Target: Beat Gen6's 94.14 at n=200 with diverse exploration
+//! Phase 2: Deep optimization (40000 SA iterations)
+//! - Take the best 2 results from Phase 1
+//! - Run heavy SA optimization on these winners
+//! - Return the best final result
+//!
+//! Key improvements over Gen10:
+//! - More targeted compute allocation (50% more total SA, but focused)
+//! - Early identification of promising strategies
+//! - Deep optimization on best candidates only
+//! - Better exploration/exploitation balance
+//!
+//! Target: Beat Gen10's 91.35 at n=200 with smarter compute allocation
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
 use std::f64::consts::PI;
 
 /// Strategy for initial placement direction
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PlacementStrategy {
     ClockwiseSpiral,
     CounterclockwiseSpiral,
@@ -46,10 +50,16 @@ pub struct EvolvedConfig {
     pub search_attempts: usize,
     pub direction_samples: usize,
 
-    // Simulated annealing
-    pub sa_iterations: usize,
-    pub sa_initial_temp: f64,
-    pub sa_cooling_rate: f64,
+    // Simulated annealing - Phase 1 (quick exploration)
+    pub sa_phase1_iterations: usize,
+    pub sa_phase1_temp: f64,
+    pub sa_phase1_cooling: f64,
+
+    // Simulated annealing - Phase 2 (deep optimization)
+    pub sa_phase2_iterations: usize,
+    pub sa_phase2_temp: f64,
+    pub sa_phase2_cooling: f64,
+
     pub sa_min_temp: f64,
 
     // Move parameters
@@ -66,8 +76,11 @@ pub struct EvolvedConfig {
     // Boundary focus probability
     pub boundary_focus_prob: f64,
 
-    // DIVERSE STARTS: Number of independent attempts
+    // Number of strategies to run in Phase 1
     pub num_strategies: usize,
+
+    // Number of best strategies to advance to Phase 2
+    pub num_phase2_winners: usize,
 
     // Density parameters (from Gen6)
     pub density_grid_resolution: usize,
@@ -78,22 +91,36 @@ pub struct EvolvedConfig {
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
-        // Gen10 DIVERSE STARTS: Multi-strategy configuration
+        // Gen11 TWO-PHASE: Parallel seeding configuration
         Self {
-            search_attempts: 200,            // Slightly fewer per attempt (have 5 attempts)
+            search_attempts: 200,            // Same as Gen10
             direction_samples: 64,           // Good coverage per strategy
-            sa_iterations: 22000,            // Balanced for multiple attempts
-            sa_initial_temp: 0.45,           // From Gen6
-            sa_cooling_rate: 0.99993,        // Slightly faster for multi-attempt
+
+            // Phase 1: Quick exploration (10000 SA)
+            sa_phase1_iterations: 10000,     // Reduced for quick exploration
+            sa_phase1_temp: 0.40,            // Slightly lower initial temp
+            sa_phase1_cooling: 0.99990,      // Faster cooling for exploration
+
+            // Phase 2: Deep optimization (40000 SA)
+            sa_phase2_iterations: 40000,     // Heavy optimization
+            sa_phase2_temp: 0.50,            // Higher temp for more exploration
+            sa_phase2_cooling: 0.99995,      // Slower cooling for thorough search
+
             sa_min_temp: 0.00001,            // From Gen6
+
             translation_scale: 0.055,        // From Gen6
             rotation_granularity: 45.0,      // 8 angles
             center_pull_strength: 0.07,      // From Gen6
             sa_passes: 2,                    // Keep 2 passes
-            early_exit_threshold: 1500,      // Slightly lower for efficiency
+
+            early_exit_threshold: 1200,      // Lower for Phase 1 efficiency
+
             boundary_focus_prob: 0.85,       // From Gen6
-            // DIVERSE STARTS parameters
-            num_strategies: 5,               // 5 different strategies
+
+            // Two-phase parameters
+            num_strategies: 5,               // 5 different strategies in Phase 1
+            num_phase2_winners: 2,           // Top 2 advance to Phase 2
+
             // Density parameters from Gen6
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
@@ -114,6 +141,14 @@ enum BoundaryEdge {
     None,
 }
 
+/// Result from a strategy run
+#[derive(Clone)]
+struct StrategyResult {
+    strategy: PlacementStrategy,
+    trees: Vec<PlacedTree>,
+    side_length: f64,
+}
+
 /// Main evolved packer
 pub struct EvolvedPacker {
     pub config: EvolvedConfig,
@@ -126,12 +161,12 @@ impl Default for EvolvedPacker {
 }
 
 impl EvolvedPacker {
-    /// Pack all n from 1 to max_n using DIVERSE STARTS strategy
+    /// Pack all n from 1 to max_n using TWO-PHASE PARALLEL SEEDING strategy
     pub fn pack_all(&self, max_n: usize) -> Vec<Packing> {
         let mut rng = rand::thread_rng();
         let mut packings: Vec<Packing> = Vec::with_capacity(max_n);
 
-        // Track best configurations for each strategy
+        // All strategies
         let strategies = [
             PlacementStrategy::ClockwiseSpiral,
             PlacementStrategy::CounterclockwiseSpiral,
@@ -144,10 +179,9 @@ impl EvolvedPacker {
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
 
         for n in 1..=max_n {
-            let mut best_trees: Option<Vec<PlacedTree>> = None;
-            let mut best_side = f64::INFINITY;
+            // PHASE 1: Quick exploration with all strategies
+            let mut phase1_results: Vec<StrategyResult> = Vec::with_capacity(strategies.len());
 
-            // Try each strategy independently
             for (s_idx, &strategy) in strategies.iter().enumerate() {
                 let mut trees = strategy_trees[s_idx].clone();
 
@@ -155,20 +189,54 @@ impl EvolvedPacker {
                 let new_tree = self.find_placement_with_strategy(&trees, n, max_n, strategy, &mut rng);
                 trees.push(new_tree);
 
-                // Run SA passes
+                // Phase 1 SA: Quick exploration
+                self.local_search_phase1(&mut trees, n, strategy, &mut rng);
+
+                let side = compute_side_length(&trees);
+
+                // Store result
+                phase1_results.push(StrategyResult {
+                    strategy,
+                    trees,
+                    side_length: side,
+                });
+            }
+
+            // Sort by side length (best first)
+            phase1_results.sort_by(|a, b| a.side_length.partial_cmp(&b.side_length).unwrap());
+
+            // PHASE 2: Deep optimization on best 2 strategies
+            let mut best_trees: Option<Vec<PlacedTree>> = None;
+            let mut best_side = f64::INFINITY;
+
+            for result in phase1_results.iter().take(self.config.num_phase2_winners) {
+                let mut trees = result.trees.clone();
+                let strategy = result.strategy;
+
+                // Phase 2 SA: Deep optimization (multiple passes)
                 for pass in 0..self.config.sa_passes {
-                    self.local_search(&mut trees, n, pass, strategy, &mut rng);
+                    self.local_search_phase2(&mut trees, n, pass, strategy, &mut rng);
                 }
 
                 let side = compute_side_length(&trees);
 
-                // Update strategy's best configuration
-                strategy_trees[s_idx] = trees.clone();
-
-                // Check if this is the best across all strategies
                 if side < best_side {
                     best_side = side;
                     best_trees = Some(trees);
+                }
+            }
+
+            // Update strategy trees for next iteration
+            // Use the Phase 1 results as starting points
+            for (s_idx, result) in phase1_results.iter().enumerate() {
+                // Find original strategy index
+                let orig_idx = strategies.iter().position(|&s| s == result.strategy).unwrap();
+
+                // Update if this was one of the Phase 2 winners with best result
+                if s_idx < self.config.num_phase2_winners && result.strategy == phase1_results[0].strategy {
+                    strategy_trees[orig_idx] = best_trees.as_ref().unwrap().clone();
+                } else {
+                    strategy_trees[orig_idx] = result.trees.clone();
                 }
             }
 
@@ -180,8 +248,7 @@ impl EvolvedPacker {
             }
             packings.push(packing);
 
-            // Update all strategies to use the best configuration going forward
-            // This helps propagate good solutions across strategies
+            // Propagate best configuration to underperforming strategies
             for strat_trees in strategy_trees.iter_mut() {
                 if compute_side_length(strat_trees) > best_side * 1.02 {
                     *strat_trees = best.clone();
@@ -600,13 +667,12 @@ impl EvolvedPacker {
         gaps
     }
 
-    /// Local search with simulated annealing
-    fn local_search(
+    /// Phase 1 local search: Quick exploration
+    fn local_search_phase1(
         &self,
         trees: &mut Vec<PlacedTree>,
         n: usize,
-        pass: usize,
-        _strategy: PlacementStrategy,
+        strategy: PlacementStrategy,
         rng: &mut impl Rng,
     ) {
         if trees.len() <= 1 {
@@ -617,16 +683,8 @@ impl EvolvedPacker {
         let mut best_side = current_side;
         let mut best_config: Vec<PlacedTree> = trees.clone();
 
-        let temp_multiplier = match pass {
-            0 => 1.0,
-            _ => 0.35,
-        };
-        let mut temp = self.config.sa_initial_temp * temp_multiplier;
-
-        let base_iterations = match pass {
-            0 => self.config.sa_iterations + n * 100,
-            _ => self.config.sa_iterations / 2 + n * 50,
-        };
+        let mut temp = self.config.sa_phase1_temp;
+        let iterations = self.config.sa_phase1_iterations + n * 50;
 
         let mut iterations_without_improvement = 0;
 
@@ -634,7 +692,7 @@ impl EvolvedPacker {
         let mut boundary_cache_iter = 0;
         let mut boundary_info: Vec<(usize, BoundaryEdge)> = Vec::new();
 
-        for iter in 0..base_iterations {
+        for iter in 0..iterations {
             if iterations_without_improvement >= self.config.early_exit_threshold {
                 break;
             }
@@ -694,7 +752,111 @@ impl EvolvedPacker {
                 iterations_without_improvement += 1;
             }
 
-            temp = (temp * self.config.sa_cooling_rate).max(self.config.sa_min_temp);
+            temp = (temp * self.config.sa_phase1_cooling).max(self.config.sa_min_temp);
+        }
+
+        if best_side < compute_side_length(trees) {
+            *trees = best_config;
+        }
+    }
+
+    /// Phase 2 local search: Deep optimization
+    fn local_search_phase2(
+        &self,
+        trees: &mut Vec<PlacedTree>,
+        n: usize,
+        pass: usize,
+        _strategy: PlacementStrategy,
+        rng: &mut impl Rng,
+    ) {
+        if trees.len() <= 1 {
+            return;
+        }
+
+        let mut current_side = compute_side_length(trees);
+        let mut best_side = current_side;
+        let mut best_config: Vec<PlacedTree> = trees.clone();
+
+        let temp_multiplier = match pass {
+            0 => 1.0,
+            _ => 0.35,
+        };
+        let mut temp = self.config.sa_phase2_temp * temp_multiplier;
+
+        let base_iterations = match pass {
+            0 => self.config.sa_phase2_iterations + n * 150,
+            _ => self.config.sa_phase2_iterations / 2 + n * 75,
+        };
+
+        // Higher early exit threshold for deep optimization
+        let early_exit = self.config.early_exit_threshold * 2;
+        let mut iterations_without_improvement = 0;
+
+        // Cache boundary info
+        let mut boundary_cache_iter = 0;
+        let mut boundary_info: Vec<(usize, BoundaryEdge)> = Vec::new();
+
+        for iter in 0..base_iterations {
+            if iterations_without_improvement >= early_exit {
+                break;
+            }
+
+            // Update boundary cache every 300 iterations
+            if iter == 0 || iter - boundary_cache_iter >= 300 {
+                boundary_info = self.find_boundary_trees_with_edges(trees);
+                boundary_cache_iter = iter;
+            }
+
+            // Choose between boundary optimization and gap-filling
+            let do_fill_move = rng.gen::<f64>() < self.config.fill_move_prob;
+
+            let (idx, edge) = if do_fill_move {
+                let interior_trees: Vec<usize> = (0..trees.len())
+                    .filter(|&i| !boundary_info.iter().any(|(bi, _)| *bi == i))
+                    .collect();
+
+                if !interior_trees.is_empty() && rng.gen::<f64>() < 0.5 {
+                    (interior_trees[rng.gen_range(0..interior_trees.len())], BoundaryEdge::None)
+                } else if !boundary_info.is_empty() {
+                    let bi = &boundary_info[rng.gen_range(0..boundary_info.len())];
+                    (bi.0, bi.1)
+                } else {
+                    (rng.gen_range(0..trees.len()), BoundaryEdge::None)
+                }
+            } else if !boundary_info.is_empty() && rng.gen::<f64>() < self.config.boundary_focus_prob {
+                let bi = &boundary_info[rng.gen_range(0..boundary_info.len())];
+                (bi.0, bi.1)
+            } else {
+                (rng.gen_range(0..trees.len()), BoundaryEdge::None)
+            };
+
+            let old_tree = trees[idx].clone();
+
+            let success = self.sa_move(trees, idx, temp, edge, do_fill_move, rng);
+
+            if success {
+                let new_side = compute_side_length(trees);
+                let delta = new_side - current_side;
+
+                if delta <= 0.0 || rng.gen::<f64>() < (-delta / temp).exp() {
+                    current_side = new_side;
+                    if current_side < best_side {
+                        best_side = current_side;
+                        best_config = trees.clone();
+                        iterations_without_improvement = 0;
+                    } else {
+                        iterations_without_improvement += 1;
+                    }
+                } else {
+                    trees[idx] = old_tree;
+                    iterations_without_improvement += 1;
+                }
+            } else {
+                trees[idx] = old_tree;
+                iterations_without_improvement += 1;
+            }
+
+            temp = (temp * self.config.sa_phase2_cooling).max(self.config.sa_min_temp);
         }
 
         if best_side < compute_side_length(trees) {
@@ -1000,12 +1162,12 @@ mod tests {
     }
 
     #[test]
-    fn test_diverse_strategies() {
-        // Test that different strategies produce different initial placements
+    fn test_two_phase_optimization() {
+        // Test that two-phase approach produces valid packings
         let packer = EvolvedPacker::default();
         let packings = packer.pack_all(10);
 
-        // Just verify it works and produces valid packings
+        // Verify all packings are valid
         for (i, p) in packings.iter().enumerate() {
             assert_eq!(p.trees.len(), i + 1);
             assert!(!p.has_overlaps());

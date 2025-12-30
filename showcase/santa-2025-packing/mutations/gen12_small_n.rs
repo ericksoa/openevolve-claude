@@ -1,4 +1,4 @@
-//! Evolved Packing Algorithm - Generation 10 DIVERSE STARTS
+//! Evolved Packing Algorithm - Generation 12 EXTREME SMALL N
 //!
 //! This module contains the evolved packing heuristics.
 //! The code is designed to be mutated by LLM-guided evolution.
@@ -9,21 +9,16 @@
 //! - select_direction(): How to choose placement directions
 //! - sa_move(): Local search move operators
 //!
-//! MUTATION STRATEGY: DIVERSE STARTS (Gen10)
-//! Try multiple different starting configurations and keep the best:
+//! MUTATION STRATEGY: EXTREME COMPUTE ON SMALL N (Gen12)
+//! Small n values contribute disproportionately to score (n=1 is 200x more important than n=200).
+//! For n <= 20:
+//!   1. Run 10 strategies (not 5)
+//!   2. 80000 SA iterations per strategy
+//!   3. 500 search attempts
+//!   4. 100 direction samples
+//! For n > 20: Use standard Gen10 approach
 //!
-//! Key improvements from Gen6:
-//! - Run 5 completely independent packing attempts per n
-//! - Each attempt uses a different initial angle/direction strategy:
-//!   1. Clockwise spiral - systematic clockwise placement
-//!   2. Counterclockwise spiral - systematic counterclockwise placement
-//!   3. Grid-based - structured grid placement pattern
-//!   4. Random - randomized directions for exploration
-//!   5. Boundary-first - prioritize placing along edges
-//! - Keep the best result for each n
-//! - Combines density-aware scoring from Gen6 with multi-strategy exploration
-//!
-//! Target: Beat Gen6's 94.14 at n=200 with diverse exploration
+//! Base: Gen10 diverse (champion, score ~91.35 at n=200)
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -37,20 +32,34 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
+    // New strategies for Gen12
+    DiagonalPrimary,
+    DiagonalSecondary,
+    CenterOut,
+    EdgeHugging,
+    GoldenSpiral,
 }
 
 /// Evolved packing configuration
 /// These parameters are tuned through evolution
 pub struct EvolvedConfig {
-    // Search parameters
+    // Search parameters - standard (n > 20)
     pub search_attempts: usize,
     pub direction_samples: usize,
 
-    // Simulated annealing
+    // Search parameters - extreme (n <= 20)
+    pub search_attempts_small_n: usize,
+    pub direction_samples_small_n: usize,
+
+    // Simulated annealing - standard
     pub sa_iterations: usize,
     pub sa_initial_temp: f64,
     pub sa_cooling_rate: f64,
     pub sa_min_temp: f64,
+
+    // Simulated annealing - extreme (n <= 20)
+    pub sa_iterations_small_n: usize,
+    pub sa_cooling_rate_small_n: f64,
 
     // Move parameters
     pub translation_scale: f64,
@@ -59,46 +68,76 @@ pub struct EvolvedConfig {
 
     // Multi-pass settings
     pub sa_passes: usize,
+    pub sa_passes_small_n: usize,
 
     // Early exit threshold
     pub early_exit_threshold: usize,
+    pub early_exit_threshold_small_n: usize,
 
     // Boundary focus probability
     pub boundary_focus_prob: f64,
 
     // DIVERSE STARTS: Number of independent attempts
     pub num_strategies: usize,
+    pub num_strategies_small_n: usize,
 
     // Density parameters (from Gen6)
     pub density_grid_resolution: usize,
     pub gap_penalty_weight: f64,
     pub local_density_radius: f64,
     pub fill_move_prob: f64,
+
+    // Threshold for "small n"
+    pub small_n_threshold: usize,
 }
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
-        // Gen10 DIVERSE STARTS: Multi-strategy configuration
+        // Gen12 EXTREME SMALL N configuration
         Self {
-            search_attempts: 200,            // Slightly fewer per attempt (have 5 attempts)
-            direction_samples: 64,           // Good coverage per strategy
-            sa_iterations: 22000,            // Balanced for multiple attempts
-            sa_initial_temp: 0.45,           // From Gen6
-            sa_cooling_rate: 0.99993,        // Slightly faster for multi-attempt
-            sa_min_temp: 0.00001,            // From Gen6
-            translation_scale: 0.055,        // From Gen6
-            rotation_granularity: 45.0,      // 8 angles
-            center_pull_strength: 0.07,      // From Gen6
-            sa_passes: 2,                    // Keep 2 passes
-            early_exit_threshold: 1500,      // Slightly lower for efficiency
-            boundary_focus_prob: 0.85,       // From Gen6
-            // DIVERSE STARTS parameters
-            num_strategies: 5,               // 5 different strategies
+            // Standard parameters (n > 20)
+            search_attempts: 200,
+            direction_samples: 64,
+            sa_iterations: 22000,
+
+            // EXTREME parameters for small n (n <= 20)
+            search_attempts_small_n: 500,      // 2.5x more search attempts
+            direction_samples_small_n: 100,    // ~1.5x more direction samples
+            sa_iterations_small_n: 80000,      // ~4x more SA iterations
+            sa_cooling_rate_small_n: 0.99997,  // Slower cooling for longer optimization
+
+            // Common SA parameters
+            sa_initial_temp: 0.45,
+            sa_cooling_rate: 0.99993,
+            sa_min_temp: 0.00001,
+
+            // Move parameters
+            translation_scale: 0.055,
+            rotation_granularity: 45.0,
+            center_pull_strength: 0.07,
+
+            // Multi-pass settings
+            sa_passes: 2,
+            sa_passes_small_n: 3,              // Extra pass for small n
+
+            // Early exit thresholds
+            early_exit_threshold: 1500,
+            early_exit_threshold_small_n: 8000, // Much higher for small n
+
+            boundary_focus_prob: 0.85,
+
+            // Strategy counts
+            num_strategies: 5,
+            num_strategies_small_n: 10,        // 2x strategies for small n
+
             // Density parameters from Gen6
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
             fill_move_prob: 0.15,
+
+            // Threshold
+            small_n_threshold: 20,
         }
     }
 }
@@ -126,24 +165,97 @@ impl Default for EvolvedPacker {
 }
 
 impl EvolvedPacker {
-    /// Pack all n from 1 to max_n using DIVERSE STARTS strategy
+    /// Get all strategies to use for a given n
+    fn get_strategies(&self, n: usize) -> Vec<PlacementStrategy> {
+        if n <= self.config.small_n_threshold {
+            // All 10 strategies for small n
+            vec![
+                PlacementStrategy::ClockwiseSpiral,
+                PlacementStrategy::CounterclockwiseSpiral,
+                PlacementStrategy::Grid,
+                PlacementStrategy::Random,
+                PlacementStrategy::BoundaryFirst,
+                PlacementStrategy::DiagonalPrimary,
+                PlacementStrategy::DiagonalSecondary,
+                PlacementStrategy::CenterOut,
+                PlacementStrategy::EdgeHugging,
+                PlacementStrategy::GoldenSpiral,
+            ]
+        } else {
+            // Standard 5 strategies for large n
+            vec![
+                PlacementStrategy::ClockwiseSpiral,
+                PlacementStrategy::CounterclockwiseSpiral,
+                PlacementStrategy::Grid,
+                PlacementStrategy::Random,
+                PlacementStrategy::BoundaryFirst,
+            ]
+        }
+    }
+
+    /// Get search attempts based on n
+    #[inline]
+    fn get_search_attempts(&self, n: usize) -> usize {
+        if n <= self.config.small_n_threshold {
+            self.config.search_attempts_small_n
+        } else {
+            self.config.search_attempts
+        }
+    }
+
+    /// Get SA iterations based on n
+    #[inline]
+    fn get_sa_iterations(&self, n: usize) -> usize {
+        if n <= self.config.small_n_threshold {
+            self.config.sa_iterations_small_n
+        } else {
+            self.config.sa_iterations
+        }
+    }
+
+    /// Get SA cooling rate based on n
+    #[inline]
+    fn get_sa_cooling_rate(&self, n: usize) -> f64 {
+        if n <= self.config.small_n_threshold {
+            self.config.sa_cooling_rate_small_n
+        } else {
+            self.config.sa_cooling_rate
+        }
+    }
+
+    /// Get SA passes based on n
+    #[inline]
+    fn get_sa_passes(&self, n: usize) -> usize {
+        if n <= self.config.small_n_threshold {
+            self.config.sa_passes_small_n
+        } else {
+            self.config.sa_passes
+        }
+    }
+
+    /// Get early exit threshold based on n
+    #[inline]
+    fn get_early_exit_threshold(&self, n: usize) -> usize {
+        if n <= self.config.small_n_threshold {
+            self.config.early_exit_threshold_small_n
+        } else {
+            self.config.early_exit_threshold
+        }
+    }
+
+    /// Pack all n from 1 to max_n using EXTREME SMALL N strategy
     pub fn pack_all(&self, max_n: usize) -> Vec<Packing> {
         let mut rng = rand::thread_rng();
         let mut packings: Vec<Packing> = Vec::with_capacity(max_n);
 
-        // Track best configurations for each strategy
-        let strategies = [
-            PlacementStrategy::ClockwiseSpiral,
-            PlacementStrategy::CounterclockwiseSpiral,
-            PlacementStrategy::Grid,
-            PlacementStrategy::Random,
-            PlacementStrategy::BoundaryFirst,
-        ];
-
-        // Maintain separate tree configurations for each strategy
-        let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
+        // Maintain separate tree configurations for each strategy (up to 10)
+        let max_strategies = 10;
+        let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); max_strategies];
 
         for n in 1..=max_n {
+            let strategies = self.get_strategies(n);
+            let num_strategies = strategies.len();
+
             let mut best_trees: Option<Vec<PlacedTree>> = None;
             let mut best_side = f64::INFINITY;
 
@@ -155,8 +267,9 @@ impl EvolvedPacker {
                 let new_tree = self.find_placement_with_strategy(&trees, n, max_n, strategy, &mut rng);
                 trees.push(new_tree);
 
-                // Run SA passes
-                for pass in 0..self.config.sa_passes {
+                // Run SA passes (more for small n)
+                let passes = self.get_sa_passes(n);
+                for pass in 0..passes {
                     self.local_search(&mut trees, n, pass, strategy, &mut rng);
                 }
 
@@ -182,8 +295,8 @@ impl EvolvedPacker {
 
             // Update all strategies to use the best configuration going forward
             // This helps propagate good solutions across strategies
-            for strat_trees in strategy_trees.iter_mut() {
-                if compute_side_length(strat_trees) > best_side * 1.02 {
+            for (s_idx, strat_trees) in strategy_trees.iter_mut().enumerate() {
+                if s_idx < num_strategies && compute_side_length(strat_trees) > best_side * 1.02 {
                     *strat_trees = best.clone();
                 }
             }
@@ -209,6 +322,11 @@ impl EvolvedPacker {
                 PlacementStrategy::Grid => 45.0,
                 PlacementStrategy::Random => rng.gen_range(0..8) as f64 * 45.0,
                 PlacementStrategy::BoundaryFirst => 180.0,
+                PlacementStrategy::DiagonalPrimary => 45.0,
+                PlacementStrategy::DiagonalSecondary => 135.0,
+                PlacementStrategy::CenterOut => 0.0,
+                PlacementStrategy::EdgeHugging => 90.0,
+                PlacementStrategy::GoldenSpiral => 22.5,
             };
             return PlacedTree::new(0.0, 0.0, initial_angle);
         }
@@ -217,6 +335,7 @@ impl EvolvedPacker {
         let mut best_score = f64::INFINITY;
 
         let angles = self.select_angles_for_strategy(n, strategy);
+        let search_attempts = self.get_search_attempts(n);
 
         // Compute current bounds and density info
         let (min_x, min_y, max_x, max_y) = compute_bounds(existing);
@@ -226,7 +345,7 @@ impl EvolvedPacker {
         // Find gaps for density-aware placement
         let gaps = self.find_gaps(existing, min_x, min_y, max_x, max_y);
 
-        for attempt in 0..self.config.search_attempts {
+        for attempt in 0..search_attempts {
             // Strategy-specific direction selection
             let dir = if !gaps.is_empty() && attempt % 5 == 0 {
                 // Sometimes target gaps directly
@@ -276,19 +395,15 @@ impl EvolvedPacker {
     fn select_angles_for_strategy(&self, n: usize, strategy: PlacementStrategy) -> Vec<f64> {
         match strategy {
             PlacementStrategy::ClockwiseSpiral => {
-                // Favor angles that work well for clockwise packing
                 vec![0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0]
             }
             PlacementStrategy::CounterclockwiseSpiral => {
-                // Reverse order for counterclockwise
                 vec![315.0, 270.0, 225.0, 180.0, 135.0, 90.0, 45.0, 0.0]
             }
             PlacementStrategy::Grid => {
-                // Prefer axis-aligned for grid packing
                 vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
             }
             PlacementStrategy::Random => {
-                // Vary based on n for diversity
                 match n % 4 {
                     0 => vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0],
                     1 => vec![90.0, 270.0, 0.0, 180.0, 135.0, 315.0, 45.0, 225.0],
@@ -297,8 +412,29 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::BoundaryFirst => {
-                // Angles that work well for boundary placement
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
+            }
+            PlacementStrategy::DiagonalPrimary => {
+                // Angles favoring primary diagonal (top-left to bottom-right)
+                vec![45.0, 225.0, 0.0, 90.0, 180.0, 270.0, 135.0, 315.0]
+            }
+            PlacementStrategy::DiagonalSecondary => {
+                // Angles favoring secondary diagonal (top-right to bottom-left)
+                vec![135.0, 315.0, 0.0, 90.0, 180.0, 270.0, 45.0, 225.0]
+            }
+            PlacementStrategy::CenterOut => {
+                // Favor radially symmetric angles
+                vec![0.0, 60.0, 120.0, 180.0, 240.0, 300.0, 30.0, 90.0]
+            }
+            PlacementStrategy::EdgeHugging => {
+                // Axis-aligned angles for tight edge packing
+                vec![0.0, 90.0, 180.0, 270.0, 22.5, 67.5, 112.5, 157.5]
+            }
+            PlacementStrategy::GoldenSpiral => {
+                // Golden angle-based rotations
+                let golden = 137.5;
+                vec![0.0, golden, 2.0 * golden % 360.0, 3.0 * golden % 360.0,
+                     4.0 * golden % 360.0, 90.0, 180.0, 270.0]
             }
         }
     }
@@ -316,34 +452,30 @@ impl EvolvedPacker {
     ) -> f64 {
         match strategy {
             PlacementStrategy::ClockwiseSpiral => {
-                // Clockwise spiral: start at top, go right, down, left, up...
                 let golden_angle = PI * (3.0 - (5.0_f64).sqrt());
                 let base = (n as f64 * golden_angle) % (2.0 * PI);
-                let offset = (attempt as f64 / self.config.search_attempts as f64) * 2.0 * PI;
+                let search_attempts = self.get_search_attempts(n);
+                let offset = (attempt as f64 / search_attempts as f64) * 2.0 * PI;
                 (base + offset) % (2.0 * PI)
             }
             PlacementStrategy::CounterclockwiseSpiral => {
-                // Counterclockwise: opposite direction
                 let golden_angle = -PI * (3.0 - (5.0_f64).sqrt());
                 let base = (n as f64 * golden_angle).rem_euclid(2.0 * PI);
-                let offset = (attempt as f64 / self.config.search_attempts as f64) * 2.0 * PI;
+                let search_attempts = self.get_search_attempts(n);
+                let offset = (attempt as f64 / search_attempts as f64) * 2.0 * PI;
                 (base - offset).rem_euclid(2.0 * PI)
             }
             PlacementStrategy::Grid => {
-                // Grid pattern: structured directions
                 let num_dirs = 16;
                 let base_idx = attempt % num_dirs;
                 let base = (base_idx as f64 / num_dirs as f64) * 2.0 * PI;
-                // Add slight jitter for variation
                 base + rng.gen_range(-0.03..0.03)
             }
             PlacementStrategy::Random => {
-                // Pure random with some structure
                 let mix = rng.gen::<f64>();
                 if mix < 0.5 {
                     rng.gen_range(0.0..2.0 * PI)
                 } else {
-                    // Bias toward shorter dimension
                     if width < height {
                         let angle = if rng.gen() { 0.0 } else { PI };
                         angle + rng.gen_range(-PI / 3.0..PI / 3.0)
@@ -354,20 +486,54 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::BoundaryFirst => {
-                // Prioritize corners and edges
                 let prob = rng.gen::<f64>();
                 if prob < 0.4 {
-                    // Corners
                     let corners = [PI / 4.0, 3.0 * PI / 4.0, 5.0 * PI / 4.0, 7.0 * PI / 4.0];
                     corners[attempt % 4] + rng.gen_range(-0.1..0.1)
                 } else if prob < 0.8 {
-                    // Edges
                     let edges = [0.0, PI / 2.0, PI, 3.0 * PI / 2.0];
                     edges[attempt % 4] + rng.gen_range(-0.2..0.2)
                 } else {
-                    // Random for coverage
                     rng.gen_range(0.0..2.0 * PI)
                 }
+            }
+            PlacementStrategy::DiagonalPrimary => {
+                // Favor primary diagonal direction (45 degrees and 225 degrees)
+                let base_angles = [PI / 4.0, 5.0 * PI / 4.0];
+                let base = base_angles[attempt % 2];
+                let search_attempts = self.get_search_attempts(n);
+                let variation = (attempt as f64 / search_attempts as f64) * PI / 2.0;
+                (base + variation - PI / 4.0).rem_euclid(2.0 * PI)
+            }
+            PlacementStrategy::DiagonalSecondary => {
+                // Favor secondary diagonal direction (135 degrees and 315 degrees)
+                let base_angles = [3.0 * PI / 4.0, 7.0 * PI / 4.0];
+                let base = base_angles[attempt % 2];
+                let search_attempts = self.get_search_attempts(n);
+                let variation = (attempt as f64 / search_attempts as f64) * PI / 2.0;
+                (base + variation - PI / 4.0).rem_euclid(2.0 * PI)
+            }
+            PlacementStrategy::CenterOut => {
+                // Radial directions from center with fine granularity
+                let search_attempts = self.get_search_attempts(n);
+                let num_dirs = search_attempts.min(64);
+                let base = (attempt % num_dirs) as f64 / num_dirs as f64 * 2.0 * PI;
+                base + rng.gen_range(-0.02..0.02)
+            }
+            PlacementStrategy::EdgeHugging => {
+                // Strongly favor axis-aligned directions
+                let prob = rng.gen::<f64>();
+                if prob < 0.7 {
+                    let axes = [0.0, PI / 2.0, PI, 3.0 * PI / 2.0];
+                    axes[attempt % 4] + rng.gen_range(-0.08..0.08)
+                } else {
+                    rng.gen_range(0.0..2.0 * PI)
+                }
+            }
+            PlacementStrategy::GoldenSpiral => {
+                // Golden angle progression
+                let golden_angle = 2.0 * PI * (1.0 - 1.0 / 1.618033988749895);
+                (attempt as f64 * golden_angle).rem_euclid(2.0 * PI)
             }
         }
     }
@@ -619,23 +785,28 @@ impl EvolvedPacker {
 
         let temp_multiplier = match pass {
             0 => 1.0,
-            _ => 0.35,
+            1 => 0.35,
+            _ => 0.15, // Third pass for small n
         };
         let mut temp = self.config.sa_initial_temp * temp_multiplier;
 
-        let base_iterations = match pass {
-            0 => self.config.sa_iterations + n * 100,
-            _ => self.config.sa_iterations / 2 + n * 50,
+        let base_iterations = self.get_sa_iterations(n);
+        let iterations = match pass {
+            0 => base_iterations + n * 100,
+            1 => base_iterations / 2 + n * 50,
+            _ => base_iterations / 4 + n * 25, // Third pass
         };
 
+        let early_exit = self.get_early_exit_threshold(n);
+        let cooling_rate = self.get_sa_cooling_rate(n);
         let mut iterations_without_improvement = 0;
 
         // Cache boundary info
         let mut boundary_cache_iter = 0;
         let mut boundary_info: Vec<(usize, BoundaryEdge)> = Vec::new();
 
-        for iter in 0..base_iterations {
-            if iterations_without_improvement >= self.config.early_exit_threshold {
+        for iter in 0..iterations {
+            if iterations_without_improvement >= early_exit {
                 break;
             }
 
@@ -694,7 +865,7 @@ impl EvolvedPacker {
                 iterations_without_improvement += 1;
             }
 
-            temp = (temp * self.config.sa_cooling_rate).max(self.config.sa_min_temp);
+            temp = (temp * cooling_rate).max(self.config.sa_min_temp);
         }
 
         if best_side < compute_side_length(trees) {
@@ -1000,15 +1171,18 @@ mod tests {
     }
 
     #[test]
-    fn test_diverse_strategies() {
-        // Test that different strategies produce different initial placements
-        let packer = EvolvedPacker::default();
-        let packings = packer.pack_all(10);
+    fn test_extreme_small_n() {
+        // Test that small n uses extreme compute
+        let config = EvolvedConfig::default();
+        assert_eq!(config.num_strategies_small_n, 10);
+        assert_eq!(config.sa_iterations_small_n, 80000);
+        assert_eq!(config.search_attempts_small_n, 500);
 
-        // Just verify it works and produces valid packings
-        for (i, p) in packings.iter().enumerate() {
-            assert_eq!(p.trees.len(), i + 1);
-            assert!(!p.has_overlaps());
-        }
+        let packer = EvolvedPacker::default();
+        // Verify configuration is applied correctly
+        assert_eq!(packer.get_search_attempts(5), 500);   // small n
+        assert_eq!(packer.get_search_attempts(25), 200);  // large n
+        assert_eq!(packer.get_sa_iterations(5), 80000);   // small n
+        assert_eq!(packer.get_sa_iterations(25), 22000);  // large n
     }
 }

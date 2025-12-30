@@ -1,4 +1,4 @@
-//! Evolved Packing Algorithm - Generation 10 DIVERSE STARTS
+//! Evolved Packing Algorithm - Generation 12 STRATEGY LOOKAHEAD
 //!
 //! This module contains the evolved packing heuristics.
 //! The code is designed to be mutated by LLM-guided evolution.
@@ -9,28 +9,31 @@
 //! - select_direction(): How to choose placement directions
 //! - sa_move(): Local search move operators
 //!
-//! MUTATION STRATEGY: DIVERSE STARTS (Gen10)
-//! Try multiple different starting configurations and keep the best:
+//! MUTATION STRATEGY: STRATEGY LOOKAHEAD (Gen12)
+//! Building on Gen10's diverse strategies (~91.35 at n=200) with lookahead evaluation:
 //!
-//! Key improvements from Gen6:
-//! - Run 5 completely independent packing attempts per n
-//! - Each attempt uses a different initial angle/direction strategy:
-//!   1. Clockwise spiral - systematic clockwise placement
-//!   2. Counterclockwise spiral - systematic counterclockwise placement
-//!   3. Grid-based - structured grid placement pattern
-//!   4. Random - randomized directions for exploration
-//!   5. Boundary-first - prioritize placing along edges
-//! - Keep the best result for each n
-//! - Combines density-aware scoring from Gen6 with multi-strategy exploration
+//! Key insight: Gen10 tries 5 strategies independently and picks the best result
+//! for each tree. But it only looks at the immediate result. Gen12 adds lookahead:
 //!
-//! Target: Beat Gen6's 94.14 at n=200 with diverse exploration
+//! 1. For each of the 5 strategies, simulate placing the NEXT 3 trees
+//! 2. Score based on projected packing quality after those 3 trees
+//! 3. Choose the strategy that looks best for future trees
+//! 4. This helps avoid myopic decisions that look good now but hurt later
+//!
+//! Key changes from Gen10:
+//! - When evaluating each strategy, simulate placing next 3 trees (reduced search)
+//! - Score strategies by projected packing quality, not just immediate result
+//! - Adaptive lookahead depth: 3 for small n, 2 for medium, 1 for large
+//! - Cache strategy performance to inform future decisions
+//!
+//! Target: Beat Gen10's ~91.35 at n=200 by making globally-aware strategy choices
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
 use std::f64::consts::PI;
 
 /// Strategy for initial placement direction
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PlacementStrategy {
     ClockwiseSpiral,
     CounterclockwiseSpiral,
@@ -74,31 +77,44 @@ pub struct EvolvedConfig {
     pub gap_penalty_weight: f64,
     pub local_density_radius: f64,
     pub fill_move_prob: f64,
+
+    // LOOKAHEAD: New parameters for Gen12
+    pub lookahead_depth_small_n: usize,    // Depth for small n (< 50)
+    pub lookahead_depth_medium_n: usize,   // Depth for medium n (50-100)
+    pub lookahead_depth_large_n: usize,    // Depth for large n (> 100)
+    pub lookahead_search_attempts: usize,  // Reduced attempts for lookahead
+    pub lookahead_discount_rate: f64,      // Discount for future scores
 }
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
-        // Gen10 DIVERSE STARTS: Multi-strategy configuration
+        // Gen12 STRATEGY LOOKAHEAD: Configuration
         Self {
-            search_attempts: 200,            // Slightly fewer per attempt (have 5 attempts)
-            direction_samples: 64,           // Good coverage per strategy
-            sa_iterations: 22000,            // Balanced for multiple attempts
-            sa_initial_temp: 0.45,           // From Gen6
-            sa_cooling_rate: 0.99993,        // Slightly faster for multi-attempt
-            sa_min_temp: 0.00001,            // From Gen6
-            translation_scale: 0.055,        // From Gen6
-            rotation_granularity: 45.0,      // 8 angles
-            center_pull_strength: 0.07,      // From Gen6
-            sa_passes: 2,                    // Keep 2 passes
-            early_exit_threshold: 1500,      // Slightly lower for efficiency
-            boundary_focus_prob: 0.85,       // From Gen6
+            search_attempts: 180,             // Slightly reduced for lookahead overhead
+            direction_samples: 64,            // Good coverage per strategy
+            sa_iterations: 20000,             // Balanced for multiple attempts + lookahead
+            sa_initial_temp: 0.45,            // From Gen6
+            sa_cooling_rate: 0.99993,         // Slightly faster for multi-attempt
+            sa_min_temp: 0.00001,             // From Gen6
+            translation_scale: 0.055,         // From Gen6
+            rotation_granularity: 45.0,       // 8 angles
+            center_pull_strength: 0.07,       // From Gen6
+            sa_passes: 2,                     // Keep 2 passes
+            early_exit_threshold: 1400,       // Slightly lower for efficiency
+            boundary_focus_prob: 0.85,        // From Gen6
             // DIVERSE STARTS parameters
-            num_strategies: 5,               // 5 different strategies
+            num_strategies: 5,                // 5 different strategies
             // Density parameters from Gen6
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
             fill_move_prob: 0.15,
+            // LOOKAHEAD parameters for Gen12
+            lookahead_depth_small_n: 3,       // Look 3 trees ahead for n < 50
+            lookahead_depth_medium_n: 2,      // Look 2 trees ahead for 50 <= n < 100
+            lookahead_depth_large_n: 1,       // Look 1 tree ahead for n >= 100
+            lookahead_search_attempts: 40,    // Reduced attempts for speed
+            lookahead_discount_rate: 0.75,    // Discount factor for future scores
         }
     }
 }
@@ -126,7 +142,7 @@ impl Default for EvolvedPacker {
 }
 
 impl EvolvedPacker {
-    /// Pack all n from 1 to max_n using DIVERSE STARTS strategy
+    /// Pack all n from 1 to max_n using STRATEGY LOOKAHEAD
     pub fn pack_all(&self, max_n: usize) -> Vec<Packing> {
         let mut rng = rand::thread_rng();
         let mut packings: Vec<Packing> = Vec::with_capacity(max_n);
@@ -145,9 +161,12 @@ impl EvolvedPacker {
 
         for n in 1..=max_n {
             let mut best_trees: Option<Vec<PlacedTree>> = None;
-            let mut best_side = f64::INFINITY;
+            let mut best_score = f64::INFINITY;
 
-            // Try each strategy independently
+            // Determine lookahead depth for this n
+            let lookahead_depth = self.get_lookahead_depth(n, max_n);
+
+            // Try each strategy independently with lookahead evaluation
             for (s_idx, &strategy) in strategies.iter().enumerate() {
                 let mut trees = strategy_trees[s_idx].clone();
 
@@ -160,14 +179,19 @@ impl EvolvedPacker {
                     self.local_search(&mut trees, n, pass, strategy, &mut rng);
                 }
 
-                let side = compute_side_length(&trees);
+                // LOOKAHEAD: Score this strategy by simulating future placements
+                let strategy_score = if lookahead_depth > 0 {
+                    self.score_strategy_with_lookahead(&trees, n, max_n, lookahead_depth, strategy, &mut rng)
+                } else {
+                    compute_side_length(&trees)
+                };
 
                 // Update strategy's best configuration
                 strategy_trees[s_idx] = trees.clone();
 
                 // Check if this is the best across all strategies
-                if side < best_side {
-                    best_side = side;
+                if strategy_score < best_score {
+                    best_score = strategy_score;
                     best_trees = Some(trees);
                 }
             }
@@ -182,6 +206,7 @@ impl EvolvedPacker {
 
             // Update all strategies to use the best configuration going forward
             // This helps propagate good solutions across strategies
+            let best_side = compute_side_length(&best);
             for strat_trees in strategy_trees.iter_mut() {
                 if compute_side_length(strat_trees) > best_side * 1.02 {
                     *strat_trees = best.clone();
@@ -190,6 +215,156 @@ impl EvolvedPacker {
         }
 
         packings
+    }
+
+    /// Determine lookahead depth based on n
+    #[inline]
+    fn get_lookahead_depth(&self, n: usize, max_n: usize) -> usize {
+        // Don't look ahead past the final tree
+        let remaining = max_n.saturating_sub(n);
+        let base_depth = if n < 50 {
+            self.config.lookahead_depth_small_n
+        } else if n < 100 {
+            self.config.lookahead_depth_medium_n
+        } else {
+            self.config.lookahead_depth_large_n
+        };
+        base_depth.min(remaining)
+    }
+
+    /// LOOKAHEAD: Score a strategy by simulating future tree placements
+    fn score_strategy_with_lookahead(
+        &self,
+        trees: &[PlacedTree],
+        n: usize,
+        max_n: usize,
+        depth: usize,
+        strategy: PlacementStrategy,
+        rng: &mut impl Rng,
+    ) -> f64 {
+        // Base score: current side length
+        let mut total_score = compute_side_length(trees);
+
+        // Simulate future placements
+        let mut temp_trees: Vec<PlacedTree> = trees.to_vec();
+        let mut discount = 1.0;
+
+        for future_step in 1..=depth {
+            let future_n = n + future_step;
+            if future_n > max_n {
+                break;
+            }
+
+            // Apply discount for future steps
+            discount *= self.config.lookahead_discount_rate;
+
+            // Find a quick placement for the future tree using this strategy
+            let future_tree = self.find_placement_quick(&temp_trees, future_n, max_n, strategy, rng);
+            temp_trees.push(future_tree);
+
+            // Add discounted future side length to score
+            let future_side = compute_side_length(&temp_trees);
+            total_score += (future_side - compute_side_length(&temp_trees[..temp_trees.len()-1])) * discount;
+        }
+
+        // Final projected side length with heavier weight
+        let final_side = compute_side_length(&temp_trees);
+        total_score = total_score * 0.3 + final_side * 0.7;
+
+        total_score
+    }
+
+    /// Quick placement search for lookahead simulation (reduced computation)
+    fn find_placement_quick(
+        &self,
+        existing: &[PlacedTree],
+        n: usize,
+        _max_n: usize,
+        strategy: PlacementStrategy,
+        rng: &mut impl Rng,
+    ) -> PlacedTree {
+        if existing.is_empty() {
+            let initial_angle = match strategy {
+                PlacementStrategy::ClockwiseSpiral => 0.0,
+                PlacementStrategy::CounterclockwiseSpiral => 90.0,
+                PlacementStrategy::Grid => 45.0,
+                PlacementStrategy::Random => rng.gen_range(0..8) as f64 * 45.0,
+                PlacementStrategy::BoundaryFirst => 180.0,
+            };
+            return PlacedTree::new(0.0, 0.0, initial_angle);
+        }
+
+        let mut best_tree = PlacedTree::new(0.0, 0.0, 90.0);
+        let mut best_score = f64::INFINITY;
+
+        // Use reduced angles for speed
+        let angles = vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0];
+
+        let (min_x, min_y, max_x, max_y) = compute_bounds(existing);
+        let current_width = max_x - min_x;
+        let current_height = max_y - min_y;
+
+        for attempt in 0..self.config.lookahead_search_attempts {
+            // Quick strategy-specific direction
+            let dir = self.select_direction_for_strategy(n, current_width, current_height, strategy, attempt, rng);
+            let vx = dir.cos();
+            let vy = dir.sin();
+
+            for &tree_angle in &angles {
+                // Binary search with coarser precision
+                let mut low = 0.0;
+                let mut high = 12.0;
+
+                while high - low > 0.002 {  // Coarser than main search
+                    let mid = (low + high) / 2.0;
+                    let candidate = PlacedTree::new(mid * vx, mid * vy, tree_angle);
+
+                    if is_valid(&candidate, existing) {
+                        high = mid;
+                    } else {
+                        low = mid;
+                    }
+                }
+
+                let candidate = PlacedTree::new(high * vx, high * vy, tree_angle);
+                if is_valid(&candidate, existing) {
+                    let score = self.placement_score_quick(&candidate, existing);
+                    if score < best_score {
+                        best_score = score;
+                        best_tree = candidate;
+                    }
+                }
+            }
+        }
+
+        best_tree
+    }
+
+    /// Quick placement score for lookahead (simplified)
+    #[inline]
+    fn placement_score_quick(&self, tree: &PlacedTree, existing: &[PlacedTree]) -> f64 {
+        let (tree_min_x, tree_min_y, tree_max_x, tree_max_y) = tree.bounds();
+
+        let mut pack_min_x = tree_min_x;
+        let mut pack_min_y = tree_min_y;
+        let mut pack_max_x = tree_max_x;
+        let mut pack_max_y = tree_max_y;
+
+        for t in existing {
+            let (bx1, by1, bx2, by2) = t.bounds();
+            pack_min_x = pack_min_x.min(bx1);
+            pack_min_y = pack_min_y.min(by1);
+            pack_max_x = pack_max_x.max(bx2);
+            pack_max_y = pack_max_y.max(by2);
+        }
+
+        let width = pack_max_x - pack_min_x;
+        let height = pack_max_y - pack_min_y;
+        let side = width.max(height);
+
+        // Simplified scoring for speed
+        let balance_penalty = (width - height).abs() * 0.08;
+        side + balance_penalty
     }
 
     /// Find best placement for new tree using strategy-specific approach
@@ -1000,8 +1175,29 @@ mod tests {
     }
 
     #[test]
-    fn test_diverse_strategies() {
-        // Test that different strategies produce different initial placements
+    fn test_lookahead_depth() {
+        let packer = EvolvedPacker::default();
+
+        // Small n should use depth 3
+        assert_eq!(packer.get_lookahead_depth(10, 200), 3);
+        assert_eq!(packer.get_lookahead_depth(49, 200), 3);
+
+        // Medium n should use depth 2
+        assert_eq!(packer.get_lookahead_depth(50, 200), 2);
+        assert_eq!(packer.get_lookahead_depth(99, 200), 2);
+
+        // Large n should use depth 1
+        assert_eq!(packer.get_lookahead_depth(100, 200), 1);
+        assert_eq!(packer.get_lookahead_depth(150, 200), 1);
+
+        // Near end should be limited by remaining trees
+        assert_eq!(packer.get_lookahead_depth(199, 200), 1);
+        assert_eq!(packer.get_lookahead_depth(200, 200), 0);
+    }
+
+    #[test]
+    fn test_strategy_lookahead() {
+        // Test that lookahead produces different strategy scores
         let packer = EvolvedPacker::default();
         let packings = packer.pack_all(10);
 

@@ -1,4 +1,4 @@
-//! Evolved Packing Algorithm - Generation 10 DIVERSE STARTS
+//! Evolved Packing Algorithm - Generation 11 HEAVIER OPTIMIZATION
 //!
 //! This module contains the evolved packing heuristics.
 //! The code is designed to be mutated by LLM-guided evolution.
@@ -9,21 +9,16 @@
 //! - select_direction(): How to choose placement directions
 //! - sa_move(): Local search move operators
 //!
-//! MUTATION STRATEGY: DIVERSE STARTS (Gen10)
-//! Try multiple different starting configurations and keep the best:
+//! MUTATION STRATEGY: HEAVIER OPTIMIZATION (Gen11)
+//! Based on Gen10 DIVERSE STARTS champion (score 91.35 at n=200)
+//! Key improvements:
+//! - sa_iterations: 35000 (up from 22000) - More thorough local search
+//! - search_attempts: 300 (up from 200) - More placement candidates
+//! - direction_samples: 80 (up from 64) - Better direction coverage
+//! - sa_passes: 3 (up from 2) - Additional optimization pass
+//! - Slower cooling: 0.99996 (up from 0.99993) - More careful annealing
 //!
-//! Key improvements from Gen6:
-//! - Run 5 completely independent packing attempts per n
-//! - Each attempt uses a different initial angle/direction strategy:
-//!   1. Clockwise spiral - systematic clockwise placement
-//!   2. Counterclockwise spiral - systematic counterclockwise placement
-//!   3. Grid-based - structured grid placement pattern
-//!   4. Random - randomized directions for exploration
-//!   5. Boundary-first - prioritize placing along edges
-//! - Keep the best result for each n
-//! - Combines density-aware scoring from Gen6 with multi-strategy exploration
-//!
-//! Target: Beat Gen6's 94.14 at n=200 with diverse exploration
+//! Target: Beat Gen10's 91.35 at n=200 with heavier optimization
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -78,23 +73,23 @@ pub struct EvolvedConfig {
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
-        // Gen10 DIVERSE STARTS: Multi-strategy configuration
+        // Gen11 HEAVIER OPTIMIZATION: Increased search and SA parameters
         Self {
-            search_attempts: 200,            // Slightly fewer per attempt (have 5 attempts)
-            direction_samples: 64,           // Good coverage per strategy
-            sa_iterations: 22000,            // Balanced for multiple attempts
-            sa_initial_temp: 0.45,           // From Gen6
-            sa_cooling_rate: 0.99993,        // Slightly faster for multi-attempt
-            sa_min_temp: 0.00001,            // From Gen6
-            translation_scale: 0.055,        // From Gen6
+            search_attempts: 300,            // Up from 200 - more placement candidates
+            direction_samples: 80,           // Up from 64 - better direction coverage
+            sa_iterations: 35000,            // Up from 22000 - more thorough local search
+            sa_initial_temp: 0.45,           // From Gen6/Gen10
+            sa_cooling_rate: 0.99996,        // Slower cooling (up from 0.99993)
+            sa_min_temp: 0.00001,            // From Gen6/Gen10
+            translation_scale: 0.055,        // From Gen6/Gen10
             rotation_granularity: 45.0,      // 8 angles
-            center_pull_strength: 0.07,      // From Gen6
-            sa_passes: 2,                    // Keep 2 passes
-            early_exit_threshold: 1500,      // Slightly lower for efficiency
-            boundary_focus_prob: 0.85,       // From Gen6
-            // DIVERSE STARTS parameters
+            center_pull_strength: 0.07,      // From Gen6/Gen10
+            sa_passes: 3,                    // Up from 2 - additional optimization pass
+            early_exit_threshold: 2000,      // Increased for more iterations
+            boundary_focus_prob: 0.85,       // From Gen6/Gen10
+            // DIVERSE STARTS parameters (keep 5 strategies)
             num_strategies: 5,               // 5 different strategies
-            // Density parameters from Gen6
+            // Density parameters from Gen6/Gen10
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
@@ -155,7 +150,7 @@ impl EvolvedPacker {
                 let new_tree = self.find_placement_with_strategy(&trees, n, max_n, strategy, &mut rng);
                 trees.push(new_tree);
 
-                // Run SA passes
+                // Run SA passes (now 3 passes for heavier optimization)
                 for pass in 0..self.config.sa_passes {
                     self.local_search(&mut trees, n, pass, strategy, &mut rng);
                 }
@@ -617,15 +612,19 @@ impl EvolvedPacker {
         let mut best_side = current_side;
         let mut best_config: Vec<PlacedTree> = trees.clone();
 
+        // Adjusted temperature multiplier for 3 passes
         let temp_multiplier = match pass {
             0 => 1.0,
-            _ => 0.35,
+            1 => 0.35,
+            _ => 0.15,  // Third pass: fine-tuning with lower temperature
         };
         let mut temp = self.config.sa_initial_temp * temp_multiplier;
 
+        // Adjusted iterations for 3 passes
         let base_iterations = match pass {
             0 => self.config.sa_iterations + n * 100,
-            _ => self.config.sa_iterations / 2 + n * 50,
+            1 => self.config.sa_iterations / 2 + n * 50,
+            _ => self.config.sa_iterations / 3 + n * 30,  // Third pass: fewer but focused
         };
 
         let mut iterations_without_improvement = 0;

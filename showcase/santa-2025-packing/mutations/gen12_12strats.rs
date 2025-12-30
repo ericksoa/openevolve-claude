@@ -1,4 +1,4 @@
-//! Evolved Packing Algorithm - Generation 10 DIVERSE STARTS
+//! Evolved Packing Algorithm - Generation 12: 12 STRATEGIES
 //!
 //! This module contains the evolved packing heuristics.
 //! The code is designed to be mutated by LLM-guided evolution.
@@ -9,21 +9,24 @@
 //! - select_direction(): How to choose placement directions
 //! - sa_move(): Local search move operators
 //!
-//! MUTATION STRATEGY: DIVERSE STARTS (Gen10)
-//! Try multiple different starting configurations and keep the best:
+//! MUTATION STRATEGY: 12 STRATEGIES (Gen12)
+//! Expand from 5 to 12 diverse placement strategies:
 //!
-//! Key improvements from Gen6:
-//! - Run 5 completely independent packing attempts per n
-//! - Each attempt uses a different initial angle/direction strategy:
+//! Strategies:
 //!   1. Clockwise spiral - systematic clockwise placement
 //!   2. Counterclockwise spiral - systematic counterclockwise placement
 //!   3. Grid-based - structured grid placement pattern
 //!   4. Random - randomized directions for exploration
 //!   5. Boundary-first - prioritize placing along edges
-//! - Keep the best result for each n
-//! - Combines density-aware scoring from Gen6 with multi-strategy exploration
+//!   6. Diagonal from top-left - diagonal sweep NW to SE
+//!   7. Diagonal from top-right - diagonal sweep NE to SW
+//!   8. Center-out radial - expand outward from center
+//!   9. Alternating angles - cycle through 0, 180, 90, 270
+//!  10. Hexagonal pattern - honeycomb-like placement
+//!  11. Bottom-up rows - fill rows from bottom
+//!  12. Left-to-right columns - fill columns from left
 //!
-//! Target: Beat Gen6's 94.14 at n=200 with diverse exploration
+//! Target: Beat Gen10's ~91.35 at n=200 with more diverse exploration
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -37,6 +40,32 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
+    DiagonalTopLeft,
+    DiagonalTopRight,
+    CenterOutRadial,
+    AlternatingAngles,
+    HexagonalPattern,
+    BottomUpRows,
+    LeftToRightColumns,
+}
+
+impl PlacementStrategy {
+    fn all() -> [PlacementStrategy; 12] {
+        [
+            PlacementStrategy::ClockwiseSpiral,
+            PlacementStrategy::CounterclockwiseSpiral,
+            PlacementStrategy::Grid,
+            PlacementStrategy::Random,
+            PlacementStrategy::BoundaryFirst,
+            PlacementStrategy::DiagonalTopLeft,
+            PlacementStrategy::DiagonalTopRight,
+            PlacementStrategy::CenterOutRadial,
+            PlacementStrategy::AlternatingAngles,
+            PlacementStrategy::HexagonalPattern,
+            PlacementStrategy::BottomUpRows,
+            PlacementStrategy::LeftToRightColumns,
+        ]
+    }
 }
 
 /// Evolved packing configuration
@@ -66,10 +95,10 @@ pub struct EvolvedConfig {
     // Boundary focus probability
     pub boundary_focus_prob: f64,
 
-    // DIVERSE STARTS: Number of independent attempts
+    // Number of strategies
     pub num_strategies: usize,
 
-    // Density parameters (from Gen6)
+    // Density parameters
     pub density_grid_resolution: usize,
     pub gap_penalty_weight: f64,
     pub local_density_radius: f64,
@@ -78,22 +107,22 @@ pub struct EvolvedConfig {
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
-        // Gen10 DIVERSE STARTS: Multi-strategy configuration
+        // Gen12: 12 STRATEGIES configuration
         Self {
-            search_attempts: 200,            // Slightly fewer per attempt (have 5 attempts)
-            direction_samples: 64,           // Good coverage per strategy
-            sa_iterations: 22000,            // Balanced for multiple attempts
+            search_attempts: 150,            // Reduced per strategy (12 strategies now)
+            direction_samples: 48,           // Good coverage per strategy
+            sa_iterations: 18000,            // Balanced for many strategies
             sa_initial_temp: 0.45,           // From Gen6
-            sa_cooling_rate: 0.99993,        // Slightly faster for multi-attempt
+            sa_cooling_rate: 0.99992,        // Slightly faster for multi-strategy
             sa_min_temp: 0.00001,            // From Gen6
             translation_scale: 0.055,        // From Gen6
             rotation_granularity: 45.0,      // 8 angles
             center_pull_strength: 0.07,      // From Gen6
             sa_passes: 2,                    // Keep 2 passes
-            early_exit_threshold: 1500,      // Slightly lower for efficiency
+            early_exit_threshold: 1200,      // Lower for efficiency with more strategies
             boundary_focus_prob: 0.85,       // From Gen6
-            // DIVERSE STARTS parameters
-            num_strategies: 5,               // 5 different strategies
+            // 12 STRATEGIES parameters
+            num_strategies: 12,              // 12 different strategies
             // Density parameters from Gen6
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
@@ -126,19 +155,13 @@ impl Default for EvolvedPacker {
 }
 
 impl EvolvedPacker {
-    /// Pack all n from 1 to max_n using DIVERSE STARTS strategy
+    /// Pack all n from 1 to max_n using 12 STRATEGIES
     pub fn pack_all(&self, max_n: usize) -> Vec<Packing> {
         let mut rng = rand::thread_rng();
         let mut packings: Vec<Packing> = Vec::with_capacity(max_n);
 
-        // Track best configurations for each strategy
-        let strategies = [
-            PlacementStrategy::ClockwiseSpiral,
-            PlacementStrategy::CounterclockwiseSpiral,
-            PlacementStrategy::Grid,
-            PlacementStrategy::Random,
-            PlacementStrategy::BoundaryFirst,
-        ];
+        // All 12 strategies
+        let strategies = PlacementStrategy::all();
 
         // Maintain separate tree configurations for each strategy
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -209,6 +232,13 @@ impl EvolvedPacker {
                 PlacementStrategy::Grid => 45.0,
                 PlacementStrategy::Random => rng.gen_range(0..8) as f64 * 45.0,
                 PlacementStrategy::BoundaryFirst => 180.0,
+                PlacementStrategy::DiagonalTopLeft => 135.0,     // Pointing SE
+                PlacementStrategy::DiagonalTopRight => 225.0,    // Pointing SW
+                PlacementStrategy::CenterOutRadial => 0.0,       // Start at center
+                PlacementStrategy::AlternatingAngles => 0.0,     // First angle in sequence
+                PlacementStrategy::HexagonalPattern => 60.0,     // Hex angle
+                PlacementStrategy::BottomUpRows => 270.0,        // Pointing up
+                PlacementStrategy::LeftToRightColumns => 0.0,    // Pointing right
             };
             return PlacedTree::new(0.0, 0.0, initial_angle);
         }
@@ -300,6 +330,37 @@ impl EvolvedPacker {
                 // Angles that work well for boundary placement
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
+            PlacementStrategy::DiagonalTopLeft => {
+                // Diagonal from top-left: favor angles aligned with diagonal
+                vec![135.0, 315.0, 90.0, 270.0, 45.0, 225.0, 0.0, 180.0]
+            }
+            PlacementStrategy::DiagonalTopRight => {
+                // Diagonal from top-right: opposite diagonal
+                vec![225.0, 45.0, 270.0, 90.0, 135.0, 315.0, 180.0, 0.0]
+            }
+            PlacementStrategy::CenterOutRadial => {
+                // Radial: try all angles equally
+                vec![0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0]
+            }
+            PlacementStrategy::AlternatingAngles => {
+                // Cycle through specific sequence based on n
+                let base_angles = [0.0, 180.0, 90.0, 270.0];
+                let start = base_angles[n % 4];
+                vec![start, (start + 45.0) % 360.0, (start + 90.0) % 360.0, (start + 135.0) % 360.0,
+                     (start + 180.0) % 360.0, (start + 225.0) % 360.0, (start + 270.0) % 360.0, (start + 315.0) % 360.0]
+            }
+            PlacementStrategy::HexagonalPattern => {
+                // Hexagonal: 60-degree increments
+                vec![0.0, 60.0, 120.0, 180.0, 240.0, 300.0, 30.0, 90.0]
+            }
+            PlacementStrategy::BottomUpRows => {
+                // Bottom-up: favor horizontal alignment
+                vec![0.0, 180.0, 90.0, 270.0, 45.0, 135.0, 225.0, 315.0]
+            }
+            PlacementStrategy::LeftToRightColumns => {
+                // Left-to-right: favor vertical alignment
+                vec![90.0, 270.0, 0.0, 180.0, 45.0, 135.0, 225.0, 315.0]
+            }
         }
     }
 
@@ -367,6 +428,69 @@ impl EvolvedPacker {
                 } else {
                     // Random for coverage
                     rng.gen_range(0.0..2.0 * PI)
+                }
+            }
+            PlacementStrategy::DiagonalTopLeft => {
+                // Diagonal from top-left (NW to SE): favor 3*PI/4 to 7*PI/4 range
+                let base_angle = 5.0 * PI / 4.0; // 225 degrees (SE direction)
+                let spread = PI / 2.0;
+                let offset = (attempt as f64 / self.config.search_attempts as f64 - 0.5) * spread;
+                (base_angle + offset + rng.gen_range(-0.1..0.1)).rem_euclid(2.0 * PI)
+            }
+            PlacementStrategy::DiagonalTopRight => {
+                // Diagonal from top-right (NE to SW): favor PI/4 to 5*PI/4 range
+                let base_angle = 3.0 * PI / 4.0; // 135 degrees (SW direction)
+                let spread = PI / 2.0;
+                let offset = (attempt as f64 / self.config.search_attempts as f64 - 0.5) * spread;
+                (base_angle + offset + rng.gen_range(-0.1..0.1)).rem_euclid(2.0 * PI)
+            }
+            PlacementStrategy::CenterOutRadial => {
+                // Radial expansion from center: uniform distribution
+                let num_dirs = 24;
+                let base_idx = (attempt + n) % num_dirs;
+                let base = (base_idx as f64 / num_dirs as f64) * 2.0 * PI;
+                base + rng.gen_range(-0.05..0.05)
+            }
+            PlacementStrategy::AlternatingAngles => {
+                // Cycle through 0, 180, 90, 270 as primary directions
+                let primary_angles = [0.0, PI, PI / 2.0, 3.0 * PI / 2.0];
+                let idx = (n + attempt / 4) % 4;
+                primary_angles[idx] + (attempt % 4) as f64 * 0.15 + rng.gen_range(-0.1..0.1)
+            }
+            PlacementStrategy::HexagonalPattern => {
+                // Hexagonal: 60-degree increments
+                let hex_angles = [0.0, PI / 3.0, 2.0 * PI / 3.0, PI, 4.0 * PI / 3.0, 5.0 * PI / 3.0];
+                let base_idx = (n + attempt) % 6;
+                hex_angles[base_idx] + rng.gen_range(-0.15..0.15)
+            }
+            PlacementStrategy::BottomUpRows => {
+                // Bottom-up: primarily horizontal placement, building rows upward
+                let row = n / 8; // Approximate row number
+                let prob = rng.gen::<f64>();
+                if prob < 0.5 {
+                    // Horizontal directions (left or right)
+                    if attempt % 2 == 0 { 0.0 } else { PI } + rng.gen_range(-0.2..0.2)
+                } else if prob < 0.8 {
+                    // Upward bias
+                    PI / 2.0 + rng.gen_range(-0.3..0.3)
+                } else {
+                    // Some downward for filling
+                    3.0 * PI / 2.0 + rng.gen_range(-0.3..0.3) + row as f64 * 0.05
+                }
+            }
+            PlacementStrategy::LeftToRightColumns => {
+                // Left-to-right: primarily vertical placement, building columns rightward
+                let col = n / 8; // Approximate column number
+                let prob = rng.gen::<f64>();
+                if prob < 0.5 {
+                    // Vertical directions (up or down)
+                    if attempt % 2 == 0 { PI / 2.0 } else { 3.0 * PI / 2.0 } + rng.gen_range(-0.2..0.2)
+                } else if prob < 0.8 {
+                    // Rightward bias
+                    rng.gen_range(-0.3..0.3)
+                } else {
+                    // Some leftward for filling
+                    PI + rng.gen_range(-0.3..0.3) + col as f64 * 0.05
                 }
             }
         }
@@ -624,8 +748,8 @@ impl EvolvedPacker {
         let mut temp = self.config.sa_initial_temp * temp_multiplier;
 
         let base_iterations = match pass {
-            0 => self.config.sa_iterations + n * 100,
-            _ => self.config.sa_iterations / 2 + n * 50,
+            0 => self.config.sa_iterations + n * 80,
+            _ => self.config.sa_iterations / 2 + n * 40,
         };
 
         let mut iterations_without_improvement = 0;
@@ -1000,8 +1124,8 @@ mod tests {
     }
 
     #[test]
-    fn test_diverse_strategies() {
-        // Test that different strategies produce different initial placements
+    fn test_12_strategies() {
+        // Test that all 12 strategies work correctly
         let packer = EvolvedPacker::default();
         let packings = packer.pack_all(10);
 
@@ -1010,5 +1134,11 @@ mod tests {
             assert_eq!(p.trees.len(), i + 1);
             assert!(!p.has_overlaps());
         }
+    }
+
+    #[test]
+    fn test_strategy_count() {
+        // Verify we have 12 strategies
+        assert_eq!(PlacementStrategy::all().len(), 12);
     }
 }

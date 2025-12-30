@@ -1,4 +1,4 @@
-//! Evolved Packing Algorithm - Generation 10 DIVERSE STARTS
+//! Evolved Packing Algorithm - Generation 11 CROSSOVER
 //!
 //! This module contains the evolved packing heuristics.
 //! The code is designed to be mutated by LLM-guided evolution.
@@ -9,21 +9,22 @@
 //! - select_direction(): How to choose placement directions
 //! - sa_move(): Local search move operators
 //!
-//! MUTATION STRATEGY: DIVERSE STARTS (Gen10)
-//! Try multiple different starting configurations and keep the best:
+//! MUTATION STRATEGY: CROSSOVER (Gen11)
+//! After running all strategies, try crossover between best results:
 //!
-//! Key improvements from Gen6:
-//! - Run 5 completely independent packing attempts per n
-//! - Each attempt uses a different initial angle/direction strategy:
-//!   1. Clockwise spiral - systematic clockwise placement
-//!   2. Counterclockwise spiral - systematic counterclockwise placement
-//!   3. Grid-based - structured grid placement pattern
-//!   4. Random - randomized directions for exploration
-//!   5. Boundary-first - prioritize placing along edges
-//! - Keep the best result for each n
-//! - Combines density-aware scoring from Gen6 with multi-strategy exploration
+//! Key improvements from Gen10 (diverse starts):
+//! 1. Run all 5 placement strategies
+//! 2. Take trees from best result as starting point
+//! 3. Try swapping some trees with second-best result
+//! 4. Run SA on the hybrid configuration
+//! 5. This may find new local optima between the two solutions
 //!
-//! Target: Beat Gen6's 94.14 at n=200 with diverse exploration
+//! The crossover operation works by:
+//! - Identifying trees at similar positions in different solutions
+//! - Swapping position/angle of trees that might fit better
+//! - Testing hybrid configurations for improved packing
+//!
+//! Target: Beat Gen10's 91.35 at n=200 with crossover exploration
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -66,8 +67,11 @@ pub struct EvolvedConfig {
     // Boundary focus probability
     pub boundary_focus_prob: f64,
 
-    // DIVERSE STARTS: Number of independent attempts
+    // CROSSOVER parameters
     pub num_strategies: usize,
+    pub crossover_swap_prob: f64,      // Probability of swapping each tree
+    pub crossover_attempts: usize,      // Number of crossover variations to try
+    pub crossover_sa_iterations: usize, // SA iterations for crossover refinement
 
     // Density parameters (from Gen6)
     pub density_grid_resolution: usize,
@@ -78,22 +82,25 @@ pub struct EvolvedConfig {
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
-        // Gen10 DIVERSE STARTS: Multi-strategy configuration
+        // Gen11 CROSSOVER: Multi-strategy with crossover configuration
         Self {
-            search_attempts: 200,            // Slightly fewer per attempt (have 5 attempts)
+            search_attempts: 180,            // Slightly fewer (need budget for crossover)
             direction_samples: 64,           // Good coverage per strategy
-            sa_iterations: 22000,            // Balanced for multiple attempts
+            sa_iterations: 18000,            // Per-strategy SA (reduced for crossover budget)
             sa_initial_temp: 0.45,           // From Gen6
-            sa_cooling_rate: 0.99993,        // Slightly faster for multi-attempt
+            sa_cooling_rate: 0.99992,        // Slightly faster
             sa_min_temp: 0.00001,            // From Gen6
             translation_scale: 0.055,        // From Gen6
             rotation_granularity: 45.0,      // 8 angles
             center_pull_strength: 0.07,      // From Gen6
             sa_passes: 2,                    // Keep 2 passes
-            early_exit_threshold: 1500,      // Slightly lower for efficiency
+            early_exit_threshold: 1200,      // Lower for efficiency
             boundary_focus_prob: 0.85,       // From Gen6
-            // DIVERSE STARTS parameters
+            // CROSSOVER parameters
             num_strategies: 5,               // 5 different strategies
+            crossover_swap_prob: 0.25,       // 25% chance to swap each tree
+            crossover_attempts: 4,           // Try 4 crossover variations
+            crossover_sa_iterations: 12000,  // SA iterations for crossover refinement
             // Density parameters from Gen6
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
@@ -126,7 +133,7 @@ impl Default for EvolvedPacker {
 }
 
 impl EvolvedPacker {
-    /// Pack all n from 1 to max_n using DIVERSE STARTS strategy
+    /// Pack all n from 1 to max_n using CROSSOVER strategy
     pub fn pack_all(&self, max_n: usize) -> Vec<Packing> {
         let mut rng = rand::thread_rng();
         let mut packings: Vec<Packing> = Vec::with_capacity(max_n);
@@ -144,10 +151,10 @@ impl EvolvedPacker {
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
 
         for n in 1..=max_n {
-            let mut best_trees: Option<Vec<PlacedTree>> = None;
-            let mut best_side = f64::INFINITY;
+            // Results from each strategy: (trees, side_length)
+            let mut strategy_results: Vec<(Vec<PlacedTree>, f64)> = Vec::with_capacity(strategies.len());
 
-            // Try each strategy independently
+            // STEP 1: Run all 5 strategies independently
             for (s_idx, &strategy) in strategies.iter().enumerate() {
                 let mut trees = strategy_trees[s_idx].clone();
 
@@ -161,35 +168,286 @@ impl EvolvedPacker {
                 }
 
                 let side = compute_side_length(&trees);
+                strategy_results.push((trees.clone(), side));
 
-                // Update strategy's best configuration
-                strategy_trees[s_idx] = trees.clone();
+                // Update strategy's configuration
+                strategy_trees[s_idx] = trees;
+            }
 
-                // Check if this is the best across all strategies
-                if side < best_side {
-                    best_side = side;
-                    best_trees = Some(trees);
+            // STEP 2: Sort results by side length (best first)
+            strategy_results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+            let best_trees = strategy_results[0].0.clone();
+            let best_side = strategy_results[0].1;
+
+            // STEP 3: Try crossover between best and second-best (if we have enough trees)
+            let mut crossover_best_trees = best_trees.clone();
+            let mut crossover_best_side = best_side;
+
+            if n >= 3 && strategy_results.len() >= 2 {
+                let second_best_trees = &strategy_results[1].0;
+
+                // Try multiple crossover variations
+                for attempt in 0..self.config.crossover_attempts {
+                    let hybrid = self.crossover_trees(
+                        &best_trees,
+                        second_best_trees,
+                        attempt,
+                        &mut rng,
+                    );
+
+                    if let Some(mut hybrid_trees) = hybrid {
+                        // STEP 4: Run SA on the hybrid configuration
+                        self.crossover_local_search(&mut hybrid_trees, n, &mut rng);
+
+                        let hybrid_side = compute_side_length(&hybrid_trees);
+
+                        // STEP 5: Keep if better
+                        if hybrid_side < crossover_best_side {
+                            crossover_best_side = hybrid_side;
+                            crossover_best_trees = hybrid_trees;
+                        }
+                    }
+                }
+
+                // Also try crossover with third-best if available
+                if strategy_results.len() >= 3 && n >= 5 {
+                    let third_best_trees = &strategy_results[2].0;
+
+                    for attempt in 0..2 {
+                        let hybrid = self.crossover_trees(
+                            &crossover_best_trees,
+                            third_best_trees,
+                            attempt,
+                            &mut rng,
+                        );
+
+                        if let Some(mut hybrid_trees) = hybrid {
+                            self.crossover_local_search(&mut hybrid_trees, n, &mut rng);
+                            let hybrid_side = compute_side_length(&hybrid_trees);
+
+                            if hybrid_side < crossover_best_side {
+                                crossover_best_side = hybrid_side;
+                                crossover_best_trees = hybrid_trees;
+                            }
+                        }
+                    }
                 }
             }
 
-            // Store the best result
-            let best = best_trees.unwrap();
+            // Store the best result (either from strategies or crossover)
+            let final_trees = crossover_best_trees;
             let mut packing = Packing::new();
-            for t in &best {
+            for t in &final_trees {
                 packing.trees.push(t.clone());
             }
             packings.push(packing);
 
             // Update all strategies to use the best configuration going forward
-            // This helps propagate good solutions across strategies
+            let final_side = compute_side_length(&final_trees);
             for strat_trees in strategy_trees.iter_mut() {
-                if compute_side_length(strat_trees) > best_side * 1.02 {
-                    *strat_trees = best.clone();
+                if compute_side_length(strat_trees) > final_side * 1.02 {
+                    *strat_trees = final_trees.clone();
                 }
             }
         }
 
         packings
+    }
+
+    /// Crossover operation: create hybrid configuration from two solutions
+    fn crossover_trees(
+        &self,
+        parent1: &[PlacedTree],
+        parent2: &[PlacedTree],
+        attempt: usize,
+        rng: &mut impl Rng,
+    ) -> Option<Vec<PlacedTree>> {
+        if parent1.len() != parent2.len() || parent1.is_empty() {
+            return None;
+        }
+
+        let n = parent1.len();
+        let mut hybrid = parent1.to_vec();
+
+        // Different crossover strategies based on attempt
+        match attempt % 4 {
+            0 => {
+                // Random swap: probabilistically swap each tree
+                for i in 0..n {
+                    if rng.gen::<f64>() < self.config.crossover_swap_prob {
+                        // Try to use parent2's tree at this position
+                        let candidate = parent2[i].clone();
+                        let old = hybrid[i].clone();
+                        hybrid[i] = candidate;
+
+                        // Check validity
+                        if has_overlap(&hybrid, i) {
+                            hybrid[i] = old;
+                        }
+                    }
+                }
+            }
+            1 => {
+                // Position-based swap: swap trees that are close in both parents
+                for i in 0..n {
+                    let p1_center = tree_center(&parent1[i]);
+                    let p2_center = tree_center(&parent2[i]);
+
+                    // If trees are in similar positions, try swapping
+                    let dist = ((p1_center.0 - p2_center.0).powi(2)
+                              + (p1_center.1 - p2_center.1).powi(2)).sqrt();
+
+                    if dist < 0.3 {
+                        // Trees are close - try using parent2's angle
+                        let old = hybrid[i].clone();
+                        hybrid[i] = PlacedTree::new(old.x, old.y, parent2[i].angle_deg);
+
+                        if has_overlap(&hybrid, i) {
+                            hybrid[i] = old;
+                        }
+                    }
+                }
+            }
+            2 => {
+                // Boundary swap: swap boundary trees
+                let boundary1 = self.find_boundary_trees_with_edges(parent1);
+                let boundary2 = self.find_boundary_trees_with_edges(parent2);
+
+                for (idx, _edge) in boundary1.iter() {
+                    if rng.gen::<f64>() < 0.4 {
+                        // Try to find corresponding boundary tree in parent2
+                        if let Some((idx2, _)) = boundary2.iter().find(|(i, _)| *i == *idx) {
+                            let candidate = parent2[*idx2].clone();
+                            let old = hybrid[*idx].clone();
+                            hybrid[*idx] = candidate;
+
+                            if has_overlap(&hybrid, *idx) {
+                                hybrid[*idx] = old;
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {
+                // Interior swap: swap interior (non-boundary) trees
+                let boundary1 = self.find_boundary_trees_with_edges(parent1);
+                let boundary_indices: Vec<usize> = boundary1.iter().map(|(i, _)| *i).collect();
+
+                for i in 0..n {
+                    if !boundary_indices.contains(&i) && rng.gen::<f64>() < 0.35 {
+                        let candidate = parent2[i].clone();
+                        let old = hybrid[i].clone();
+                        hybrid[i] = candidate;
+
+                        if has_overlap(&hybrid, i) {
+                            hybrid[i] = old;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Validate the hybrid has no overlaps
+        for i in 0..n {
+            for j in (i + 1)..n {
+                if hybrid[i].overlaps(&hybrid[j]) {
+                    return None; // Invalid hybrid
+                }
+            }
+        }
+
+        Some(hybrid)
+    }
+
+    /// Local search specifically for crossover refinement
+    fn crossover_local_search(
+        &self,
+        trees: &mut Vec<PlacedTree>,
+        n: usize,
+        rng: &mut impl Rng,
+    ) {
+        if trees.len() <= 1 {
+            return;
+        }
+
+        let mut current_side = compute_side_length(trees);
+        let mut best_side = current_side;
+        let mut best_config: Vec<PlacedTree> = trees.clone();
+
+        // Start with moderate temperature for exploration
+        let mut temp = self.config.sa_initial_temp * 0.6;
+
+        let iterations = self.config.crossover_sa_iterations + n * 80;
+        let mut iterations_without_improvement = 0;
+
+        let mut boundary_cache_iter = 0;
+        let mut boundary_info: Vec<(usize, BoundaryEdge)> = Vec::new();
+
+        for iter in 0..iterations {
+            if iterations_without_improvement >= self.config.early_exit_threshold {
+                break;
+            }
+
+            // Update boundary cache
+            if iter == 0 || iter - boundary_cache_iter >= 250 {
+                boundary_info = self.find_boundary_trees_with_edges(trees);
+                boundary_cache_iter = iter;
+            }
+
+            let do_fill_move = rng.gen::<f64>() < self.config.fill_move_prob;
+
+            let (idx, edge) = if do_fill_move {
+                let interior_trees: Vec<usize> = (0..trees.len())
+                    .filter(|&i| !boundary_info.iter().any(|(bi, _)| *bi == i))
+                    .collect();
+
+                if !interior_trees.is_empty() && rng.gen::<f64>() < 0.5 {
+                    (interior_trees[rng.gen_range(0..interior_trees.len())], BoundaryEdge::None)
+                } else if !boundary_info.is_empty() {
+                    let bi = &boundary_info[rng.gen_range(0..boundary_info.len())];
+                    (bi.0, bi.1)
+                } else {
+                    (rng.gen_range(0..trees.len()), BoundaryEdge::None)
+                }
+            } else if !boundary_info.is_empty() && rng.gen::<f64>() < self.config.boundary_focus_prob {
+                let bi = &boundary_info[rng.gen_range(0..boundary_info.len())];
+                (bi.0, bi.1)
+            } else {
+                (rng.gen_range(0..trees.len()), BoundaryEdge::None)
+            };
+
+            let old_tree = trees[idx].clone();
+            let success = self.sa_move(trees, idx, temp, edge, do_fill_move, rng);
+
+            if success {
+                let new_side = compute_side_length(trees);
+                let delta = new_side - current_side;
+
+                if delta <= 0.0 || rng.gen::<f64>() < (-delta / temp).exp() {
+                    current_side = new_side;
+                    if current_side < best_side {
+                        best_side = current_side;
+                        best_config = trees.clone();
+                        iterations_without_improvement = 0;
+                    } else {
+                        iterations_without_improvement += 1;
+                    }
+                } else {
+                    trees[idx] = old_tree;
+                    iterations_without_improvement += 1;
+                }
+            } else {
+                trees[idx] = old_tree;
+                iterations_without_improvement += 1;
+            }
+
+            temp = (temp * self.config.sa_cooling_rate).max(self.config.sa_min_temp);
+        }
+
+        if best_side < compute_side_length(trees) {
+            *trees = best_config;
+        }
     }
 
     /// Find best placement for new tree using strategy-specific approach
@@ -276,19 +534,15 @@ impl EvolvedPacker {
     fn select_angles_for_strategy(&self, n: usize, strategy: PlacementStrategy) -> Vec<f64> {
         match strategy {
             PlacementStrategy::ClockwiseSpiral => {
-                // Favor angles that work well for clockwise packing
                 vec![0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0]
             }
             PlacementStrategy::CounterclockwiseSpiral => {
-                // Reverse order for counterclockwise
                 vec![315.0, 270.0, 225.0, 180.0, 135.0, 90.0, 45.0, 0.0]
             }
             PlacementStrategy::Grid => {
-                // Prefer axis-aligned for grid packing
                 vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
             }
             PlacementStrategy::Random => {
-                // Vary based on n for diversity
                 match n % 4 {
                     0 => vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0],
                     1 => vec![90.0, 270.0, 0.0, 180.0, 135.0, 315.0, 45.0, 225.0],
@@ -297,7 +551,6 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::BoundaryFirst => {
-                // Angles that work well for boundary placement
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
         }
@@ -316,34 +569,28 @@ impl EvolvedPacker {
     ) -> f64 {
         match strategy {
             PlacementStrategy::ClockwiseSpiral => {
-                // Clockwise spiral: start at top, go right, down, left, up...
                 let golden_angle = PI * (3.0 - (5.0_f64).sqrt());
                 let base = (n as f64 * golden_angle) % (2.0 * PI);
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 2.0 * PI;
                 (base + offset) % (2.0 * PI)
             }
             PlacementStrategy::CounterclockwiseSpiral => {
-                // Counterclockwise: opposite direction
                 let golden_angle = -PI * (3.0 - (5.0_f64).sqrt());
                 let base = (n as f64 * golden_angle).rem_euclid(2.0 * PI);
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 2.0 * PI;
                 (base - offset).rem_euclid(2.0 * PI)
             }
             PlacementStrategy::Grid => {
-                // Grid pattern: structured directions
                 let num_dirs = 16;
                 let base_idx = attempt % num_dirs;
                 let base = (base_idx as f64 / num_dirs as f64) * 2.0 * PI;
-                // Add slight jitter for variation
                 base + rng.gen_range(-0.03..0.03)
             }
             PlacementStrategy::Random => {
-                // Pure random with some structure
                 let mix = rng.gen::<f64>();
                 if mix < 0.5 {
                     rng.gen_range(0.0..2.0 * PI)
                 } else {
-                    // Bias toward shorter dimension
                     if width < height {
                         let angle = if rng.gen() { 0.0 } else { PI };
                         angle + rng.gen_range(-PI / 3.0..PI / 3.0)
@@ -354,18 +601,14 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::BoundaryFirst => {
-                // Prioritize corners and edges
                 let prob = rng.gen::<f64>();
                 if prob < 0.4 {
-                    // Corners
                     let corners = [PI / 4.0, 3.0 * PI / 4.0, 5.0 * PI / 4.0, 7.0 * PI / 4.0];
                     corners[attempt % 4] + rng.gen_range(-0.1..0.1)
                 } else if prob < 0.8 {
-                    // Edges
                     let edges = [0.0, PI / 2.0, PI, 3.0 * PI / 2.0];
                     edges[attempt % 4] + rng.gen_range(-0.2..0.2)
                 } else {
-                    // Random for coverage
                     rng.gen_range(0.0..2.0 * PI)
                 }
             }
@@ -975,6 +1218,12 @@ fn has_overlap(trees: &[PlacedTree], idx: usize) -> bool {
     false
 }
 
+/// Get center of a tree
+fn tree_center(tree: &PlacedTree) -> (f64, f64) {
+    let (bx1, by1, bx2, by2) = tree.bounds();
+    ((bx1 + bx2) / 2.0, (by1 + by2) / 2.0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1000,15 +1249,49 @@ mod tests {
     }
 
     #[test]
-    fn test_diverse_strategies() {
-        // Test that different strategies produce different initial placements
+    fn test_crossover_strategies() {
+        // Test that crossover produces valid packings
         let packer = EvolvedPacker::default();
-        let packings = packer.pack_all(10);
+        let packings = packer.pack_all(15);
 
-        // Just verify it works and produces valid packings
+        // Verify all packings are valid
         for (i, p) in packings.iter().enumerate() {
             assert_eq!(p.trees.len(), i + 1);
-            assert!(!p.has_overlaps());
+            assert!(!p.has_overlaps(), "Packing {} has overlaps", i + 1);
+        }
+    }
+
+    #[test]
+    fn test_crossover_operation() {
+        // Test the crossover operation specifically
+        let packer = EvolvedPacker::default();
+        let mut rng = rand::thread_rng();
+
+        // Create two simple parent configurations
+        let parent1 = vec![
+            PlacedTree::new(0.0, 0.0, 0.0),
+            PlacedTree::new(1.0, 0.0, 45.0),
+            PlacedTree::new(0.5, 1.0, 90.0),
+        ];
+
+        let parent2 = vec![
+            PlacedTree::new(0.0, 0.0, 90.0),
+            PlacedTree::new(1.0, 0.0, 0.0),
+            PlacedTree::new(0.5, 1.0, 45.0),
+        ];
+
+        // Try crossover
+        let result = packer.crossover_trees(&parent1, &parent2, 0, &mut rng);
+
+        // Result should be Some (valid) or None (if overlaps)
+        if let Some(hybrid) = result {
+            assert_eq!(hybrid.len(), 3);
+            // Check no overlaps
+            for i in 0..hybrid.len() {
+                for j in (i + 1)..hybrid.len() {
+                    assert!(!hybrid[i].overlaps(&hybrid[j]));
+                }
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-//! Evolved Packing Algorithm - Generation 10 DIVERSE STARTS
+//! Evolved Packing Algorithm - Generation 12 FINE-TUNED ANGLES
 //!
 //! This module contains the evolved packing heuristics.
 //! The code is designed to be mutated by LLM-guided evolution.
@@ -9,21 +9,18 @@
 //! - select_direction(): How to choose placement directions
 //! - sa_move(): Local search move operators
 //!
-//! MUTATION STRATEGY: DIVERSE STARTS (Gen10)
-//! Try multiple different starting configurations and keep the best:
+//! MUTATION STRATEGY: FINE-TUNED ANGLES (Gen12)
+//! Better angle selection for tree packing:
 //!
-//! Key improvements from Gen6:
-//! - Run 5 completely independent packing attempts per n
-//! - Each attempt uses a different initial angle/direction strategy:
-//!   1. Clockwise spiral - systematic clockwise placement
-//!   2. Counterclockwise spiral - systematic counterclockwise placement
-//!   3. Grid-based - structured grid placement pattern
-//!   4. Random - randomized directions for exploration
-//!   5. Boundary-first - prioritize placing along edges
-//! - Keep the best result for each n
-//! - Combines density-aware scoring from Gen6 with multi-strategy exploration
+//! Key improvements from Gen10:
+//! - Use 12 specific angles instead of 8 (45-degree increments)
+//! - Primary angles: 0, 90, 180, 270 (cardinal directions)
+//! - Secondary angles: 30, 60, 120, 150, 210, 240, 300, 330 (hexagonal-related)
+//! - Try all 12 angles during placement search
+//! - Weight angles based on existing tree orientations for better meshing
+//! - Maintains diverse starts strategy from Gen10
 //!
-//! Target: Beat Gen6's 94.14 at n=200 with diverse exploration
+//! Target: Beat Gen10's ~91.35 at n=200 with optimized angle selection
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -38,6 +35,19 @@ pub enum PlacementStrategy {
     Random,
     BoundaryFirst,
 }
+
+/// All 12 fine-tuned angles for tree packing
+/// Cardinal angles (primary): 0, 90, 180, 270
+/// Hexagonal-related angles (secondary): 30, 60, 120, 150, 210, 240, 300, 330
+const FINE_TUNED_ANGLES: [f64; 12] = [
+    0.0, 30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 210.0, 240.0, 270.0, 300.0, 330.0,
+];
+
+/// Cardinal angles only (4 angles)
+const CARDINAL_ANGLES: [f64; 4] = [0.0, 90.0, 180.0, 270.0];
+
+/// Hexagonal-related angles only (8 angles)
+const HEXAGONAL_ANGLES: [f64; 8] = [30.0, 60.0, 120.0, 150.0, 210.0, 240.0, 300.0, 330.0];
 
 /// Evolved packing configuration
 /// These parameters are tuned through evolution
@@ -74,24 +84,28 @@ pub struct EvolvedConfig {
     pub gap_penalty_weight: f64,
     pub local_density_radius: f64,
     pub fill_move_prob: f64,
+
+    // FINE-TUNED ANGLES parameters (Gen12)
+    pub angle_weight_cardinal: f64,      // Weight for cardinal angles (0, 90, 180, 270)
+    pub angle_weight_hexagonal: f64,     // Weight for hexagonal angles (30, 60, etc.)
+    pub angle_adaptation_strength: f64,  // How strongly to adapt to existing orientations
 }
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
-        // Gen10 DIVERSE STARTS: Multi-strategy configuration
+        // Gen12 FINE-TUNED ANGLES: Enhanced angle selection
         Self {
-            search_attempts: 200,            // Slightly fewer per attempt (have 5 attempts)
+            search_attempts: 200,            // Same as Gen10
             direction_samples: 64,           // Good coverage per strategy
             sa_iterations: 22000,            // Balanced for multiple attempts
             sa_initial_temp: 0.45,           // From Gen6
             sa_cooling_rate: 0.99993,        // Slightly faster for multi-attempt
             sa_min_temp: 0.00001,            // From Gen6
             translation_scale: 0.055,        // From Gen6
-            rotation_granularity: 45.0,      // 8 angles
+            rotation_granularity: 30.0,      // 12 angles (finer than Gen10's 45.0)
             center_pull_strength: 0.07,      // From Gen6
             sa_passes: 2,                    // Keep 2 passes
             early_exit_threshold: 1500,      // Slightly lower for efficiency
-            boundary_focus_prob: 0.85,       // From Gen6
             // DIVERSE STARTS parameters
             num_strategies: 5,               // 5 different strategies
             // Density parameters from Gen6
@@ -99,6 +113,10 @@ impl Default for EvolvedConfig {
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
             fill_move_prob: 0.15,
+            // FINE-TUNED ANGLES parameters (Gen12)
+            angle_weight_cardinal: 1.2,      // Slight preference for cardinal angles
+            angle_weight_hexagonal: 1.0,     // Base weight for hexagonal angles
+            angle_adaptation_strength: 0.3,  // Moderate adaptation to existing orientations
         }
     }
 }
@@ -126,7 +144,7 @@ impl Default for EvolvedPacker {
 }
 
 impl EvolvedPacker {
-    /// Pack all n from 1 to max_n using DIVERSE STARTS strategy
+    /// Pack all n from 1 to max_n using DIVERSE STARTS strategy with FINE-TUNED ANGLES
     pub fn pack_all(&self, max_n: usize) -> Vec<Packing> {
         let mut rng = rand::thread_rng();
         let mut packings: Vec<Packing> = Vec::with_capacity(max_n);
@@ -151,7 +169,7 @@ impl EvolvedPacker {
             for (s_idx, &strategy) in strategies.iter().enumerate() {
                 let mut trees = strategy_trees[s_idx].clone();
 
-                // Place new tree using strategy-specific heuristics
+                // Place new tree using strategy-specific heuristics with fine-tuned angles
                 let new_tree = self.find_placement_with_strategy(&trees, n, max_n, strategy, &mut rng);
                 trees.push(new_tree);
 
@@ -192,7 +210,64 @@ impl EvolvedPacker {
         packings
     }
 
-    /// Find best placement for new tree using strategy-specific approach
+    /// Analyze existing tree orientations and compute angle weights
+    fn compute_angle_weights(&self, existing: &[PlacedTree]) -> Vec<(f64, f64)> {
+        let mut angle_weights: Vec<(f64, f64)> = Vec::with_capacity(12);
+
+        // Count how many trees are near each angle
+        let mut angle_counts: [f64; 12] = [0.0; 12];
+
+        for tree in existing {
+            let tree_angle = tree.angle_deg.rem_euclid(360.0);
+            for (i, &angle) in FINE_TUNED_ANGLES.iter().enumerate() {
+                let diff = (tree_angle - angle).abs();
+                let diff = diff.min(360.0 - diff);
+                if diff < 15.0 {
+                    // Count trees within 15 degrees of this angle
+                    angle_counts[i] += 1.0 - diff / 15.0;
+                }
+            }
+        }
+
+        // Normalize and compute weights
+        let max_count = angle_counts.iter().cloned().fold(0.0_f64, f64::max).max(1.0);
+
+        for (i, &angle) in FINE_TUNED_ANGLES.iter().enumerate() {
+            // Base weight depends on whether it's cardinal or hexagonal
+            let base_weight = if CARDINAL_ANGLES.contains(&angle) {
+                self.config.angle_weight_cardinal
+            } else {
+                self.config.angle_weight_hexagonal
+            };
+
+            // Adapt weight based on existing orientations
+            // Trees tend to mesh better when at complementary angles
+            let popularity = angle_counts[i] / max_count;
+
+            // Weight complementary angles higher (angles 180 degrees apart)
+            let complementary_idx = (i + 6) % 12;
+            let complementary_popularity = angle_counts[complementary_idx] / max_count;
+
+            // Also consider adjacent angles for smooth transitions
+            let prev_idx = if i == 0 { 11 } else { i - 1 };
+            let next_idx = (i + 1) % 12;
+            let adjacent_popularity = (angle_counts[prev_idx] + angle_counts[next_idx]) / (2.0 * max_count);
+
+            // Final weight: base + adaptation bonus
+            let adaptation_bonus = self.config.angle_adaptation_strength *
+                (complementary_popularity * 0.5 + adjacent_popularity * 0.3 + (1.0 - popularity) * 0.2);
+
+            let final_weight = base_weight + adaptation_bonus;
+            angle_weights.push((angle, final_weight));
+        }
+
+        // Sort by weight (highest first) for priority during search
+        angle_weights.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+        angle_weights
+    }
+
+    /// Find best placement for new tree using strategy-specific approach with fine-tuned angles
     fn find_placement_with_strategy(
         &self,
         existing: &[PlacedTree],
@@ -202,12 +277,12 @@ impl EvolvedPacker {
         rng: &mut impl Rng,
     ) -> PlacedTree {
         if existing.is_empty() {
-            // Strategy-specific initial angle
+            // Strategy-specific initial angle from fine-tuned set
             let initial_angle = match strategy {
                 PlacementStrategy::ClockwiseSpiral => 0.0,
                 PlacementStrategy::CounterclockwiseSpiral => 90.0,
-                PlacementStrategy::Grid => 45.0,
-                PlacementStrategy::Random => rng.gen_range(0..8) as f64 * 45.0,
+                PlacementStrategy::Grid => 0.0,  // Grid prefers cardinal angles
+                PlacementStrategy::Random => FINE_TUNED_ANGLES[rng.gen_range(0..12)],
                 PlacementStrategy::BoundaryFirst => 180.0,
             };
             return PlacedTree::new(0.0, 0.0, initial_angle);
@@ -216,7 +291,9 @@ impl EvolvedPacker {
         let mut best_tree = PlacedTree::new(0.0, 0.0, 90.0);
         let mut best_score = f64::INFINITY;
 
-        let angles = self.select_angles_for_strategy(n, strategy);
+        // Get weighted angles based on existing tree orientations
+        let weighted_angles = self.compute_angle_weights(existing);
+        let angles = self.select_angles_for_strategy(n, strategy, &weighted_angles);
 
         // Compute current bounds and density info
         let (min_x, min_y, max_x, max_y) = compute_bounds(existing);
@@ -241,6 +318,7 @@ impl EvolvedPacker {
             let vx = dir.cos();
             let vy = dir.sin();
 
+            // Try all 12 fine-tuned angles (prioritized by weight)
             for &tree_angle in &angles {
                 // Binary search for closest valid position
                 let mut low = 0.0;
@@ -271,34 +349,49 @@ impl EvolvedPacker {
         best_tree
     }
 
-    /// Select rotation angles based on strategy
+    /// Select rotation angles based on strategy with fine-tuned 12-angle system
     #[inline]
-    fn select_angles_for_strategy(&self, n: usize, strategy: PlacementStrategy) -> Vec<f64> {
+    fn select_angles_for_strategy(&self, n: usize, strategy: PlacementStrategy, weighted_angles: &[(f64, f64)]) -> Vec<f64> {
+        // Extract just the angles from weighted pairs (already sorted by weight)
+        let prioritized: Vec<f64> = weighted_angles.iter().map(|(a, _)| *a).collect();
+
         match strategy {
             PlacementStrategy::ClockwiseSpiral => {
-                // Favor angles that work well for clockwise packing
-                vec![0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0]
+                // Start with cardinal angles, then hexagonal
+                let mut angles = CARDINAL_ANGLES.to_vec();
+                angles.extend_from_slice(&HEXAGONAL_ANGLES);
+                angles
             }
             PlacementStrategy::CounterclockwiseSpiral => {
-                // Reverse order for counterclockwise
-                vec![315.0, 270.0, 225.0, 180.0, 135.0, 90.0, 45.0, 0.0]
+                // Reverse order - prioritize weighted angles
+                let mut angles: Vec<f64> = prioritized.clone();
+                angles.reverse();
+                angles
             }
             PlacementStrategy::Grid => {
-                // Prefer axis-aligned for grid packing
-                vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
+                // Grid packing prefers cardinal angles strongly
+                let mut angles = CARDINAL_ANGLES.to_vec();
+                // Add hexagonal angles sorted by weight
+                for angle in &prioritized {
+                    if !CARDINAL_ANGLES.contains(angle) {
+                        angles.push(*angle);
+                    }
+                }
+                angles
             }
             PlacementStrategy::Random => {
-                // Vary based on n for diversity
-                match n % 4 {
-                    0 => vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0],
-                    1 => vec![90.0, 270.0, 0.0, 180.0, 135.0, 315.0, 45.0, 225.0],
-                    2 => vec![180.0, 0.0, 270.0, 90.0, 225.0, 45.0, 315.0, 135.0],
-                    _ => vec![270.0, 90.0, 180.0, 0.0, 315.0, 135.0, 225.0, 45.0],
+                // Use weighted order with some variation based on n
+                let shift = n % 12;
+                let mut angles = Vec::with_capacity(12);
+                for i in 0..12 {
+                    let idx = (i + shift) % 12;
+                    angles.push(FINE_TUNED_ANGLES[idx]);
                 }
+                angles
             }
             PlacementStrategy::BoundaryFirst => {
-                // Angles that work well for boundary placement
-                vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
+                // Boundary placement: use weight-prioritized order
+                prioritized
             }
         }
     }
@@ -330,12 +423,12 @@ impl EvolvedPacker {
                 (base - offset).rem_euclid(2.0 * PI)
             }
             PlacementStrategy::Grid => {
-                // Grid pattern: structured directions
-                let num_dirs = 16;
+                // Grid pattern: structured directions aligned with fine-tuned angles
+                let num_dirs = 24;  // Increased for finer resolution (matching 30-degree increments)
                 let base_idx = attempt % num_dirs;
                 let base = (base_idx as f64 / num_dirs as f64) * 2.0 * PI;
                 // Add slight jitter for variation
-                base + rng.gen_range(-0.03..0.03)
+                base + rng.gen_range(-0.02..0.02)
             }
             PlacementStrategy::Random => {
                 // Pure random with some structure
@@ -354,16 +447,17 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::BoundaryFirst => {
-                // Prioritize corners and edges
+                // Prioritize corners and edges with 30-degree aligned directions
                 let prob = rng.gen::<f64>();
                 if prob < 0.4 {
-                    // Corners
-                    let corners = [PI / 4.0, 3.0 * PI / 4.0, 5.0 * PI / 4.0, 7.0 * PI / 4.0];
-                    corners[attempt % 4] + rng.gen_range(-0.1..0.1)
+                    // Corners at 30-degree related angles
+                    let corners = [PI / 6.0, PI / 3.0, 2.0 * PI / 3.0, 5.0 * PI / 6.0,
+                                   7.0 * PI / 6.0, 4.0 * PI / 3.0, 5.0 * PI / 3.0, 11.0 * PI / 6.0];
+                    corners[attempt % 8] + rng.gen_range(-0.08..0.08)
                 } else if prob < 0.8 {
-                    // Edges
+                    // Edges (cardinal directions)
                     let edges = [0.0, PI / 2.0, PI, 3.0 * PI / 2.0];
-                    edges[attempt % 4] + rng.gen_range(-0.2..0.2)
+                    edges[attempt % 4] + rng.gen_range(-0.15..0.15)
                 } else {
                     // Random for coverage
                     rng.gen_range(0.0..2.0 * PI)
@@ -431,7 +525,54 @@ impl EvolvedPacker {
         // Neighbor proximity bonus
         let neighbor_bonus = self.neighbor_proximity_bonus(tree, existing);
 
-        side_score + balance_penalty + extension_penalty + gap_penalty + center_penalty + density_bonus - neighbor_bonus
+        // Angle alignment bonus (Gen12): reward angles that mesh well with neighbors
+        let angle_bonus = self.angle_alignment_bonus(tree, existing);
+
+        side_score + balance_penalty + extension_penalty + gap_penalty + center_penalty + density_bonus - neighbor_bonus - angle_bonus
+    }
+
+    /// Bonus for angle alignment with nearby trees (Gen12 addition)
+    #[inline]
+    fn angle_alignment_bonus(&self, tree: &PlacedTree, existing: &[PlacedTree]) -> f64 {
+        if existing.is_empty() {
+            return 0.0;
+        }
+
+        let (tree_min_x, tree_min_y, tree_max_x, tree_max_y) = tree.bounds();
+        let tree_cx = (tree_min_x + tree_max_x) / 2.0;
+        let tree_cy = (tree_min_y + tree_max_y) / 2.0;
+        let tree_angle = tree.angle_deg.rem_euclid(360.0);
+
+        let mut bonus = 0.0;
+        let proximity_threshold = 1.0;
+
+        for other in existing {
+            let (ox1, oy1, ox2, oy2) = other.bounds();
+            let other_cx = (ox1 + ox2) / 2.0;
+            let other_cy = (oy1 + oy2) / 2.0;
+
+            let dx = tree_cx - other_cx;
+            let dy = tree_cy - other_cy;
+            let dist = (dx * dx + dy * dy).sqrt();
+
+            if dist < proximity_threshold {
+                let other_angle = other.angle_deg.rem_euclid(360.0);
+                let angle_diff = (tree_angle - other_angle).abs();
+                let angle_diff = angle_diff.min(360.0 - angle_diff);
+
+                // Reward complementary angles (90 or 180 degrees apart)
+                let complementary_90 = (angle_diff - 90.0).abs();
+                let complementary_180 = (angle_diff - 180.0).abs();
+                let min_complementary = complementary_90.min(complementary_180);
+
+                if min_complementary < 15.0 {
+                    let proximity_factor = 1.0 - dist / proximity_threshold;
+                    bonus += 0.01 * proximity_factor * (1.0 - min_complementary / 15.0);
+                }
+            }
+        }
+
+        bonus
     }
 
     /// Calculate local density around a point
@@ -600,7 +741,7 @@ impl EvolvedPacker {
         gaps
     }
 
-    /// Local search with simulated annealing
+    /// Local search with simulated annealing (with fine-tuned angle rotations)
     fn local_search(
         &self,
         trees: &mut Vec<PlacedTree>,
@@ -739,7 +880,7 @@ impl EvolvedPacker {
         boundary_info
     }
 
-    /// SA move operator with gap-filling awareness
+    /// SA move operator with gap-filling awareness and fine-tuned angle rotations
     #[inline]
     fn sa_move(
         &self,
@@ -777,8 +918,8 @@ impl EvolvedPacker {
                     trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
                 }
                 2 => {
-                    // Rotate
-                    let angles = [45.0, 90.0, -45.0, -90.0, 30.0, -30.0];
+                    // Rotate using fine-tuned angles (30-degree increments)
+                    let angles = [30.0, 60.0, 90.0, -30.0, -60.0, -90.0, 120.0, -120.0];
                     let delta = angles[rng.gen_range(0..angles.len())];
                     let new_angle = (old_angle + delta).rem_euclid(360.0);
                     trees[idx] = PlacedTree::new(old_x, old_y, new_angle);
@@ -799,7 +940,7 @@ impl EvolvedPacker {
                 }
             }
         } else {
-            // Standard boundary-aware moves
+            // Standard boundary-aware moves with fine-tuned angles
             let move_type = match edge {
                 BoundaryEdge::Left => {
                     match rng.gen_range(0..10) {
@@ -857,7 +998,8 @@ impl EvolvedPacker {
                     trees[idx] = PlacedTree::new(old_x, old_y + dy, old_angle);
                 }
                 2 => {
-                    let angles = [45.0, 90.0, -45.0, -90.0];
+                    // Fine-tuned angle rotations (30-degree increments instead of 45)
+                    let angles = [30.0, 60.0, 90.0, -30.0, -60.0, -90.0];
                     let delta = angles[rng.gen_range(0..angles.len())];
                     let new_angle = (old_angle + delta).rem_euclid(360.0);
                     trees[idx] = PlacedTree::new(old_x, old_y, new_angle);
@@ -1000,12 +1142,48 @@ mod tests {
     }
 
     #[test]
-    fn test_diverse_strategies() {
-        // Test that different strategies produce different initial placements
+    fn test_fine_tuned_angles() {
+        // Test that all 12 angles are used
+        assert_eq!(FINE_TUNED_ANGLES.len(), 12);
+        assert_eq!(CARDINAL_ANGLES.len(), 4);
+        assert_eq!(HEXAGONAL_ANGLES.len(), 8);
+
+        // Test that cardinal angles are in the fine-tuned set
+        for angle in &CARDINAL_ANGLES {
+            assert!(FINE_TUNED_ANGLES.contains(angle));
+        }
+
+        // Test that hexagonal angles are in the fine-tuned set
+        for angle in &HEXAGONAL_ANGLES {
+            assert!(FINE_TUNED_ANGLES.contains(angle));
+        }
+    }
+
+    #[test]
+    fn test_angle_weights() {
+        let packer = EvolvedPacker::default();
+
+        // Test with empty trees
+        let empty: Vec<PlacedTree> = Vec::new();
+        let weights = packer.compute_angle_weights(&empty);
+        assert_eq!(weights.len(), 12);
+
+        // Test with some trees
+        let trees = vec![
+            PlacedTree::new(0.0, 0.0, 0.0),
+            PlacedTree::new(1.0, 0.0, 90.0),
+            PlacedTree::new(0.0, 1.0, 180.0),
+        ];
+        let weights = packer.compute_angle_weights(&trees);
+        assert_eq!(weights.len(), 12);
+    }
+
+    #[test]
+    fn test_diverse_strategies_with_angles() {
+        // Test that different strategies produce valid packings
         let packer = EvolvedPacker::default();
         let packings = packer.pack_all(10);
 
-        // Just verify it works and produces valid packings
         for (i, p) in packings.iter().enumerate() {
             assert_eq!(p.trees.len(), i + 1);
             assert!(!p.has_overlaps());

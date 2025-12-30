@@ -1,4 +1,4 @@
-//! Evolved Packing Algorithm - Generation 10 DIVERSE STARTS
+//! Evolved Packing Algorithm - Generation 10 ADAPTIVE SIMULATED ANNEALING
 //!
 //! This module contains the evolved packing heuristics.
 //! The code is designed to be mutated by LLM-guided evolution.
@@ -9,35 +9,22 @@
 //! - select_direction(): How to choose placement directions
 //! - sa_move(): Local search move operators
 //!
-//! MUTATION STRATEGY: DIVERSE STARTS (Gen10)
-//! Try multiple different starting configurations and keep the best:
+//! MUTATION STRATEGY: ADAPTIVE SIMULATED ANNEALING (Gen10)
+//! Based on SA research, implement advanced annealing:
 //!
 //! Key improvements from Gen6:
-//! - Run 5 completely independent packing attempts per n
-//! - Each attempt uses a different initial angle/direction strategy:
-//!   1. Clockwise spiral - systematic clockwise placement
-//!   2. Counterclockwise spiral - systematic counterclockwise placement
-//!   3. Grid-based - structured grid placement pattern
-//!   4. Random - randomized directions for exploration
-//!   5. Boundary-first - prioritize placing along edges
-//! - Keep the best result for each n
-//! - Combines density-aware scoring from Gen6 with multi-strategy exploration
+//! - Adaptive cooling based on acceptance rate
+//! - Target 20-40% acceptance rate in middle phases
+//! - Reheat when acceptance rate drops below 5%
+//! - Track improvement rate and adjust temperature accordingly
+//! - Longer final cold phase for fine-tuning
+//! - Sliding window for acceptance rate tracking
 //!
-//! Target: Beat Gen6's 94.14 at n=200 with diverse exploration
+//! Target: Beat Gen6's 94.14 at n=200 with adaptive SA
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
 use std::f64::consts::PI;
-
-/// Strategy for initial placement direction
-#[derive(Clone, Copy, Debug)]
-pub enum PlacementStrategy {
-    ClockwiseSpiral,
-    CounterclockwiseSpiral,
-    Grid,
-    Random,
-    BoundaryFirst,
-}
 
 /// Evolved packing configuration
 /// These parameters are tuned through evolution
@@ -49,8 +36,17 @@ pub struct EvolvedConfig {
     // Simulated annealing
     pub sa_iterations: usize,
     pub sa_initial_temp: f64,
-    pub sa_cooling_rate: f64,
     pub sa_min_temp: f64,
+
+    // Adaptive SA parameters
+    pub target_accept_rate_high: f64,   // Target acceptance rate upper bound
+    pub target_accept_rate_low: f64,    // Target acceptance rate lower bound
+    pub reheat_threshold: f64,          // Reheat when acceptance rate drops below this
+    pub reheat_factor: f64,             // Multiply temp by this when reheating
+    pub cooling_rate_fast: f64,         // Faster cooling when acceptance is high
+    pub cooling_rate_slow: f64,         // Slower cooling when acceptance is low
+    pub accept_window_size: usize,      // Window size for acceptance rate tracking
+    pub cold_phase_iterations: usize,   // Extra iterations at cold temperature
 
     // Move parameters
     pub translation_scale: f64,
@@ -66,10 +62,7 @@ pub struct EvolvedConfig {
     // Boundary focus probability
     pub boundary_focus_prob: f64,
 
-    // DIVERSE STARTS: Number of independent attempts
-    pub num_strategies: usize,
-
-    // Density parameters (from Gen6)
+    // DENSITY MAXIMIZATION: Parameters from Gen6
     pub density_grid_resolution: usize,
     pub gap_penalty_weight: f64,
     pub local_density_radius: f64,
@@ -78,23 +71,32 @@ pub struct EvolvedConfig {
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
-        // Gen10 DIVERSE STARTS: Multi-strategy configuration
+        // Gen10 ADAPTIVE SA: Configuration with adaptive annealing
         Self {
-            search_attempts: 200,            // Slightly fewer per attempt (have 5 attempts)
-            direction_samples: 64,           // Good coverage per strategy
-            sa_iterations: 22000,            // Balanced for multiple attempts
-            sa_initial_temp: 0.45,           // From Gen6
-            sa_cooling_rate: 0.99993,        // Slightly faster for multi-attempt
-            sa_min_temp: 0.00001,            // From Gen6
-            translation_scale: 0.055,        // From Gen6
-            rotation_granularity: 45.0,      // 8 angles
-            center_pull_strength: 0.07,      // From Gen6
-            sa_passes: 2,                    // Keep 2 passes
-            early_exit_threshold: 1500,      // Slightly lower for efficiency
-            boundary_focus_prob: 0.85,       // From Gen6
-            // DIVERSE STARTS parameters
-            num_strategies: 5,               // 5 different strategies
-            // Density parameters from Gen6
+            search_attempts: 280,
+            direction_samples: 72,
+            sa_iterations: 32000,            // More iterations for adaptive SA
+            sa_initial_temp: 0.50,           // Slightly higher initial temp
+            sa_min_temp: 0.000005,           // Very low minimum for cold phase
+
+            // Adaptive SA parameters
+            target_accept_rate_high: 0.40,   // Upper target: 40%
+            target_accept_rate_low: 0.20,    // Lower target: 20%
+            reheat_threshold: 0.05,          // Reheat when below 5%
+            reheat_factor: 2.5,              // Moderate reheat
+            cooling_rate_fast: 0.9998,       // Fast cooling when acceptance is high
+            cooling_rate_slow: 0.99995,      // Slow cooling when acceptance is low
+            accept_window_size: 200,         // Track last 200 moves
+            cold_phase_iterations: 4000,     // Extra cold phase iterations
+
+            translation_scale: 0.055,
+            rotation_granularity: 45.0,
+            center_pull_strength: 0.07,
+            sa_passes: 2,
+            early_exit_threshold: 2200,      // More patience for adaptive SA
+            boundary_focus_prob: 0.85,
+
+            // DENSITY parameters from Gen6
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
@@ -114,6 +116,56 @@ enum BoundaryEdge {
     None,
 }
 
+/// Acceptance rate tracker using sliding window
+struct AcceptanceTracker {
+    window: Vec<bool>,
+    position: usize,
+    accepts: usize,
+    total: usize,
+}
+
+impl AcceptanceTracker {
+    fn new(window_size: usize) -> Self {
+        Self {
+            window: vec![false; window_size],
+            position: 0,
+            accepts: 0,
+            total: 0,
+        }
+    }
+
+    fn record(&mut self, accepted: bool) {
+        let window_size = self.window.len();
+
+        // Remove old value from count
+        if self.total >= window_size && self.window[self.position] {
+            self.accepts -= 1;
+        }
+
+        // Add new value
+        self.window[self.position] = accepted;
+        if accepted {
+            self.accepts += 1;
+        }
+
+        self.position = (self.position + 1) % window_size;
+        self.total += 1;
+    }
+
+    fn rate(&self) -> f64 {
+        let window_size = self.window.len();
+        let effective_count = self.total.min(window_size);
+        if effective_count == 0 {
+            return 0.5; // Default to 50% at start
+        }
+        self.accepts as f64 / effective_count as f64
+    }
+
+    fn is_warmed_up(&self) -> bool {
+        self.total >= self.window.len() / 2
+    }
+}
+
 /// Main evolved packer
 pub struct EvolvedPacker {
     pub config: EvolvedConfig,
@@ -126,123 +178,77 @@ impl Default for EvolvedPacker {
 }
 
 impl EvolvedPacker {
-    /// Pack all n from 1 to max_n using DIVERSE STARTS strategy
+    /// Pack all n from 1 to max_n
     pub fn pack_all(&self, max_n: usize) -> Vec<Packing> {
         let mut rng = rand::thread_rng();
         let mut packings: Vec<Packing> = Vec::with_capacity(max_n);
-
-        // Track best configurations for each strategy
-        let strategies = [
-            PlacementStrategy::ClockwiseSpiral,
-            PlacementStrategy::CounterclockwiseSpiral,
-            PlacementStrategy::Grid,
-            PlacementStrategy::Random,
-            PlacementStrategy::BoundaryFirst,
-        ];
-
-        // Maintain separate tree configurations for each strategy
-        let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
+        let mut prev_trees: Vec<PlacedTree> = Vec::new();
 
         for n in 1..=max_n {
-            let mut best_trees: Option<Vec<PlacedTree>> = None;
-            let mut best_side = f64::INFINITY;
+            let mut trees = prev_trees.clone();
 
-            // Try each strategy independently
-            for (s_idx, &strategy) in strategies.iter().enumerate() {
-                let mut trees = strategy_trees[s_idx].clone();
+            // Place new tree using density-aware heuristics
+            let new_tree = self.find_placement(&trees, n, max_n, &mut rng);
+            trees.push(new_tree);
 
-                // Place new tree using strategy-specific heuristics
-                let new_tree = self.find_placement_with_strategy(&trees, n, max_n, strategy, &mut rng);
-                trees.push(new_tree);
-
-                // Run SA passes
-                for pass in 0..self.config.sa_passes {
-                    self.local_search(&mut trees, n, pass, strategy, &mut rng);
-                }
-
-                let side = compute_side_length(&trees);
-
-                // Update strategy's best configuration
-                strategy_trees[s_idx] = trees.clone();
-
-                // Check if this is the best across all strategies
-                if side < best_side {
-                    best_side = side;
-                    best_trees = Some(trees);
-                }
+            // Run SA passes with adaptive annealing
+            for pass in 0..self.config.sa_passes {
+                self.adaptive_local_search(&mut trees, n, pass, &mut rng);
             }
 
-            // Store the best result
-            let best = best_trees.unwrap();
+            // Store result
             let mut packing = Packing::new();
-            for t in &best {
+            for t in &trees {
                 packing.trees.push(t.clone());
             }
             packings.push(packing);
-
-            // Update all strategies to use the best configuration going forward
-            // This helps propagate good solutions across strategies
-            for strat_trees in strategy_trees.iter_mut() {
-                if compute_side_length(strat_trees) > best_side * 1.02 {
-                    *strat_trees = best.clone();
-                }
-            }
+            prev_trees = trees;
         }
 
         packings
     }
 
-    /// Find best placement for new tree using strategy-specific approach
-    fn find_placement_with_strategy(
+    /// EVOLVED FUNCTION: Find best placement for new tree
+    /// Uses density-aware heuristics from Gen6
+    fn find_placement(
         &self,
         existing: &[PlacedTree],
         n: usize,
         _max_n: usize,
-        strategy: PlacementStrategy,
         rng: &mut impl Rng,
     ) -> PlacedTree {
         if existing.is_empty() {
-            // Strategy-specific initial angle
-            let initial_angle = match strategy {
-                PlacementStrategy::ClockwiseSpiral => 0.0,
-                PlacementStrategy::CounterclockwiseSpiral => 90.0,
-                PlacementStrategy::Grid => 45.0,
-                PlacementStrategy::Random => rng.gen_range(0..8) as f64 * 45.0,
-                PlacementStrategy::BoundaryFirst => 180.0,
-            };
-            return PlacedTree::new(0.0, 0.0, initial_angle);
+            return PlacedTree::new(0.0, 0.0, 90.0);
         }
 
         let mut best_tree = PlacedTree::new(0.0, 0.0, 90.0);
         let mut best_score = f64::INFINITY;
 
-        let angles = self.select_angles_for_strategy(n, strategy);
+        let angles = self.select_angles(n);
 
         // Compute current bounds and density info
         let (min_x, min_y, max_x, max_y) = compute_bounds(existing);
         let current_width = max_x - min_x;
         let current_height = max_y - min_y;
 
-        // Find gaps for density-aware placement
+        // Find gaps in the packing for density-aware placement
         let gaps = self.find_gaps(existing, min_x, min_y, max_x, max_y);
 
         for attempt in 0..self.config.search_attempts {
-            // Strategy-specific direction selection
-            let dir = if !gaps.is_empty() && attempt % 5 == 0 {
-                // Sometimes target gaps directly
+            // DENSITY: Sometimes target gaps directly
+            let dir = if !gaps.is_empty() && attempt % 4 == 0 {
                 let gap = &gaps[attempt % gaps.len()];
                 let gap_cx = (gap.0 + gap.2) / 2.0;
                 let gap_cy = (gap.1 + gap.3) / 2.0;
                 gap_cy.atan2(gap_cx)
             } else {
-                self.select_direction_for_strategy(n, current_width, current_height, strategy, attempt, rng)
+                self.select_direction(n, current_width, current_height, rng)
             };
 
             let vx = dir.cos();
             let vy = dir.sin();
 
             for &tree_angle in &angles {
-                // Binary search for closest valid position
                 let mut low = 0.0;
                 let mut high = 12.0;
 
@@ -271,113 +277,12 @@ impl EvolvedPacker {
         best_tree
     }
 
-    /// Select rotation angles based on strategy
-    #[inline]
-    fn select_angles_for_strategy(&self, n: usize, strategy: PlacementStrategy) -> Vec<f64> {
-        match strategy {
-            PlacementStrategy::ClockwiseSpiral => {
-                // Favor angles that work well for clockwise packing
-                vec![0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0]
-            }
-            PlacementStrategy::CounterclockwiseSpiral => {
-                // Reverse order for counterclockwise
-                vec![315.0, 270.0, 225.0, 180.0, 135.0, 90.0, 45.0, 0.0]
-            }
-            PlacementStrategy::Grid => {
-                // Prefer axis-aligned for grid packing
-                vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
-            }
-            PlacementStrategy::Random => {
-                // Vary based on n for diversity
-                match n % 4 {
-                    0 => vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0],
-                    1 => vec![90.0, 270.0, 0.0, 180.0, 135.0, 315.0, 45.0, 225.0],
-                    2 => vec![180.0, 0.0, 270.0, 90.0, 225.0, 45.0, 315.0, 135.0],
-                    _ => vec![270.0, 90.0, 180.0, 0.0, 315.0, 135.0, 225.0, 45.0],
-                }
-            }
-            PlacementStrategy::BoundaryFirst => {
-                // Angles that work well for boundary placement
-                vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
-            }
-        }
-    }
-
-    /// Select direction based on strategy
-    #[inline]
-    fn select_direction_for_strategy(
-        &self,
-        n: usize,
-        width: f64,
-        height: f64,
-        strategy: PlacementStrategy,
-        attempt: usize,
-        rng: &mut impl Rng,
-    ) -> f64 {
-        match strategy {
-            PlacementStrategy::ClockwiseSpiral => {
-                // Clockwise spiral: start at top, go right, down, left, up...
-                let golden_angle = PI * (3.0 - (5.0_f64).sqrt());
-                let base = (n as f64 * golden_angle) % (2.0 * PI);
-                let offset = (attempt as f64 / self.config.search_attempts as f64) * 2.0 * PI;
-                (base + offset) % (2.0 * PI)
-            }
-            PlacementStrategy::CounterclockwiseSpiral => {
-                // Counterclockwise: opposite direction
-                let golden_angle = -PI * (3.0 - (5.0_f64).sqrt());
-                let base = (n as f64 * golden_angle).rem_euclid(2.0 * PI);
-                let offset = (attempt as f64 / self.config.search_attempts as f64) * 2.0 * PI;
-                (base - offset).rem_euclid(2.0 * PI)
-            }
-            PlacementStrategy::Grid => {
-                // Grid pattern: structured directions
-                let num_dirs = 16;
-                let base_idx = attempt % num_dirs;
-                let base = (base_idx as f64 / num_dirs as f64) * 2.0 * PI;
-                // Add slight jitter for variation
-                base + rng.gen_range(-0.03..0.03)
-            }
-            PlacementStrategy::Random => {
-                // Pure random with some structure
-                let mix = rng.gen::<f64>();
-                if mix < 0.5 {
-                    rng.gen_range(0.0..2.0 * PI)
-                } else {
-                    // Bias toward shorter dimension
-                    if width < height {
-                        let angle = if rng.gen() { 0.0 } else { PI };
-                        angle + rng.gen_range(-PI / 3.0..PI / 3.0)
-                    } else {
-                        let angle = if rng.gen() { PI / 2.0 } else { -PI / 2.0 };
-                        angle + rng.gen_range(-PI / 3.0..PI / 3.0)
-                    }
-                }
-            }
-            PlacementStrategy::BoundaryFirst => {
-                // Prioritize corners and edges
-                let prob = rng.gen::<f64>();
-                if prob < 0.4 {
-                    // Corners
-                    let corners = [PI / 4.0, 3.0 * PI / 4.0, 5.0 * PI / 4.0, 7.0 * PI / 4.0];
-                    corners[attempt % 4] + rng.gen_range(-0.1..0.1)
-                } else if prob < 0.8 {
-                    // Edges
-                    let edges = [0.0, PI / 2.0, PI, 3.0 * PI / 2.0];
-                    edges[attempt % 4] + rng.gen_range(-0.2..0.2)
-                } else {
-                    // Random for coverage
-                    rng.gen_range(0.0..2.0 * PI)
-                }
-            }
-        }
-    }
-
-    /// Score a placement (lower is better) - from Gen6 with density awareness
+    /// EVOLVED FUNCTION: Score a placement (lower is better)
+    /// Density-aware scoring from Gen6
     #[inline]
     fn placement_score(&self, tree: &PlacedTree, existing: &[PlacedTree], n: usize) -> f64 {
         let (tree_min_x, tree_min_y, tree_max_x, tree_max_y) = tree.bounds();
 
-        // Compute combined bounds
         let mut pack_min_x = tree_min_x;
         let mut pack_min_y = tree_min_y;
         let mut pack_max_x = tree_max_x;
@@ -395,21 +300,14 @@ impl EvolvedPacker {
         let height = pack_max_y - pack_min_y;
         let side = width.max(height);
 
-        // Primary: minimize side length
         let side_score = side;
-
-        // Secondary: balance penalty (prefer square-ish bounds)
         let balance_penalty = (width - height).abs() * 0.10;
 
-        // Calculate local density around the new tree
         let tree_cx = (tree_min_x + tree_max_x) / 2.0;
         let tree_cy = (tree_min_y + tree_max_y) / 2.0;
         let local_density = self.calculate_local_density(tree_cx, tree_cy, existing);
-
-        // Reward high local density (tree is filling a gap)
         let density_bonus = -self.config.gap_penalty_weight * local_density;
 
-        // Penalize placements that extend the bounding box
         let (old_min_x, old_min_y, old_max_x, old_max_y) = if !existing.is_empty() {
             compute_bounds(existing)
         } else {
@@ -420,15 +318,12 @@ impl EvolvedPacker {
         let y_extension = (pack_max_y - old_max_y).max(0.0) + (old_min_y - pack_min_y).max(0.0);
         let extension_penalty = (x_extension + y_extension) * 0.08;
 
-        // Penalize leaving unusable gaps
         let gap_penalty = self.estimate_unusable_gap(tree, existing) * self.config.gap_penalty_weight;
 
-        // Center penalty
         let center_x = (pack_min_x + pack_max_x) / 2.0;
         let center_y = (pack_min_y + pack_max_y) / 2.0;
         let center_penalty = (center_x.abs() + center_y.abs()) * 0.005 / (n as f64).sqrt();
 
-        // Neighbor proximity bonus
         let neighbor_bonus = self.neighbor_proximity_bonus(tree, existing);
 
         side_score + balance_penalty + extension_penalty + gap_penalty + center_penalty + density_bonus - neighbor_bonus
@@ -466,7 +361,6 @@ impl EvolvedPacker {
         }
 
         let (tree_min_x, tree_min_y, tree_max_x, tree_max_y) = tree.bounds();
-
         let mut gap_penalty = 0.0;
         let min_useful_gap = 0.15;
         let max_wasteful_gap = 0.4;
@@ -474,7 +368,6 @@ impl EvolvedPacker {
         for other in existing {
             let (ox1, oy1, ox2, oy2) = other.bounds();
 
-            // Horizontal gap
             if tree_min_y < oy2 && tree_max_y > oy1 {
                 if tree_min_x > ox2 {
                     let gap = tree_min_x - ox2;
@@ -489,7 +382,6 @@ impl EvolvedPacker {
                 }
             }
 
-            // Vertical gap
             if tree_min_x < ox2 && tree_max_x > ox1 {
                 if tree_min_y > oy2 {
                     let gap = tree_min_y - oy2;
@@ -558,7 +450,6 @@ impl EvolvedPacker {
             return Vec::new();
         }
 
-        // Create occupancy grid
         let mut occupied = vec![false; grid_res * grid_res];
 
         for tree in trees {
@@ -575,7 +466,6 @@ impl EvolvedPacker {
             }
         }
 
-        // Find empty cells surrounded by occupied cells
         for i in 1..grid_res - 1 {
             for j in 1..grid_res - 1 {
                 let idx = j * grid_res + i;
@@ -600,15 +490,50 @@ impl EvolvedPacker {
         gaps
     }
 
-    /// Local search with simulated annealing
-    fn local_search(
-        &self,
-        trees: &mut Vec<PlacedTree>,
-        n: usize,
-        pass: usize,
-        _strategy: PlacementStrategy,
-        rng: &mut impl Rng,
-    ) {
+    /// Select rotation angles to try
+    #[inline]
+    fn select_angles(&self, n: usize) -> Vec<f64> {
+        let base = match n % 4 {
+            0 => vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0],
+            1 => vec![90.0, 270.0, 0.0, 180.0, 135.0, 315.0, 45.0, 225.0],
+            2 => vec![180.0, 0.0, 270.0, 90.0, 225.0, 45.0, 315.0, 135.0],
+            _ => vec![270.0, 90.0, 180.0, 0.0, 315.0, 135.0, 225.0, 45.0],
+        };
+        base
+    }
+
+    /// Select direction angle for placement search
+    #[inline]
+    fn select_direction(&self, n: usize, width: f64, height: f64, rng: &mut impl Rng) -> f64 {
+        let num_dirs = self.config.direction_samples;
+        let strategy = rng.gen::<f64>();
+
+        if strategy < 0.45 {
+            let base_idx = rng.gen_range(0..num_dirs);
+            let base = (base_idx as f64 / num_dirs as f64) * 2.0 * PI;
+            base + rng.gen_range(-0.05..0.05)
+        } else if strategy < 0.70 {
+            if width < height {
+                let angle = if rng.gen() { 0.0 } else { PI };
+                angle + rng.gen_range(-PI / 4.0..PI / 4.0)
+            } else {
+                let angle = if rng.gen() { PI / 2.0 } else { -PI / 2.0 };
+                angle + rng.gen_range(-PI / 4.0..PI / 4.0)
+            }
+        } else if strategy < 0.85 {
+            let corners = [PI / 4.0, 3.0 * PI / 4.0, 5.0 * PI / 4.0, 7.0 * PI / 4.0];
+            corners[rng.gen_range(0..4)] + rng.gen_range(-0.15..0.15)
+        } else {
+            let golden_angle = PI * (3.0 - (5.0_f64).sqrt());
+            let base = (n as f64 * golden_angle) % (2.0 * PI);
+            let offset = rng.gen_range(0..8) as f64 * PI / 4.0;
+            (base + offset + rng.gen_range(-0.1..0.1)) % (2.0 * PI)
+        }
+    }
+
+    /// EVOLVED FUNCTION: Adaptive local search with simulated annealing
+    /// GEN10: Implements adaptive cooling based on acceptance rate
+    fn adaptive_local_search(&self, trees: &mut Vec<PlacedTree>, n: usize, pass: usize, rng: &mut impl Rng) {
         if trees.len() <= 1 {
             return;
         }
@@ -624,23 +549,47 @@ impl EvolvedPacker {
         let mut temp = self.config.sa_initial_temp * temp_multiplier;
 
         let base_iterations = match pass {
-            0 => self.config.sa_iterations + n * 100,
-            _ => self.config.sa_iterations / 2 + n * 50,
+            0 => self.config.sa_iterations + n * 110,
+            _ => self.config.sa_iterations / 2 + n * 55,
+        };
+
+        // Add cold phase iterations to first pass
+        let total_iterations = if pass == 0 {
+            base_iterations + self.config.cold_phase_iterations
+        } else {
+            base_iterations
         };
 
         let mut iterations_without_improvement = 0;
+
+        // ADAPTIVE SA: Acceptance rate tracker
+        let mut accept_tracker = AcceptanceTracker::new(self.config.accept_window_size);
+        let mut reheat_count = 0;
+        let max_reheats = 3; // Limit number of reheats
+
+        // Track improvement rate
+        let mut recent_improvements = 0;
+        let improvement_window = 500;
+        let mut improvement_counter = 0;
 
         // Cache boundary info
         let mut boundary_cache_iter = 0;
         let mut boundary_info: Vec<(usize, BoundaryEdge)> = Vec::new();
 
-        for iter in 0..base_iterations {
+        for iter in 0..total_iterations {
             if iterations_without_improvement >= self.config.early_exit_threshold {
+                // ADAPTIVE: Try one reheat before giving up
+                if reheat_count < max_reheats && temp < self.config.sa_initial_temp * 0.1 {
+                    temp *= self.config.reheat_factor;
+                    reheat_count += 1;
+                    iterations_without_improvement = 0;
+                    continue;
+                }
                 break;
             }
 
-            // Update boundary cache every 300 iterations
-            if iter == 0 || iter - boundary_cache_iter >= 300 {
+            // Update boundary cache every 350 iterations
+            if iter == 0 || iter - boundary_cache_iter >= 350 {
                 boundary_info = self.find_boundary_trees_with_edges(trees);
                 boundary_cache_iter = iter;
             }
@@ -670,18 +619,21 @@ impl EvolvedPacker {
 
             let old_tree = trees[idx].clone();
 
-            let success = self.sa_move(trees, idx, temp, edge, do_fill_move, rng);
+            let success = self.density_aware_move(trees, idx, temp, edge, do_fill_move, rng);
 
+            let mut accepted = false;
             if success {
                 let new_side = compute_side_length(trees);
                 let delta = new_side - current_side;
 
                 if delta <= 0.0 || rng.gen::<f64>() < (-delta / temp).exp() {
+                    accepted = true;
                     current_side = new_side;
                     if current_side < best_side {
                         best_side = current_side;
                         best_config = trees.clone();
                         iterations_without_improvement = 0;
+                        recent_improvements += 1;
                     } else {
                         iterations_without_improvement += 1;
                     }
@@ -694,7 +646,46 @@ impl EvolvedPacker {
                 iterations_without_improvement += 1;
             }
 
-            temp = (temp * self.config.sa_cooling_rate).max(self.config.sa_min_temp);
+            // Record acceptance for adaptive cooling
+            accept_tracker.record(accepted);
+
+            // ADAPTIVE COOLING: Adjust temperature based on acceptance rate
+            if accept_tracker.is_warmed_up() {
+                let accept_rate = accept_tracker.rate();
+
+                // Reheat if acceptance rate is too low
+                if accept_rate < self.config.reheat_threshold && reheat_count < max_reheats {
+                    temp *= self.config.reheat_factor;
+                    reheat_count += 1;
+                } else if accept_rate > self.config.target_accept_rate_high {
+                    // Cool faster if accepting too many moves
+                    temp *= self.config.cooling_rate_fast;
+                } else if accept_rate < self.config.target_accept_rate_low {
+                    // Cool slower if accepting too few moves
+                    temp *= self.config.cooling_rate_slow;
+                } else {
+                    // In target range, use moderate cooling
+                    temp *= (self.config.cooling_rate_fast + self.config.cooling_rate_slow) / 2.0;
+                }
+            } else {
+                // Standard cooling until tracker is warmed up
+                temp *= self.config.cooling_rate_slow;
+            }
+
+            // Track improvement rate
+            improvement_counter += 1;
+            if improvement_counter >= improvement_window {
+                // If no recent improvements and temp is low, consider reheating
+                if recent_improvements == 0 && temp < self.config.sa_initial_temp * 0.05 && reheat_count < max_reheats {
+                    temp *= self.config.reheat_factor * 0.5; // Smaller reheat for stagnation
+                    reheat_count += 1;
+                }
+                recent_improvements = 0;
+                improvement_counter = 0;
+            }
+
+            // Enforce minimum temperature
+            temp = temp.max(self.config.sa_min_temp);
         }
 
         if best_side < compute_side_length(trees) {
@@ -739,9 +730,9 @@ impl EvolvedPacker {
         boundary_info
     }
 
-    /// SA move operator with gap-filling awareness
+    /// Move operator with gap-filling awareness
     #[inline]
-    fn sa_move(
+    fn density_aware_move(
         &self,
         trees: &mut [PlacedTree],
         idx: usize,
@@ -765,26 +756,22 @@ impl EvolvedPacker {
             let move_type = rng.gen_range(0..4);
             match move_type {
                 0 => {
-                    // Move toward center of bbox
                     let dx = (bbox_cx - old_x) * 0.1 * (0.5 + temp);
                     let dy = (bbox_cy - old_y) * 0.1 * (0.5 + temp);
                     trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
                 }
                 1 => {
-                    // Small random move
                     let dx = rng.gen_range(-scale * 0.4..scale * 0.4);
                     let dy = rng.gen_range(-scale * 0.4..scale * 0.4);
                     trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
                 }
                 2 => {
-                    // Rotate
                     let angles = [45.0, 90.0, -45.0, -90.0, 30.0, -30.0];
                     let delta = angles[rng.gen_range(0..angles.len())];
                     let new_angle = (old_angle + delta).rem_euclid(360.0);
                     trees[idx] = PlacedTree::new(old_x, old_y, new_angle);
                 }
                 _ => {
-                    // Move toward nearest gap
                     let gaps = self.find_gaps(trees, min_x, min_y, max_x, max_y);
                     if !gaps.is_empty() {
                         let gap = &gaps[rng.gen_range(0..gaps.len())];
@@ -799,7 +786,6 @@ impl EvolvedPacker {
                 }
             }
         } else {
-            // Standard boundary-aware moves
             let move_type = match edge {
                 BoundaryEdge::Left => {
                     match rng.gen_range(0..10) {
@@ -1000,15 +986,24 @@ mod tests {
     }
 
     #[test]
-    fn test_diverse_strategies() {
-        // Test that different strategies produce different initial placements
-        let packer = EvolvedPacker::default();
-        let packings = packer.pack_all(10);
+    fn test_acceptance_tracker() {
+        let mut tracker = AcceptanceTracker::new(10);
 
-        // Just verify it works and produces valid packings
-        for (i, p) in packings.iter().enumerate() {
-            assert_eq!(p.trees.len(), i + 1);
-            assert!(!p.has_overlaps());
+        // Initially should return 0.5 (default)
+        assert!((tracker.rate() - 0.5).abs() < 0.01);
+
+        // Record some acceptances
+        for _ in 0..5 {
+            tracker.record(true);
         }
+        for _ in 0..5 {
+            tracker.record(false);
+        }
+
+        // Should be 50% acceptance rate
+        assert!((tracker.rate() - 0.5).abs() < 0.01);
+
+        // Should be warmed up now
+        assert!(tracker.is_warmed_up());
     }
 }

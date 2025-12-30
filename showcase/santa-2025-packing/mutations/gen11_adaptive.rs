@@ -1,4 +1,4 @@
-//! Evolved Packing Algorithm - Generation 10 DIVERSE STARTS
+//! Evolved Packing Algorithm - Generation 11 N-ADAPTIVE STRATEGIES
 //!
 //! This module contains the evolved packing heuristics.
 //! The code is designed to be mutated by LLM-guided evolution.
@@ -9,34 +9,44 @@
 //! - select_direction(): How to choose placement directions
 //! - sa_move(): Local search move operators
 //!
-//! MUTATION STRATEGY: DIVERSE STARTS (Gen10)
-//! Try multiple different starting configurations and keep the best:
+//! MUTATION STRATEGY: N-ADAPTIVE STRATEGIES (Gen11)
+//! Use more strategies for small n (where it matters most for score):
 //!
-//! Key improvements from Gen6:
-//! - Run 5 completely independent packing attempts per n
-//! - Each attempt uses a different initial angle/direction strategy:
-//!   1. Clockwise spiral - systematic clockwise placement
-//!   2. Counterclockwise spiral - systematic counterclockwise placement
-//!   3. Grid-based - structured grid placement pattern
-//!   4. Random - randomized directions for exploration
-//!   5. Boundary-first - prioritize placing along edges
-//! - Keep the best result for each n
-//! - Combines density-aware scoring from Gen6 with multi-strategy exploration
+//! Key improvements from Gen10:
+//! - n <= 20: Run all 5 strategies (small n has high weight in score)
+//! - n 21-50: Run best 3 strategies (balance between exploration and speed)
+//! - n 51-100: Run best 2 strategies (diminishing returns)
+//! - n > 100: Run only the best strategy (efficiency for large n)
+//! - Track which strategies work best and prefer them
+//! - More SA iterations for small n where score impact is highest
 //!
-//! Target: Beat Gen6's 94.14 at n=200 with diverse exploration
+//! Target: Beat Gen10's 91.35 at n=200 with adaptive strategy selection
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
 use std::f64::consts::PI;
 
 /// Strategy for initial placement direction
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlacementStrategy {
     ClockwiseSpiral,
     CounterclockwiseSpiral,
     Grid,
     Random,
     BoundaryFirst,
+}
+
+impl PlacementStrategy {
+    /// Get all strategies in default order
+    fn all() -> [PlacementStrategy; 5] {
+        [
+            PlacementStrategy::ClockwiseSpiral,
+            PlacementStrategy::CounterclockwiseSpiral,
+            PlacementStrategy::Grid,
+            PlacementStrategy::Random,
+            PlacementStrategy::BoundaryFirst,
+        ]
+    }
 }
 
 /// Evolved packing configuration
@@ -66,39 +76,43 @@ pub struct EvolvedConfig {
     // Boundary focus probability
     pub boundary_focus_prob: f64,
 
-    // DIVERSE STARTS: Number of independent attempts
-    pub num_strategies: usize,
-
     // Density parameters (from Gen6)
     pub density_grid_resolution: usize,
     pub gap_penalty_weight: f64,
     pub local_density_radius: f64,
     pub fill_move_prob: f64,
+
+    // N-ADAPTIVE parameters
+    pub small_n_threshold: usize,     // n <= this uses all 5 strategies
+    pub medium_n_threshold: usize,    // n <= this uses top 3 strategies
+    pub large_n_threshold: usize,     // n <= this uses top 2 strategies
 }
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
-        // Gen10 DIVERSE STARTS: Multi-strategy configuration
+        // Gen11 N-ADAPTIVE STRATEGIES configuration
         Self {
-            search_attempts: 200,            // Slightly fewer per attempt (have 5 attempts)
-            direction_samples: 64,           // Good coverage per strategy
-            sa_iterations: 22000,            // Balanced for multiple attempts
-            sa_initial_temp: 0.45,           // From Gen6
-            sa_cooling_rate: 0.99993,        // Slightly faster for multi-attempt
-            sa_min_temp: 0.00001,            // From Gen6
-            translation_scale: 0.055,        // From Gen6
-            rotation_granularity: 45.0,      // 8 angles
-            center_pull_strength: 0.07,      // From Gen6
-            sa_passes: 2,                    // Keep 2 passes
-            early_exit_threshold: 1500,      // Slightly lower for efficiency
-            boundary_focus_prob: 0.85,       // From Gen6
-            // DIVERSE STARTS parameters
-            num_strategies: 5,               // 5 different strategies
+            search_attempts: 220,             // Slightly more attempts
+            direction_samples: 64,            // Good coverage
+            sa_iterations: 24000,             // Base iterations (scaled by n)
+            sa_initial_temp: 0.45,            // From Gen6/Gen10
+            sa_cooling_rate: 0.99993,         // From Gen10
+            sa_min_temp: 0.00001,             // From Gen6
+            translation_scale: 0.055,         // From Gen6
+            rotation_granularity: 45.0,       // 8 angles
+            center_pull_strength: 0.07,       // From Gen6
+            sa_passes: 2,                     // Keep 2 passes
+            early_exit_threshold: 1500,       // From Gen10
+            boundary_focus_prob: 0.85,        // From Gen6
             // Density parameters from Gen6
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
             fill_move_prob: 0.15,
+            // N-ADAPTIVE thresholds
+            small_n_threshold: 20,            // All 5 strategies for n <= 20
+            medium_n_threshold: 50,           // Top 3 strategies for n 21-50
+            large_n_threshold: 100,           // Top 2 strategies for n 51-100
         }
     }
 }
@@ -114,6 +128,57 @@ enum BoundaryEdge {
     None,
 }
 
+/// Strategy performance tracker
+struct StrategyTracker {
+    /// Wins per strategy (count of times each strategy produced the best result)
+    wins: [usize; 5],
+    /// Total score improvements per strategy
+    improvements: [f64; 5],
+}
+
+impl StrategyTracker {
+    fn new() -> Self {
+        Self {
+            wins: [0; 5],
+            improvements: [0.0; 5],
+        }
+    }
+
+    /// Record that a strategy won for this n
+    fn record_win(&mut self, strategy: PlacementStrategy, improvement: f64) {
+        let idx = Self::strategy_index(strategy);
+        self.wins[idx] += 1;
+        self.improvements[idx] += improvement;
+    }
+
+    /// Get strategies sorted by performance (best first)
+    fn get_ranked_strategies(&self) -> Vec<PlacementStrategy> {
+        let strategies = PlacementStrategy::all();
+        let mut indexed: Vec<(usize, f64)> = (0..5)
+            .map(|i| {
+                // Combine wins and improvements for ranking
+                let score = self.wins[i] as f64 * 10.0 + self.improvements[i];
+                (i, score)
+            })
+            .collect();
+
+        // Sort by score descending
+        indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        indexed.iter().map(|(i, _)| strategies[*i]).collect()
+    }
+
+    fn strategy_index(strategy: PlacementStrategy) -> usize {
+        match strategy {
+            PlacementStrategy::ClockwiseSpiral => 0,
+            PlacementStrategy::CounterclockwiseSpiral => 1,
+            PlacementStrategy::Grid => 2,
+            PlacementStrategy::Random => 3,
+            PlacementStrategy::BoundaryFirst => 4,
+        }
+    }
+}
+
 /// Main evolved packer
 pub struct EvolvedPacker {
     pub config: EvolvedConfig,
@@ -126,38 +191,43 @@ impl Default for EvolvedPacker {
 }
 
 impl EvolvedPacker {
-    /// Pack all n from 1 to max_n using DIVERSE STARTS strategy
+    /// Pack all n from 1 to max_n using N-ADAPTIVE STRATEGIES
     pub fn pack_all(&self, max_n: usize) -> Vec<Packing> {
         let mut rng = rand::thread_rng();
         let mut packings: Vec<Packing> = Vec::with_capacity(max_n);
 
-        // Track best configurations for each strategy
-        let strategies = [
-            PlacementStrategy::ClockwiseSpiral,
-            PlacementStrategy::CounterclockwiseSpiral,
-            PlacementStrategy::Grid,
-            PlacementStrategy::Random,
-            PlacementStrategy::BoundaryFirst,
-        ];
+        // Track strategy performance
+        let mut tracker = StrategyTracker::new();
 
         // Maintain separate tree configurations for each strategy
-        let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
+        let all_strategies = PlacementStrategy::all();
+        let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); 5];
 
         for n in 1..=max_n {
+            // Determine which strategies to use based on n
+            let strategies_to_use = self.select_strategies_for_n(n, &tracker);
+
             let mut best_trees: Option<Vec<PlacedTree>> = None;
             let mut best_side = f64::INFINITY;
+            let mut best_strategy = PlacementStrategy::ClockwiseSpiral;
 
-            // Try each strategy independently
-            for (s_idx, &strategy) in strategies.iter().enumerate() {
+            // Get adaptive parameters for this n
+            let (search_mult, sa_mult) = self.get_n_adaptive_params(n);
+
+            // Try each selected strategy
+            for &strategy in &strategies_to_use {
+                let s_idx = StrategyTracker::strategy_index(strategy);
                 let mut trees = strategy_trees[s_idx].clone();
 
                 // Place new tree using strategy-specific heuristics
-                let new_tree = self.find_placement_with_strategy(&trees, n, max_n, strategy, &mut rng);
+                let new_tree = self.find_placement_with_strategy(
+                    &trees, n, max_n, strategy, search_mult, &mut rng
+                );
                 trees.push(new_tree);
 
-                // Run SA passes
+                // Run SA passes with adaptive iterations
                 for pass in 0..self.config.sa_passes {
-                    self.local_search(&mut trees, n, pass, strategy, &mut rng);
+                    self.local_search(&mut trees, n, pass, strategy, sa_mult, &mut rng);
                 }
 
                 let side = compute_side_length(&trees);
@@ -169,8 +239,18 @@ impl EvolvedPacker {
                 if side < best_side {
                     best_side = side;
                     best_trees = Some(trees);
+                    best_strategy = strategy;
                 }
             }
+
+            // Record the winning strategy
+            let prev_side = if n > 1 {
+                compute_side_length(&packings[n - 2].trees)
+            } else {
+                0.0
+            };
+            let improvement = if best_side > 0.0 { prev_side / best_side } else { 1.0 };
+            tracker.record_win(best_strategy, improvement);
 
             // Store the best result
             let best = best_trees.unwrap();
@@ -180,16 +260,54 @@ impl EvolvedPacker {
             }
             packings.push(packing);
 
-            // Update all strategies to use the best configuration going forward
-            // This helps propagate good solutions across strategies
-            for strat_trees in strategy_trees.iter_mut() {
-                if compute_side_length(strat_trees) > best_side * 1.02 {
-                    *strat_trees = best.clone();
+            // Propagate good solutions to strategies that weren't used
+            // This ensures strategies maintain reasonable starting points
+            for (s_idx, strat) in all_strategies.iter().enumerate() {
+                if !strategies_to_use.contains(strat) ||
+                   compute_side_length(&strategy_trees[s_idx]) > best_side * 1.02 {
+                    strategy_trees[s_idx] = best.clone();
                 }
             }
         }
 
         packings
+    }
+
+    /// Select which strategies to use based on n and past performance
+    fn select_strategies_for_n(&self, n: usize, tracker: &StrategyTracker) -> Vec<PlacementStrategy> {
+        let ranked = tracker.get_ranked_strategies();
+
+        if n <= self.config.small_n_threshold {
+            // Small n: use all 5 strategies (highest score impact)
+            PlacementStrategy::all().to_vec()
+        } else if n <= self.config.medium_n_threshold {
+            // Medium n: use top 3 strategies
+            ranked.into_iter().take(3).collect()
+        } else if n <= self.config.large_n_threshold {
+            // Large n: use top 2 strategies
+            ranked.into_iter().take(2).collect()
+        } else {
+            // Very large n: use only the best strategy
+            ranked.into_iter().take(1).collect()
+        }
+    }
+
+    /// Get adaptive parameters based on n
+    /// Returns (search_multiplier, sa_multiplier)
+    fn get_n_adaptive_params(&self, n: usize) -> (f64, f64) {
+        if n <= self.config.small_n_threshold {
+            // Small n: maximum effort (highest score weight)
+            (1.3, 1.4)
+        } else if n <= self.config.medium_n_threshold {
+            // Medium n: good effort
+            (1.1, 1.2)
+        } else if n <= self.config.large_n_threshold {
+            // Large n: standard effort
+            (1.0, 1.0)
+        } else {
+            // Very large n: efficient mode
+            (0.9, 0.85)
+        }
     }
 
     /// Find best placement for new tree using strategy-specific approach
@@ -199,6 +317,7 @@ impl EvolvedPacker {
         n: usize,
         _max_n: usize,
         strategy: PlacementStrategy,
+        search_mult: f64,
         rng: &mut impl Rng,
     ) -> PlacedTree {
         if existing.is_empty() {
@@ -226,7 +345,9 @@ impl EvolvedPacker {
         // Find gaps for density-aware placement
         let gaps = self.find_gaps(existing, min_x, min_y, max_x, max_y);
 
-        for attempt in 0..self.config.search_attempts {
+        let search_attempts = (self.config.search_attempts as f64 * search_mult) as usize;
+
+        for attempt in 0..search_attempts {
             // Strategy-specific direction selection
             let dir = if !gaps.is_empty() && attempt % 5 == 0 {
                 // Sometimes target gaps directly
@@ -607,6 +728,7 @@ impl EvolvedPacker {
         n: usize,
         pass: usize,
         _strategy: PlacementStrategy,
+        sa_mult: f64,
         rng: &mut impl Rng,
     ) {
         if trees.len() <= 1 {
@@ -623,9 +745,10 @@ impl EvolvedPacker {
         };
         let mut temp = self.config.sa_initial_temp * temp_multiplier;
 
+        // Apply SA multiplier for n-adaptive iterations
         let base_iterations = match pass {
-            0 => self.config.sa_iterations + n * 100,
-            _ => self.config.sa_iterations / 2 + n * 50,
+            0 => ((self.config.sa_iterations + n * 100) as f64 * sa_mult) as usize,
+            _ => ((self.config.sa_iterations / 2 + n * 50) as f64 * sa_mult) as usize,
         };
 
         let mut iterations_without_improvement = 0;
@@ -1000,15 +1123,40 @@ mod tests {
     }
 
     #[test]
-    fn test_diverse_strategies() {
-        // Test that different strategies produce different initial placements
+    fn test_adaptive_strategies() {
+        // Test that adaptive strategy selection works correctly
         let packer = EvolvedPacker::default();
-        let packings = packer.pack_all(10);
+        let tracker = StrategyTracker::new();
 
-        // Just verify it works and produces valid packings
-        for (i, p) in packings.iter().enumerate() {
-            assert_eq!(p.trees.len(), i + 1);
-            assert!(!p.has_overlaps());
-        }
+        // n <= 20 should use all 5 strategies
+        let strats = packer.select_strategies_for_n(10, &tracker);
+        assert_eq!(strats.len(), 5);
+
+        // n 21-50 should use 3 strategies
+        let strats = packer.select_strategies_for_n(30, &tracker);
+        assert_eq!(strats.len(), 3);
+
+        // n 51-100 should use 2 strategies
+        let strats = packer.select_strategies_for_n(75, &tracker);
+        assert_eq!(strats.len(), 2);
+
+        // n > 100 should use 1 strategy
+        let strats = packer.select_strategies_for_n(150, &tracker);
+        assert_eq!(strats.len(), 1);
+    }
+
+    #[test]
+    fn test_n_adaptive_params() {
+        let packer = EvolvedPacker::default();
+
+        // Small n gets more effort
+        let (search, sa) = packer.get_n_adaptive_params(10);
+        assert!(search > 1.0);
+        assert!(sa > 1.0);
+
+        // Large n gets less effort
+        let (search, sa) = packer.get_n_adaptive_params(150);
+        assert!(search < 1.0);
+        assert!(sa < 1.0);
     }
 }

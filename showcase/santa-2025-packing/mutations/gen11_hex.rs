@@ -1,4 +1,4 @@
-//! Evolved Packing Algorithm - Generation 10 DIVERSE STARTS
+//! Evolved Packing Algorithm - Generation 11 HEXAGONAL
 //!
 //! This module contains the evolved packing heuristics.
 //! The code is designed to be mutated by LLM-guided evolution.
@@ -9,21 +9,17 @@
 //! - select_direction(): How to choose placement directions
 //! - sa_move(): Local search move operators
 //!
-//! MUTATION STRATEGY: DIVERSE STARTS (Gen10)
-//! Try multiple different starting configurations and keep the best:
+//! MUTATION STRATEGY: HEXAGONAL (Gen11)
+//! Add hexagonal placement strategy to the diverse starts mix:
 //!
-//! Key improvements from Gen6:
-//! - Run 5 completely independent packing attempts per n
-//! - Each attempt uses a different initial angle/direction strategy:
-//!   1. Clockwise spiral - systematic clockwise placement
-//!   2. Counterclockwise spiral - systematic counterclockwise placement
-//!   3. Grid-based - structured grid placement pattern
-//!   4. Random - randomized directions for exploration
-//!   5. Boundary-first - prioritize placing along edges
-//! - Keep the best result for each n
-//! - Combines density-aware scoring from Gen6 with multi-strategy exploration
+//! Key improvements from Gen10:
+//! - Add 6th strategy: Hexagonal placement
+//! - Place trees at 60-degree intervals (hexagonal symmetry)
+//! - Use hexagonal grid positions for efficient packing
+//! - Prefer tip-to-trunk pairing (180-degree rotations)
+//! - Hexagonal packing is known to be optimal for circles
 //!
-//! Target: Beat Gen6's 94.14 at n=200 with diverse exploration
+//! Target: Beat Gen10's 91.35 at n=200 with hexagonal exploration
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -37,6 +33,7 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
+    Hexagonal,
 }
 
 /// Evolved packing configuration
@@ -78,9 +75,9 @@ pub struct EvolvedConfig {
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
-        // Gen10 DIVERSE STARTS: Multi-strategy configuration
+        // Gen11 HEXAGONAL: Multi-strategy configuration with hexagonal
         Self {
-            search_attempts: 200,            // Slightly fewer per attempt (have 5 attempts)
+            search_attempts: 200,            // Slightly fewer per attempt (have 6 attempts)
             direction_samples: 64,           // Good coverage per strategy
             sa_iterations: 22000,            // Balanced for multiple attempts
             sa_initial_temp: 0.45,           // From Gen6
@@ -92,8 +89,8 @@ impl Default for EvolvedConfig {
             sa_passes: 2,                    // Keep 2 passes
             early_exit_threshold: 1500,      // Slightly lower for efficiency
             boundary_focus_prob: 0.85,       // From Gen6
-            // DIVERSE STARTS parameters
-            num_strategies: 5,               // 5 different strategies
+            // DIVERSE STARTS parameters - now 6 strategies with hexagonal
+            num_strategies: 6,               // 6 different strategies
             // Density parameters from Gen6
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
@@ -126,18 +123,19 @@ impl Default for EvolvedPacker {
 }
 
 impl EvolvedPacker {
-    /// Pack all n from 1 to max_n using DIVERSE STARTS strategy
+    /// Pack all n from 1 to max_n using DIVERSE STARTS strategy with Hexagonal
     pub fn pack_all(&self, max_n: usize) -> Vec<Packing> {
         let mut rng = rand::thread_rng();
         let mut packings: Vec<Packing> = Vec::with_capacity(max_n);
 
-        // Track best configurations for each strategy
+        // Track best configurations for each strategy (now includes Hexagonal)
         let strategies = [
             PlacementStrategy::ClockwiseSpiral,
             PlacementStrategy::CounterclockwiseSpiral,
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
+            PlacementStrategy::Hexagonal,
         ];
 
         // Maintain separate tree configurations for each strategy
@@ -209,6 +207,7 @@ impl EvolvedPacker {
                 PlacementStrategy::Grid => 45.0,
                 PlacementStrategy::Random => rng.gen_range(0..8) as f64 * 45.0,
                 PlacementStrategy::BoundaryFirst => 180.0,
+                PlacementStrategy::Hexagonal => 0.0, // Start aligned for hexagonal
             };
             return PlacedTree::new(0.0, 0.0, initial_angle);
         }
@@ -300,6 +299,12 @@ impl EvolvedPacker {
                 // Angles that work well for boundary placement
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
+            PlacementStrategy::Hexagonal => {
+                // Prefer tip-to-trunk pairing (180-degree rotations)
+                // Prioritize 0 and 180 for tip-to-trunk alignment
+                // Then add 60-degree increments for hexagonal symmetry
+                vec![0.0, 180.0, 60.0, 240.0, 120.0, 300.0, 30.0, 210.0]
+            }
         }
     }
 
@@ -368,6 +373,27 @@ impl EvolvedPacker {
                     // Random for coverage
                     rng.gen_range(0.0..2.0 * PI)
                 }
+            }
+            PlacementStrategy::Hexagonal => {
+                // Hexagonal placement: use 60-degree intervals
+                // This creates hexagonal grid positions for efficient packing
+                let hex_angle = PI / 3.0; // 60 degrees
+
+                // Base direction cycles through 6 hexagonal directions
+                let base_dir = (attempt % 6) as f64 * hex_angle;
+
+                // For rings, use hexagonal spiral pattern
+                let ring = (n as f64).sqrt().floor() as usize;
+                let ring_offset = (ring as f64 * hex_angle * 0.5) % (2.0 * PI);
+
+                // Combine with some jitter for exploration
+                let jitter = if attempt % 3 == 0 {
+                    rng.gen_range(-0.15..0.15)
+                } else {
+                    0.0
+                };
+
+                (base_dir + ring_offset + jitter).rem_euclid(2.0 * PI)
             }
         }
     }
@@ -1006,6 +1032,18 @@ mod tests {
         let packings = packer.pack_all(10);
 
         // Just verify it works and produces valid packings
+        for (i, p) in packings.iter().enumerate() {
+            assert_eq!(p.trees.len(), i + 1);
+            assert!(!p.has_overlaps());
+        }
+    }
+
+    #[test]
+    fn test_hexagonal_strategy() {
+        // Test that the hexagonal strategy produces valid packings
+        let packer = EvolvedPacker::default();
+        let packings = packer.pack_all(15);
+
         for (i, p) in packings.iter().enumerate() {
             assert_eq!(p.trees.len(), i + 1);
             assert!(!p.has_overlaps());
