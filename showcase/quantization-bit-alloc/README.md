@@ -27,6 +27,20 @@ Testing whether "any 3 MLP layers in FP16" works equally well (all same size: 13
 
 **Result**: Early MLP position IS special. Middle/late/sparse positions give ~0.1 ppl improvement over all-INT8, while h.1-3 gives 2.45 ppl improvement. This is not obvious a priori.
 
+## Generalization Test: DistilGPT2
+
+Testing if the early MLP pattern holds on a different model (6 layers instead of 12):
+
+| Configuration | Perplexity | vs All INT8 |
+|---------------|------------|-------------|
+| FP16 baseline | 44.99 | - |
+| All INT8 | 52.38 | 0 |
+| **Early MLP (h.0-1)** | **46.56** | **-5.81 ppl** |
+| Middle MLP (h.2-3) | 51.61 | -0.77 ppl |
+| Late MLP (h.4-5) | 52.48 | +0.11 ppl (worse!) |
+
+**Result**: Pattern generalizes! Early MLP FP16 gives -5.81 ppl improvement on distilgpt2, while middle gives only -0.77 ppl and late actually hurts. The early MLP sensitivity is a real architectural property, not a GPT-2-specific artifact.
+
 ## What This Means
 
 - **Not a breakthrough**: 5.5% perplexity degradation is noticeable, not tiny
@@ -149,8 +163,8 @@ ln_f:              FP32       -          -
 
 ### Caveats
 
-- Only tested on GPT-2 small (124M params)
-- Would need to validate on other models (distilgpt2, GPT-2 medium)
+- Tested on GPT-2 small (124M) and distilgpt2 (82M) - pattern generalizes
+- Would benefit from testing on larger models (GPT-2 medium/large)
 - The quantizer is simulated (not actual INT8 ops)
 - 5.5% perplexity degradation is noticeable for production use
 

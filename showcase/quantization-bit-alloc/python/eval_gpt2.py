@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Real quantization evaluator for GPT-2 small.
+Real quantization evaluator for GPT-2 family models.
 
-Applies a bit allocation plan to GPT-2 and measures perplexity.
+Applies a bit allocation plan to GPT-2/DistilGPT2 and measures perplexity.
 Outputs JSON with perplexity, model size, and bit histogram.
 
 Usage:
     python eval_gpt2.py --plan allocation.json --mode fast
     python eval_gpt2.py --plan allocation.json --mode verify
+    python eval_gpt2.py --plan allocation.json --mode verify --model distilgpt2
 """
 
 import argparse
@@ -30,7 +31,7 @@ FAST_CORPUS = DATA_DIR / "eval_fast.txt"
 VERIFY_CORPUS = DATA_DIR / "eval_verify.txt"
 
 # Model constants
-MODEL_NAME = "gpt2"  # 124M params
+SUPPORTED_MODELS = ["gpt2", "distilgpt2"]
 MAX_LENGTH = 256
 FAST_TOKENS = 2048
 VERIFY_TOKENS = 10240
@@ -44,10 +45,10 @@ BIT_SIZES = {
 }
 
 
-def load_model_and_tokenizer() -> Tuple[GPT2LMHeadModel, GPT2Tokenizer]:
-    """Load GPT-2 small from local cache or download once."""
-    tokenizer = GPT2Tokenizer.from_pretrained(MODEL_NAME)
-    model = GPT2LMHeadModel.from_pretrained(MODEL_NAME)
+def load_model_and_tokenizer(model_name: str = "gpt2") -> Tuple[GPT2LMHeadModel, GPT2Tokenizer]:
+    """Load GPT-2 family model from local cache or download once."""
+    tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+    model = GPT2LMHeadModel.from_pretrained(model_name)
     model = model.float()  # Ensure FP32
     model.eval()
     return model, tokenizer
@@ -221,6 +222,8 @@ def main():
                         help="Path to JSON bit allocation plan")
     parser.add_argument("--mode", choices=["fast", "verify"], default="fast",
                         help="Evaluation mode: fast (~2k tokens) or verify (~10k tokens)")
+    parser.add_argument("--model", choices=SUPPORTED_MODELS, default="gpt2",
+                        help="Model to evaluate: gpt2 (12 layers) or distilgpt2 (6 layers)")
     args = parser.parse_args()
 
     start_time = time.time()
@@ -230,7 +233,7 @@ def main():
         allocation = json.load(f)
 
     # Load model (fresh copy for each evaluation)
-    model, tokenizer = load_model_and_tokenizer()
+    model, tokenizer = load_model_and_tokenizer(args.model)
 
     # Apply quantization
     histogram = apply_bit_allocation(model, allocation)
