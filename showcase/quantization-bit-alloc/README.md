@@ -1,17 +1,38 @@
 # Quantization Bit Allocation: Mixed-Precision Neural Network Optimization
 
-**Evolved GPT-2 quantization strategy achieving 1.794x compression with only 5.48% perplexity degradation through 20 generations of evolution**
+**GA-evolved GPT-2 quantization strategy: 1.79x compression, 5.5% perplexity hit**
 
-## Results Summary
+## Baseline Comparison (Honest Assessment)
 
-| Strategy | Fitness | Compression | Perplexity | Notes |
-|----------|---------|-------------|------------|-------|
-| **all_int8_attn (Gen20)** | **1.246** | **1.794x** | **30.04** | Champion - ALL attention INT8! |
-| attn0_mlp123 (Gen18) | 1.230 | 1.764x | 30.00 | NO early attention FP16 |
-| attn1_mlp123 (Gen17) | 1.231 | 1.735x | 29.93 | Only h.0 attention FP16 |
-| emb_int8_first4 (Gen10) | 1.165 | 1.603x | 29.91 | INT8 embeddings discovery |
-| first_half_fp16 (Gen1) | 1.045 | 1.326x | 28.93 | Initial champion |
-| FP16 Baseline | 0.0 | 1.0x | 28.48 | Reference |
+Evaluated on WikiText-2, 10,240 tokens (VERIFY mode):
+
+| Configuration | Perplexity | Size | Compression | Degradation |
+|---------------|------------|------|-------------|-------------|
+| FP16 baseline | 28.48 | 248.9 MB | 1.0x | 0% |
+| All INT8 (weight-only) | 32.49 | 124.6 MB | 2.0x | 14.1% |
+| **GA Champion (h.1-3 MLP FP16)** | **30.04** | **138.7 MB** | **1.79x** | **5.5%** |
+
+**What the GA actually found**: By keeping just 3 MLP layers (h.1-3) in FP16, we reduce perplexity degradation from 14.1% to 5.5% at the cost of 14 MB more storage.
+
+## Falsification: Is Early MLP Position Special?
+
+Testing whether "any 3 MLP layers in FP16" works equally well (all same size: 138.7 MB):
+
+| MLP FP16 Position | Perplexity | vs All INT8 |
+|-------------------|------------|-------------|
+| **h.1-3 (early, GA choice)** | **30.04** | **-2.45 ppl** |
+| h.4-6 (middle) | 32.40 | -0.09 ppl |
+| h.9-11 (late) | 32.32 | -0.17 ppl |
+| h.0,5,10 (sparse) | 32.35 | -0.14 ppl |
+
+**Result**: Early MLP position IS special. Middle/late/sparse positions give ~0.1 ppl improvement over all-INT8, while h.1-3 gives 2.45 ppl improvement. This is not obvious a priori.
+
+## What This Means
+
+- **Not a breakthrough**: 5.5% perplexity degradation is noticeable, not tiny
+- **Real finding**: Early MLP layers (h.1-3) are specifically sensitive to quantization
+- **Beats naive baseline**: Champion significantly outperforms "all INT8"
+- **GA successfully discovered structure**: The early-layer pattern wasn't hand-coded
 
 **Fitness function**: `compression_ratio - 10 * max(0, perplexity_degradation)`
 
@@ -112,27 +133,37 @@ Layer Configuration:
 ─────────────────────────────────────────────
 Embeddings:        -          -          -       → INT8
 h.0:               FP32       INT8       INT8
-h.1:               FP32       INT8       FP16 ← Compensation
-h.2:               FP32       INT8       FP16 ← Compensation
-h.3:               FP32       INT8       FP16 ← Compensation
-h.4-h.10:          FP32       INT8       INT8
-h.11:              FP32       INT8       INT8    ← Also INT8!
+h.1:               FP32       INT8       FP16 ← Critical
+h.2:               FP32       INT8       FP16 ← Critical
+h.3:               FP32       INT8       FP16 ← Critical
+h.4-h.11:          FP32       INT8       INT8
 ln_f:              FP32       -          -
 ```
 
-### Key Innovations
+### What We Learned
 
-1. **Embeddings to INT8**: 50MB savings with zero quality loss
-2. **ALL Attention INT8**: No attention layer needs FP16 protection
-3. **MLP Compensation**: FP16 MLP in layers 1-3 is sufficient for quality
-4. **LayerNorm Always FP32**: Non-negotiable for numerical stability
+1. **Embeddings can be INT8**: No perplexity impact (confirmed by evolution)
+2. **Early MLP layers (h.1-3) are sensitive**: FP16 here reduces degradation from 14% to 5.5%
+3. **Attention layers are robust**: All can be INT8
+4. **Position matters**: Same FP16 budget in middle/late layers doesn't help
 
-### Why This Works
+### Caveats
 
-The compensation pattern works because:
-- **Attention** computes what to focus on (can be approximate at all layers)
-- **MLP** transforms the representation (layers 1-3 are critical, need FP16)
-- **Layer 11** attention can be INT8 because MLP compensation propagates throughout the network
+- Only tested on GPT-2 small (124M params)
+- Would need to validate on other models (distilgpt2, GPT-2 medium)
+- The quantizer is simulated (not actual INT8 ops)
+- 5.5% perplexity degradation is noticeable for production use
+
+---
+
+## Evaluation Details
+
+| Mode | Corpus | Tokens | Purpose |
+|------|--------|--------|---------|
+| FAST | WikiText-2 subset | 2,048 | Quick screening during evolution |
+| VERIFY | WikiText-2 subset | 10,240 | Final validation of candidates |
+
+All perplexity numbers in this README use VERIFY mode (10k tokens).
 
 ---
 
