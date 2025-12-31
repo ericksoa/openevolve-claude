@@ -1,17 +1,18 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 61 GREEDY ANGLE
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: GREEDY ANGLE SELECTION
+//! Instead of trying all 8 angles for each direction, select angle based on
+//! the direction of approach to maximize fitting.
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
+//! Key insight: When approaching from a direction, the optimal tree angle
+//! is often related to that direction. This reduces search space while
+//! potentially finding better placements faster.
 //!
-//! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
+//! Changes from Gen47:
+//! - Smarter angle selection based on approach direction
+//! - Try fewer angles but more targeted ones
 //!
-//! Target: More organized, uniform packing
+//! Target: Faster, smarter placement decisions
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -24,7 +25,7 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
+    ConcentricRings,
 }
 
 pub struct EvolvedConfig {
@@ -53,7 +54,7 @@ pub struct EvolvedConfig {
 impl Default for EvolvedConfig {
     fn default() -> Self {
         Self {
-            search_attempts: 200,
+            search_attempts: 250,  // More attempts since fewer angles per attempt
             direction_samples: 64,
             sa_iterations: 28000,
             sa_initial_temp: 0.45,
@@ -65,7 +66,7 @@ impl Default for EvolvedConfig {
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
+            num_strategies: 6,
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
@@ -103,7 +104,7 @@ impl EvolvedPacker {
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
+            PlacementStrategy::ConcentricRings,
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -170,7 +171,6 @@ impl EvolvedPacker {
         let mut best_tree = PlacedTree::new(0.0, 0.0, 90.0);
         let mut best_score = f64::INFINITY;
 
-        let angles = self.select_angles_for_strategy(n, strategy);
         let (min_x, min_y, max_x, max_y) = compute_bounds(existing);
         let current_width = max_x - min_x;
         let current_height = max_y - min_y;
@@ -189,6 +189,9 @@ impl EvolvedPacker {
 
             let vx = dir.cos();
             let vy = dir.sin();
+
+            // GREEDY ANGLE: Select angles based on direction
+            let angles = self.select_greedy_angles(dir);
 
             for &tree_angle in &angles {
                 let mut low = 0.0;
@@ -219,38 +222,31 @@ impl EvolvedPacker {
         best_tree
     }
 
+    // NEW: Select angles greedily based on approach direction
     #[inline]
-    fn select_angles_for_strategy(&self, n: usize, strategy: PlacementStrategy) -> Vec<f64> {
-        match strategy {
-            PlacementStrategy::ClockwiseSpiral => {
-                vec![0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0]
-            }
-            PlacementStrategy::CounterclockwiseSpiral => {
-                vec![315.0, 270.0, 225.0, 180.0, 135.0, 90.0, 45.0, 0.0]
-            }
-            PlacementStrategy::Grid => {
-                vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
-            }
-            PlacementStrategy::Random => {
-                match n % 4 {
-                    0 => vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0],
-                    1 => vec![90.0, 270.0, 0.0, 180.0, 135.0, 315.0, 45.0, 225.0],
-                    2 => vec![180.0, 0.0, 270.0, 90.0, 225.0, 45.0, 315.0, 135.0],
-                    _ => vec![270.0, 90.0, 180.0, 0.0, 315.0, 135.0, 225.0, 45.0],
-                }
-            }
-            PlacementStrategy::BoundaryFirst => {
-                vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
-            }
-            PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
-                if n % 2 == 0 {
-                    vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
-                } else {
-                    vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
-                }
-            }
-        }
+    fn select_greedy_angles(&self, dir: f64) -> Vec<f64> {
+        // Convert direction to degrees and find the "best" orientations
+        let dir_deg = dir.to_degrees().rem_euclid(360.0);
+
+        // The tree looks like a triangle pointing up (base at top, apex at bottom)
+        // When approaching from a direction, we want the tree oriented to minimize
+        // the extent in that direction
+
+        // Primary angle: perpendicular to approach direction
+        let primary = (dir_deg + 90.0).rem_euclid(360.0);
+
+        // Snap to nearest 45-degree angle
+        let snap = |a: f64| -> f64 {
+            let snapped = (a / 45.0).round() * 45.0;
+            snapped.rem_euclid(360.0)
+        };
+
+        let p1 = snap(primary);
+        let p2 = snap(primary + 45.0);
+        let p3 = snap(primary - 45.0);
+        let p4 = snap(primary + 90.0);
+
+        vec![p1, p2, p3, p4]  // Only 4 angles instead of 8
     }
 
     #[inline]
@@ -309,13 +305,10 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
                 let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
+                let trees_in_ring = (ring * 6).max(1);
                 let position_in_ring = n % trees_in_ring;
                 let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
                 (base_angle + offset).rem_euclid(2.0 * PI)
             }

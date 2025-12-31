@@ -1,17 +1,12 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 53 TIGHT GAP FOCUS
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: Focus on minimizing gaps between trees
+//! Stronger neighbor bonus, tighter gap penalties
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
-//!
-//! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
-//!
-//! Target: More organized, uniform packing
+//! Changes from Gen47:
+//! - Increased neighbor proximity bonus (0.02 -> 0.05)
+//! - Tighter gap penalty thresholds
+//! - More aggressive gap filling during SA
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -24,7 +19,7 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
+    ConcentricRings,
 }
 
 pub struct EvolvedConfig {
@@ -65,11 +60,11 @@ impl Default for EvolvedConfig {
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
-            density_grid_resolution: 20,
-            gap_penalty_weight: 0.15,
-            local_density_radius: 0.5,
-            fill_move_prob: 0.15,
+            num_strategies: 6,
+            density_grid_resolution: 25,  // Higher resolution for gap detection
+            gap_penalty_weight: 0.25,      // Increased from 0.15
+            local_density_radius: 0.4,     // Reduced for tighter focus
+            fill_move_prob: 0.25,          // More fill moves
             hot_restart_interval: 800,
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
@@ -103,7 +98,7 @@ impl EvolvedPacker {
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
+            PlacementStrategy::ConcentricRings,
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -178,7 +173,8 @@ impl EvolvedPacker {
         let gaps = self.find_gaps(existing, min_x, min_y, max_x, max_y);
 
         for attempt in 0..self.config.search_attempts {
-            let dir = if !gaps.is_empty() && attempt % 5 == 0 {
+            // Prioritize gaps more aggressively
+            let dir = if !gaps.is_empty() && attempt % 3 == 0 {
                 let gap = &gaps[attempt % gaps.len()];
                 let gap_cx = (gap.0 + gap.2) / 2.0;
                 let gap_cy = (gap.1 + gap.3) / 2.0;
@@ -243,7 +239,6 @@ impl EvolvedPacker {
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
             PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
                 if n % 2 == 0 {
                     vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
                 } else {
@@ -309,13 +304,10 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
                 let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
+                let trees_in_ring = (ring * 6).max(1);
                 let position_in_ring = n % trees_in_ring;
                 let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
                 (base_angle + offset).rem_euclid(2.0 * PI)
             }
@@ -359,7 +351,7 @@ impl EvolvedPacker {
 
         let x_extension = (pack_max_x - old_max_x).max(0.0) + (old_min_x - pack_min_x).max(0.0);
         let y_extension = (pack_max_y - old_max_y).max(0.0) + (old_min_y - pack_min_y).max(0.0);
-        let extension_penalty = (x_extension + y_extension) * 0.08;
+        let extension_penalty = (x_extension + y_extension) * 0.10;  // Increased
 
         let gap_penalty = self.estimate_unusable_gap(tree, existing) * self.config.gap_penalty_weight;
 
@@ -367,6 +359,7 @@ impl EvolvedPacker {
         let center_y = (pack_min_y + pack_max_y) / 2.0;
         let center_penalty = (center_x.abs() + center_y.abs()) * 0.005 / (n as f64).sqrt();
 
+        // INCREASED neighbor bonus
         let neighbor_bonus = self.neighbor_proximity_bonus(tree, existing);
 
         side_score + balance_penalty + extension_penalty + gap_penalty + center_penalty + density_bonus - neighbor_bonus
@@ -404,8 +397,8 @@ impl EvolvedPacker {
         let (tree_min_x, tree_min_y, tree_max_x, tree_max_y) = tree.bounds();
 
         let mut gap_penalty = 0.0;
-        let min_useful_gap = 0.15;
-        let max_wasteful_gap = 0.4;
+        let min_useful_gap = 0.10;   // Tighter threshold
+        let max_wasteful_gap = 0.35;  // Tighter threshold
 
         for other in existing {
             let (ox1, oy1, ox2, oy2) = other.bounds();
@@ -414,12 +407,12 @@ impl EvolvedPacker {
                 if tree_min_x > ox2 {
                     let gap = tree_min_x - ox2;
                     if gap > min_useful_gap && gap < max_wasteful_gap {
-                        gap_penalty += (max_wasteful_gap - gap) / max_wasteful_gap * 0.1;
+                        gap_penalty += (max_wasteful_gap - gap) / max_wasteful_gap * 0.15;  // Increased
                     }
                 } else if tree_max_x < ox1 {
                     let gap = ox1 - tree_max_x;
                     if gap > min_useful_gap && gap < max_wasteful_gap {
-                        gap_penalty += (max_wasteful_gap - gap) / max_wasteful_gap * 0.1;
+                        gap_penalty += (max_wasteful_gap - gap) / max_wasteful_gap * 0.15;
                     }
                 }
             }
@@ -428,12 +421,12 @@ impl EvolvedPacker {
                 if tree_min_y > oy2 {
                     let gap = tree_min_y - oy2;
                     if gap > min_useful_gap && gap < max_wasteful_gap {
-                        gap_penalty += (max_wasteful_gap - gap) / max_wasteful_gap * 0.1;
+                        gap_penalty += (max_wasteful_gap - gap) / max_wasteful_gap * 0.15;
                     }
                 } else if tree_max_y < oy1 {
                     let gap = oy1 - tree_max_y;
                     if gap > min_useful_gap && gap < max_wasteful_gap {
-                        gap_penalty += (max_wasteful_gap - gap) / max_wasteful_gap * 0.1;
+                        gap_penalty += (max_wasteful_gap - gap) / max_wasteful_gap * 0.15;
                     }
                 }
             }
@@ -454,6 +447,7 @@ impl EvolvedPacker {
 
         let mut min_dist = f64::INFINITY;
         let mut close_neighbors = 0;
+        let mut very_close = 0;
 
         for other in existing {
             let (ox1, oy1, ox2, oy2) = other.bounds();
@@ -468,12 +462,17 @@ impl EvolvedPacker {
             if dist < 0.8 {
                 close_neighbors += 1;
             }
+            if dist < 0.5 {
+                very_close += 1;
+            }
         }
 
-        let dist_bonus = if min_dist < 1.5 { 0.02 * (1.5 - min_dist) } else { 0.0 };
-        let neighbor_bonus = 0.005 * close_neighbors as f64;
+        // INCREASED bonuses
+        let dist_bonus = if min_dist < 1.5 { 0.05 * (1.5 - min_dist) } else { 0.0 };
+        let neighbor_bonus = 0.01 * close_neighbors as f64;
+        let very_close_bonus = 0.02 * very_close as f64;
 
-        dist_bonus + neighbor_bonus
+        dist_bonus + neighbor_bonus + very_close_bonus
     }
 
     fn find_gaps(&self, trees: &[PlacedTree], min_x: f64, min_y: f64, max_x: f64, max_y: f64) -> Vec<(f64, f64, f64, f64)> {
@@ -720,7 +719,7 @@ impl EvolvedPacker {
             let bbox_cx = (min_x + max_x) / 2.0;
             let bbox_cy = (min_y + max_y) / 2.0;
 
-            let move_type = rng.gen_range(0..4);
+            let move_type = rng.gen_range(0..5);  // Added a 5th move type
             match move_type {
                 0 => {
                     let dx = (bbox_cx - old_x) * 0.1 * (0.5 + temp);
@@ -738,18 +737,40 @@ impl EvolvedPacker {
                     let new_angle = (old_angle + delta).rem_euclid(360.0);
                     trees[idx] = PlacedTree::new(old_x, old_y, new_angle);
                 }
-                _ => {
+                3 => {
                     let gaps = self.find_gaps(trees, min_x, min_y, max_x, max_y);
                     if !gaps.is_empty() {
                         let gap = &gaps[rng.gen_range(0..gaps.len())];
                         let gap_cx = (gap.0 + gap.2) / 2.0;
                         let gap_cy = (gap.1 + gap.3) / 2.0;
-                        let dx = (gap_cx - old_x) * 0.05;
-                        let dy = (gap_cy - old_y) * 0.05;
+                        let dx = (gap_cx - old_x) * 0.08;  // Stronger pull toward gaps
+                        let dy = (gap_cy - old_y) * 0.08;
                         trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
                     } else {
                         return false;
                     }
+                }
+                _ => {
+                    // New: Find closest neighbor and move toward it
+                    let mut closest_dist = f64::INFINITY;
+                    let mut closest_x = old_x;
+                    let mut closest_y = old_y;
+                    for (i, other) in trees.iter().enumerate() {
+                        if i != idx {
+                            let (ox1, oy1, ox2, oy2) = other.bounds();
+                            let other_cx = (ox1 + ox2) / 2.0;
+                            let other_cy = (oy1 + oy2) / 2.0;
+                            let dist = (old_x - other_cx).powi(2) + (old_y - other_cy).powi(2);
+                            if dist < closest_dist {
+                                closest_dist = dist;
+                                closest_x = other_cx;
+                                closest_y = other_cy;
+                            }
+                        }
+                    }
+                    let dx = (closest_x - old_x) * 0.03;
+                    let dy = (closest_y - old_y) * 0.03;
+                    trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
                 }
             }
         } else {

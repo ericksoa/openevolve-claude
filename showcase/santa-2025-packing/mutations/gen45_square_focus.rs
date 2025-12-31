@@ -1,17 +1,17 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 45 SQUARE FOCUS
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: SQUARE PACKING FOCUS
+//! Heavily penalize non-square configurations to keep the packing balanced.
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
+//! Key insight: The objective is minimum square side length. A tall and narrow
+//! packing wastes a lot of space. We should strongly prefer balanced shapes.
 //!
 //! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
+//! - Much stronger balance penalty (0.10 -> 0.35)
+//! - Penalize extension more in the longer dimension
+//! - New scoring function that emphasizes keeping width ≈ height
 //!
-//! Target: More organized, uniform packing
+//! Target: Tighter square packings
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -24,7 +24,6 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
 }
 
 pub struct EvolvedConfig {
@@ -48,6 +47,9 @@ pub struct EvolvedConfig {
     pub hot_restart_interval: usize,
     pub hot_restart_temp: f64,
     pub elite_pool_size: usize,
+    // Square focus parameters
+    pub balance_penalty_weight: f64,
+    pub aspect_ratio_penalty: f64,
 }
 
 impl Default for EvolvedConfig {
@@ -65,7 +67,7 @@ impl Default for EvolvedConfig {
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
+            num_strategies: 5,
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
@@ -73,6 +75,9 @@ impl Default for EvolvedConfig {
             hot_restart_interval: 800,
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
+            // Square focus - much stronger balance penalty
+            balance_penalty_weight: 0.35,    // Was 0.10
+            aspect_ratio_penalty: 0.20,      // New: penalize aspect ratio
         }
     }
 }
@@ -103,7 +108,6 @@ impl EvolvedPacker {
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -162,7 +166,6 @@ impl EvolvedPacker {
                 PlacementStrategy::Grid => 45.0,
                 PlacementStrategy::Random => rng.gen_range(0..8) as f64 * 45.0,
                 PlacementStrategy::BoundaryFirst => 180.0,
-                PlacementStrategy::ConcentricRings => 45.0,
             };
             return PlacedTree::new(0.0, 0.0, initial_angle);
         }
@@ -177,12 +180,25 @@ impl EvolvedPacker {
 
         let gaps = self.find_gaps(existing, min_x, min_y, max_x, max_y);
 
+        // Prefer directions that balance the packing
+        let prefer_x = current_height > current_width;
+        let prefer_y = current_width > current_height;
+
         for attempt in 0..self.config.search_attempts {
             let dir = if !gaps.is_empty() && attempt % 5 == 0 {
                 let gap = &gaps[attempt % gaps.len()];
                 let gap_cx = (gap.0 + gap.2) / 2.0;
                 let gap_cy = (gap.1 + gap.3) / 2.0;
                 gap_cy.atan2(gap_cx)
+            } else if attempt % 3 == 0 && (prefer_x || prefer_y) {
+                // Add direction bias to balance the packing
+                if prefer_x {
+                    // Prefer horizontal directions
+                    if rng.gen() { 0.0 } else { PI } + rng.gen_range(-0.3..0.3)
+                } else {
+                    // Prefer vertical directions
+                    if rng.gen() { PI / 2.0 } else { -PI / 2.0 } + rng.gen_range(-0.3..0.3)
+                }
             } else {
                 self.select_direction_for_strategy(n, current_width, current_height, strategy, attempt, rng)
             };
@@ -242,14 +258,6 @@ impl EvolvedPacker {
             PlacementStrategy::BoundaryFirst => {
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
-            PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
-                if n % 2 == 0 {
-                    vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
-                } else {
-                    vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
-                }
-            }
         }
     }
 
@@ -308,17 +316,6 @@ impl EvolvedPacker {
                     rng.gen_range(0.0..2.0 * PI)
                 }
             }
-            PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
-                let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
-                let position_in_ring = n % trees_in_ring;
-                let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
-                let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
-                (base_angle + offset).rem_euclid(2.0 * PI)
-            }
         }
     }
 
@@ -344,7 +341,17 @@ impl EvolvedPacker {
         let side = width.max(height);
 
         let side_score = side;
-        let balance_penalty = (width - height).abs() * 0.10;
+
+        // STRONGER balance penalty
+        let balance_penalty = (width - height).abs() * self.config.balance_penalty_weight;
+
+        // NEW: Aspect ratio penalty - penalize elongated shapes
+        let aspect_ratio = if width > height {
+            width / height.max(0.001)
+        } else {
+            height / width.max(0.001)
+        };
+        let aspect_penalty = (aspect_ratio - 1.0).max(0.0) * self.config.aspect_ratio_penalty;
 
         let tree_cx = (tree_min_x + tree_max_x) / 2.0;
         let tree_cy = (tree_min_y + tree_max_y) / 2.0;
@@ -357,9 +364,17 @@ impl EvolvedPacker {
             (0.0, 0.0, 0.0, 0.0)
         };
 
+        let old_width = old_max_x - old_min_x;
+        let old_height = old_max_y - old_min_y;
+
+        // Penalize extension more in the longer dimension
         let x_extension = (pack_max_x - old_max_x).max(0.0) + (old_min_x - pack_min_x).max(0.0);
         let y_extension = (pack_max_y - old_max_y).max(0.0) + (old_min_y - pack_min_y).max(0.0);
-        let extension_penalty = (x_extension + y_extension) * 0.08;
+
+        let x_penalty_mult = if old_width > old_height { 1.5 } else { 0.8 };
+        let y_penalty_mult = if old_height > old_width { 1.5 } else { 0.8 };
+
+        let extension_penalty = (x_extension * x_penalty_mult + y_extension * y_penalty_mult) * 0.08;
 
         let gap_penalty = self.estimate_unusable_gap(tree, existing) * self.config.gap_penalty_weight;
 
@@ -369,7 +384,7 @@ impl EvolvedPacker {
 
         let neighbor_bonus = self.neighbor_proximity_bonus(tree, existing);
 
-        side_score + balance_penalty + extension_penalty + gap_penalty + center_penalty + density_bonus - neighbor_bonus
+        side_score + balance_penalty + aspect_penalty + extension_penalty + gap_penalty + center_penalty + density_bonus - neighbor_bonus
     }
 
     #[inline]

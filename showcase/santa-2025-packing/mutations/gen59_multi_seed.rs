@@ -1,20 +1,18 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 59 MULTI-SEED
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: Try multiple random seeds for placement
+//! For each n, do full placement from scratch with different seeds
+//! Keep the best result
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
-//!
-//! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
-//!
-//! Target: More organized, uniform packing
+//! Changes from Gen47:
+//! - Run placement 2 times with different seeds
+//! - Keep best result across seeds
+//! - Reduces dependence on initial conditions
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 use std::f64::consts::PI;
 
 #[derive(Clone, Copy, Debug)]
@@ -24,7 +22,7 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
+    ConcentricRings,
 }
 
 pub struct EvolvedConfig {
@@ -48,6 +46,7 @@ pub struct EvolvedConfig {
     pub hot_restart_interval: usize,
     pub hot_restart_temp: f64,
     pub elite_pool_size: usize,
+    pub num_seeds: usize,  // NEW: number of seeds to try
 }
 
 impl Default for EvolvedConfig {
@@ -55,7 +54,7 @@ impl Default for EvolvedConfig {
         Self {
             search_attempts: 200,
             direction_samples: 64,
-            sa_iterations: 28000,
+            sa_iterations: 25000,  // Slightly reduced since we run multiple seeds
             sa_initial_temp: 0.45,
             sa_cooling_rate: 0.99993,
             sa_min_temp: 0.00001,
@@ -63,16 +62,17 @@ impl Default for EvolvedConfig {
             rotation_granularity: 45.0,
             center_pull_strength: 0.07,
             sa_passes: 2,
-            early_exit_threshold: 2500,
+            early_exit_threshold: 2200,
             boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
+            num_strategies: 6,
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
             fill_move_prob: 0.15,
-            hot_restart_interval: 800,
+            hot_restart_interval: 750,
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
+            num_seeds: 2,  // Try 2 different seeds
         }
     }
 }
@@ -95,6 +95,44 @@ impl Default for EvolvedPacker {
 impl EvolvedPacker {
     pub fn pack_all(&self, max_n: usize) -> Vec<Packing> {
         let mut rng = rand::thread_rng();
+
+        // Generate seeds upfront
+        let seeds: Vec<u64> = (0..self.config.num_seeds).map(|_| rng.gen()).collect();
+
+        // Track best packings across all seeds
+        let mut best_packings: Vec<Packing> = Vec::with_capacity(max_n);
+        let mut best_scores: Vec<f64> = vec![f64::INFINITY; max_n];
+
+        // Try each seed
+        for &seed in &seeds {
+            let packings = self.pack_with_seed(max_n, seed);
+
+            // Update best for each n
+            for (i, packing) in packings.iter().enumerate() {
+                let side = self.compute_packing_side(packing);
+                if side < best_scores[i] {
+                    best_scores[i] = side;
+                    if i < best_packings.len() {
+                        best_packings[i] = packing.clone();
+                    } else {
+                        best_packings.push(packing.clone());
+                    }
+                }
+            }
+        }
+
+        best_packings
+    }
+
+    fn compute_packing_side(&self, packing: &Packing) -> f64 {
+        if packing.trees.is_empty() {
+            return 0.0;
+        }
+        compute_side_length(&packing.trees)
+    }
+
+    fn pack_with_seed(&self, max_n: usize, seed: u64) -> Vec<Packing> {
+        let mut rng = StdRng::seed_from_u64(seed);
         let mut packings: Vec<Packing> = Vec::with_capacity(max_n);
 
         let strategies = [
@@ -103,7 +141,7 @@ impl EvolvedPacker {
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
+            PlacementStrategy::ConcentricRings,
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -243,7 +281,6 @@ impl EvolvedPacker {
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
             PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
                 if n % 2 == 0 {
                     vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
                 } else {
@@ -309,13 +346,10 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
                 let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
+                let trees_in_ring = (ring * 6).max(1);
                 let position_in_ring = n % trees_in_ring;
                 let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
                 (base_angle + offset).rem_euclid(2.0 * PI)
             }

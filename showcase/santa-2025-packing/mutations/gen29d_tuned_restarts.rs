@@ -1,17 +1,20 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 29D TUNED HOT RESTARTS
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: Fine-tune the hot restart parameters from Gen28.
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
+//! Gen28 used:
+//!   hot_restart_interval: 800
+//!   hot_restart_temp: 0.35
+//!   elite_pool_size: 3
+//!   max_restarts: 4
 //!
-//! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
+//! This mutation tries:
+//!   hot_restart_interval: 600 (restart earlier, explore more)
+//!   hot_restart_temp: 0.40 (higher temp = more exploration)
+//!   elite_pool_size: 4 (more diverse restarts)
+//!   max_restarts: 5 (allow more restarts)
 //!
-//! Target: More organized, uniform packing
+//! Hypothesis: More aggressive restarts might help escape local minima faster.
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -24,7 +27,6 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
 }
 
 pub struct EvolvedConfig {
@@ -45,6 +47,7 @@ pub struct EvolvedConfig {
     pub gap_penalty_weight: f64,
     pub local_density_radius: f64,
     pub fill_move_prob: f64,
+    // TUNED HOT RESTART parameters
     pub hot_restart_interval: usize,
     pub hot_restart_temp: f64,
     pub elite_pool_size: usize,
@@ -55,7 +58,7 @@ impl Default for EvolvedConfig {
         Self {
             search_attempts: 200,
             direction_samples: 64,
-            sa_iterations: 28000,
+            sa_iterations: 30000,         // More iterations to use with restarts
             sa_initial_temp: 0.45,
             sa_cooling_rate: 0.99993,
             sa_min_temp: 0.00001,
@@ -63,16 +66,17 @@ impl Default for EvolvedConfig {
             rotation_granularity: 45.0,
             center_pull_strength: 0.07,
             sa_passes: 2,
-            early_exit_threshold: 2500,
+            early_exit_threshold: 2000,   // Lower threshold (restart sooner)
             boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
+            num_strategies: 5,
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
             fill_move_prob: 0.15,
-            hot_restart_interval: 800,
-            hot_restart_temp: 0.35,
-            elite_pool_size: 3,
+            // TUNED: More aggressive restarts
+            hot_restart_interval: 600,    // Restart earlier (was 800)
+            hot_restart_temp: 0.40,       // Higher restart temp (was 0.35)
+            elite_pool_size: 4,           // Keep 4 elites (was 3)
         }
     }
 }
@@ -103,7 +107,6 @@ impl EvolvedPacker {
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -162,7 +165,6 @@ impl EvolvedPacker {
                 PlacementStrategy::Grid => 45.0,
                 PlacementStrategy::Random => rng.gen_range(0..8) as f64 * 45.0,
                 PlacementStrategy::BoundaryFirst => 180.0,
-                PlacementStrategy::ConcentricRings => 45.0,
             };
             return PlacedTree::new(0.0, 0.0, initial_angle);
         }
@@ -242,14 +244,6 @@ impl EvolvedPacker {
             PlacementStrategy::BoundaryFirst => {
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
-            PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
-                if n % 2 == 0 {
-                    vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
-                } else {
-                    vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
-                }
-            }
         }
     }
 
@@ -307,17 +301,6 @@ impl EvolvedPacker {
                 } else {
                     rng.gen_range(0.0..2.0 * PI)
                 }
-            }
-            PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
-                let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
-                let position_in_ring = n % trees_in_ring;
-                let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
-                let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
-                (base_angle + offset).rem_euclid(2.0 * PI)
             }
         }
     }
@@ -530,6 +513,7 @@ impl EvolvedPacker {
         gaps
     }
 
+    /// TUNED: Local search with more aggressive hot restarts
     fn local_search(
         &self,
         trees: &mut Vec<PlacedTree>,
@@ -546,6 +530,7 @@ impl EvolvedPacker {
         let mut best_side = current_side;
         let mut best_config: Vec<PlacedTree> = trees.clone();
 
+        // Elite pool with more entries
         let mut elite_pool: Vec<(f64, Vec<PlacedTree>)> = vec![(current_side, trees.clone())];
 
         let temp_multiplier = match pass {
@@ -561,19 +546,28 @@ impl EvolvedPacker {
 
         let mut iterations_without_improvement = 0;
         let mut total_restarts = 0;
-        let max_restarts = 4;
+        let max_restarts = 5;  // More restarts allowed
 
         let mut boundary_cache_iter = 0;
         let mut boundary_info: Vec<(usize, BoundaryEdge)> = Vec::new();
 
         for iter in 0..base_iterations {
+            // TUNED: More aggressive hot restart check
             if iterations_without_improvement >= self.config.hot_restart_interval && total_restarts < max_restarts {
-                let elite_idx = rng.gen_range(0..elite_pool.len());
+                // Select from elite pool with some randomness
+                let elite_idx = if elite_pool.len() > 1 && rng.gen::<f64>() < 0.3 {
+                    rng.gen_range(0..elite_pool.len())  // Sometimes pick non-best
+                } else {
+                    0  // Usually pick best
+                };
                 *trees = elite_pool[elite_idx].1.clone();
                 current_side = elite_pool[elite_idx].0;
+
+                // Higher restart temperature
                 temp = self.config.hot_restart_temp;
                 iterations_without_improvement = 0;
                 total_restarts += 1;
+
                 boundary_cache_iter = 0;
             }
 
@@ -623,6 +617,7 @@ impl EvolvedPacker {
                         best_config = trees.clone();
                         iterations_without_improvement = 0;
 
+                        // Update elite pool
                         self.update_elite_pool(&mut elite_pool, current_side, trees.clone());
                     } else {
                         iterations_without_improvement += 1;
@@ -644,6 +639,7 @@ impl EvolvedPacker {
         }
     }
 
+    /// Update the elite pool with a new configuration
     fn update_elite_pool(&self, pool: &mut Vec<(f64, Vec<PlacedTree>)>, score: f64, config: Vec<PlacedTree>) {
         let mut dominated = false;
         for (elite_score, _) in pool.iter() {

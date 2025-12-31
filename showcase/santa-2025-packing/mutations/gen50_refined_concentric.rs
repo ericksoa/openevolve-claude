@@ -1,17 +1,14 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 50 REFINED CONCENTRIC
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: REFINED CONCENTRIC PLACEMENT
+//! Fine-tune the concentric ring strategy from Gen47.
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
+//! Changes from Gen47:
+//! - Denser concentric rings (8 trees per ring instead of 6)
+//! - More search attempts (250 vs 200)
+//! - Slightly higher hot restart temp
 //!
-//! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
-//!
-//! Target: More organized, uniform packing
+//! Target: Improve on Gen47's 89.59
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -24,7 +21,7 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
+    ConcentricRings,
 }
 
 pub struct EvolvedConfig {
@@ -48,12 +45,13 @@ pub struct EvolvedConfig {
     pub hot_restart_interval: usize,
     pub hot_restart_temp: f64,
     pub elite_pool_size: usize,
+    pub trees_per_ring: usize,
 }
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
         Self {
-            search_attempts: 200,
+            search_attempts: 250,          // MORE search attempts
             direction_samples: 64,
             sa_iterations: 28000,
             sa_initial_temp: 0.45,
@@ -65,14 +63,15 @@ impl Default for EvolvedConfig {
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
+            num_strategies: 6,
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
             fill_move_prob: 0.15,
             hot_restart_interval: 800,
-            hot_restart_temp: 0.35,
+            hot_restart_temp: 0.40,        // Slightly higher
             elite_pool_size: 3,
+            trees_per_ring: 8,             // Denser rings
         }
     }
 }
@@ -103,7 +102,7 @@ impl EvolvedPacker {
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
+            PlacementStrategy::ConcentricRings,
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -243,7 +242,6 @@ impl EvolvedPacker {
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
             PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
                 if n % 2 == 0 {
                     vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
                 } else {
@@ -309,13 +307,11 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
+                // Denser concentric rings
                 let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
+                let trees_in_ring = (ring * self.config.trees_per_ring).max(1);
                 let position_in_ring = n % trees_in_ring;
                 let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
                 (base_angle + offset).rem_euclid(2.0 * PI)
             }

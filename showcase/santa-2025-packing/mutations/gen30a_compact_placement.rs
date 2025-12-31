@@ -1,17 +1,13 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 30A COMPACT PLACEMENT
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: Focus on more compact initial placement.
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
-//!
+//! Key insight: Better initial placement = less work for SA.
 //! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
-//!
-//! Target: More organized, uniform packing
+//! - Increase search_attempts for initial placement (350 vs 200)
+//! - Add more direction samples (80 vs 64)
+//! - Tighter binary search precision (0.0005 vs 0.001)
+//! - Stronger neighbor proximity bonus
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -24,7 +20,6 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
 }
 
 pub struct EvolvedConfig {
@@ -53,9 +48,9 @@ pub struct EvolvedConfig {
 impl Default for EvolvedConfig {
     fn default() -> Self {
         Self {
-            search_attempts: 200,
-            direction_samples: 64,
-            sa_iterations: 28000,
+            search_attempts: 350,         // MORE ATTEMPTS (was 200)
+            direction_samples: 80,        // MORE DIRECTIONS (was 64)
+            sa_iterations: 26000,         // Slightly less SA (better placement)
             sa_initial_temp: 0.45,
             sa_cooling_rate: 0.99993,
             sa_min_temp: 0.00001,
@@ -65,9 +60,9 @@ impl Default for EvolvedConfig {
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
+            num_strategies: 5,
             density_grid_resolution: 20,
-            gap_penalty_weight: 0.15,
+            gap_penalty_weight: 0.18,     // Higher gap penalty
             local_density_radius: 0.5,
             fill_move_prob: 0.15,
             hot_restart_interval: 800,
@@ -103,7 +98,6 @@ impl EvolvedPacker {
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -162,7 +156,6 @@ impl EvolvedPacker {
                 PlacementStrategy::Grid => 45.0,
                 PlacementStrategy::Random => rng.gen_range(0..8) as f64 * 45.0,
                 PlacementStrategy::BoundaryFirst => 180.0,
-                PlacementStrategy::ConcentricRings => 45.0,
             };
             return PlacedTree::new(0.0, 0.0, initial_angle);
         }
@@ -194,7 +187,8 @@ impl EvolvedPacker {
                 let mut low = 0.0;
                 let mut high = 12.0;
 
-                while high - low > 0.001 {
+                // TIGHTER PRECISION
+                while high - low > 0.0005 {
                     let mid = (low + high) / 2.0;
                     let candidate = PlacedTree::new(mid * vx, mid * vy, tree_angle);
 
@@ -241,14 +235,6 @@ impl EvolvedPacker {
             }
             PlacementStrategy::BoundaryFirst => {
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
-            }
-            PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
-                if n % 2 == 0 {
-                    vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
-                } else {
-                    vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
-                }
             }
         }
     }
@@ -308,17 +294,6 @@ impl EvolvedPacker {
                     rng.gen_range(0.0..2.0 * PI)
                 }
             }
-            PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
-                let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
-                let position_in_ring = n % trees_in_ring;
-                let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
-                let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
-                (base_angle + offset).rem_euclid(2.0 * PI)
-            }
         }
     }
 
@@ -367,7 +342,8 @@ impl EvolvedPacker {
         let center_y = (pack_min_y + pack_max_y) / 2.0;
         let center_penalty = (center_x.abs() + center_y.abs()) * 0.005 / (n as f64).sqrt();
 
-        let neighbor_bonus = self.neighbor_proximity_bonus(tree, existing);
+        // STRONGER neighbor bonus
+        let neighbor_bonus = self.neighbor_proximity_bonus(tree, existing) * 1.3;
 
         side_score + balance_penalty + extension_penalty + gap_penalty + center_penalty + density_bonus - neighbor_bonus
     }
@@ -622,7 +598,6 @@ impl EvolvedPacker {
                         best_side = current_side;
                         best_config = trees.clone();
                         iterations_without_improvement = 0;
-
                         self.update_elite_pool(&mut elite_pool, current_side, trees.clone());
                     } else {
                         iterations_without_improvement += 1;
@@ -645,14 +620,7 @@ impl EvolvedPacker {
     }
 
     fn update_elite_pool(&self, pool: &mut Vec<(f64, Vec<PlacedTree>)>, score: f64, config: Vec<PlacedTree>) {
-        let mut dominated = false;
-        for (elite_score, _) in pool.iter() {
-            if *elite_score <= score {
-                dominated = true;
-                break;
-            }
-        }
-
+        let dominated = pool.iter().any(|(s, _)| *s <= score);
         if !dominated {
             pool.push((score, config));
             pool.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
@@ -754,115 +722,36 @@ impl EvolvedPacker {
             }
         } else {
             let move_type = match edge {
-                BoundaryEdge::Left => {
-                    match rng.gen_range(0..10) {
-                        0..=4 => 0,
-                        5..=6 => 1,
-                        7..=8 => 2,
-                        _ => 3,
-                    }
-                }
-                BoundaryEdge::Right => {
-                    match rng.gen_range(0..10) {
-                        0..=4 => 4,
-                        5..=6 => 1,
-                        7..=8 => 2,
-                        _ => 3,
-                    }
-                }
-                BoundaryEdge::Top => {
-                    match rng.gen_range(0..10) {
-                        0..=4 => 5,
-                        5..=6 => 6,
-                        7..=8 => 2,
-                        _ => 3,
-                    }
-                }
-                BoundaryEdge::Bottom => {
-                    match rng.gen_range(0..10) {
-                        0..=4 => 7,
-                        5..=6 => 6,
-                        7..=8 => 2,
-                        _ => 3,
-                    }
-                }
-                BoundaryEdge::Corner => {
-                    match rng.gen_range(0..10) {
-                        0..=4 => 8,
-                        5..=6 => 2,
-                        7..=8 => 9,
-                        _ => 3,
-                    }
-                }
-                BoundaryEdge::None => {
-                    rng.gen_range(0..10)
-                }
+                BoundaryEdge::Left => match rng.gen_range(0..10) { 0..=4 => 0, 5..=6 => 1, 7..=8 => 2, _ => 3, },
+                BoundaryEdge::Right => match rng.gen_range(0..10) { 0..=4 => 4, 5..=6 => 1, 7..=8 => 2, _ => 3, },
+                BoundaryEdge::Top => match rng.gen_range(0..10) { 0..=4 => 5, 5..=6 => 6, 7..=8 => 2, _ => 3, },
+                BoundaryEdge::Bottom => match rng.gen_range(0..10) { 0..=4 => 7, 5..=6 => 6, 7..=8 => 2, _ => 3, },
+                BoundaryEdge::Corner => match rng.gen_range(0..10) { 0..=4 => 8, 5..=6 => 2, 7..=8 => 9, _ => 3, },
+                BoundaryEdge::None => rng.gen_range(0..10),
             };
 
             match move_type {
-                0 => {
-                    let dx = rng.gen_range(scale * 0.3..scale);
-                    let dy = rng.gen_range(-scale * 0.2..scale * 0.2);
-                    trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
-                }
-                1 => {
-                    let dy = rng.gen_range(-scale..scale);
-                    trees[idx] = PlacedTree::new(old_x, old_y + dy, old_angle);
-                }
-                2 => {
-                    let angles = [45.0, 90.0, -45.0, -90.0];
-                    let delta = angles[rng.gen_range(0..angles.len())];
-                    let new_angle = (old_angle + delta).rem_euclid(360.0);
-                    trees[idx] = PlacedTree::new(old_x, old_y, new_angle);
-                }
-                3 => {
-                    let dx = rng.gen_range(-scale * 0.5..scale * 0.5);
-                    let dy = rng.gen_range(-scale * 0.5..scale * 0.5);
-                    trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
-                }
-                4 => {
-                    let dx = rng.gen_range(-scale..-scale * 0.3);
-                    let dy = rng.gen_range(-scale * 0.2..scale * 0.2);
-                    trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
-                }
-                5 => {
-                    let dx = rng.gen_range(-scale * 0.2..scale * 0.2);
-                    let dy = rng.gen_range(-scale..-scale * 0.3);
-                    trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
-                }
-                6 => {
-                    let dx = rng.gen_range(-scale..scale);
-                    trees[idx] = PlacedTree::new(old_x + dx, old_y, old_angle);
-                }
-                7 => {
-                    let dx = rng.gen_range(-scale * 0.2..scale * 0.2);
-                    let dy = rng.gen_range(scale * 0.3..scale);
-                    trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
-                }
+                0 => { trees[idx] = PlacedTree::new(old_x + rng.gen_range(scale * 0.3..scale), old_y + rng.gen_range(-scale * 0.2..scale * 0.2), old_angle); }
+                1 => { trees[idx] = PlacedTree::new(old_x, old_y + rng.gen_range(-scale..scale), old_angle); }
+                2 => { let angles = [45.0, 90.0, -45.0, -90.0]; trees[idx] = PlacedTree::new(old_x, old_y, (old_angle + angles[rng.gen_range(0..4)]).rem_euclid(360.0)); }
+                3 => { trees[idx] = PlacedTree::new(old_x + rng.gen_range(-scale * 0.5..scale * 0.5), old_y + rng.gen_range(-scale * 0.5..scale * 0.5), old_angle); }
+                4 => { trees[idx] = PlacedTree::new(old_x + rng.gen_range(-scale..-scale * 0.3), old_y + rng.gen_range(-scale * 0.2..scale * 0.2), old_angle); }
+                5 => { trees[idx] = PlacedTree::new(old_x + rng.gen_range(-scale * 0.2..scale * 0.2), old_y + rng.gen_range(-scale..-scale * 0.3), old_angle); }
+                6 => { trees[idx] = PlacedTree::new(old_x + rng.gen_range(-scale..scale), old_y, old_angle); }
+                7 => { trees[idx] = PlacedTree::new(old_x + rng.gen_range(-scale * 0.2..scale * 0.2), old_y + rng.gen_range(scale * 0.3..scale), old_angle); }
                 8 => {
                     let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
-                    let bbox_cx = (min_x + max_x) / 2.0;
-                    let bbox_cy = (min_y + max_y) / 2.0;
-
-                    let dx = (bbox_cx - old_x) * self.config.center_pull_strength * (0.5 + temp);
-                    let dy = (bbox_cy - old_y) * self.config.center_pull_strength * (0.5 + temp);
-                    trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
+                    let (cx, cy) = ((min_x + max_x) / 2.0, (min_y + max_y) / 2.0);
+                    trees[idx] = PlacedTree::new(old_x + (cx - old_x) * self.config.center_pull_strength * (0.5 + temp),
+                                                  old_y + (cy - old_y) * self.config.center_pull_strength * (0.5 + temp), old_angle);
                 }
-                9 => {
-                    let diag = rng.gen_range(-scale..scale);
-                    let sign = if rng.gen() { 1.0 } else { -1.0 };
-                    trees[idx] = PlacedTree::new(old_x + diag, old_y + sign * diag, old_angle);
-                }
+                9 => { let d = rng.gen_range(-scale..scale); trees[idx] = PlacedTree::new(old_x + d, old_y + if rng.gen() { d } else { -d }, old_angle); }
                 _ => {
                     let mag = (old_x * old_x + old_y * old_y).sqrt();
                     if mag > 0.08 {
-                        let delta_r = rng.gen_range(-0.06..0.06) * (1.0 + temp);
-                        let new_mag = (mag + delta_r).max(0.0);
-                        let scale_r = new_mag / mag;
-                        trees[idx] = PlacedTree::new(old_x * scale_r, old_y * scale_r, old_angle);
-                    } else {
-                        return false;
-                    }
+                        let new_mag = (mag + rng.gen_range(-0.06..0.06) * (1.0 + temp)).max(0.0);
+                        trees[idx] = PlacedTree::new(old_x * new_mag / mag, old_y * new_mag / mag, old_angle);
+                    } else { return false; }
                 }
             }
         }
@@ -872,32 +761,12 @@ impl EvolvedPacker {
 }
 
 fn is_valid(tree: &PlacedTree, existing: &[PlacedTree]) -> bool {
-    for other in existing {
-        if tree.overlaps(other) {
-            return false;
-        }
-    }
-    true
+    existing.iter().all(|other| !tree.overlaps(other))
 }
 
 fn compute_side_length(trees: &[PlacedTree]) -> f64 {
-    if trees.is_empty() {
-        return 0.0;
-    }
-
-    let mut min_x = f64::INFINITY;
-    let mut min_y = f64::INFINITY;
-    let mut max_x = f64::NEG_INFINITY;
-    let mut max_y = f64::NEG_INFINITY;
-
-    for tree in trees {
-        let (bx1, by1, bx2, by2) = tree.bounds();
-        min_x = min_x.min(bx1);
-        min_y = min_y.min(by1);
-        max_x = max_x.max(bx2);
-        max_y = max_y.max(by2);
-    }
-
+    if trees.is_empty() { return 0.0; }
+    let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
     (max_x - min_x).max(max_y - min_y)
 }
 
@@ -919,12 +788,7 @@ fn compute_bounds(trees: &[PlacedTree]) -> (f64, f64, f64, f64) {
 }
 
 fn has_overlap(trees: &[PlacedTree], idx: usize) -> bool {
-    for (i, tree) in trees.iter().enumerate() {
-        if i != idx && trees[idx].overlaps(tree) {
-            return true;
-        }
-    }
-    false
+    trees.iter().enumerate().any(|(i, tree)| i != idx && trees[idx].overlaps(tree))
 }
 
 #[cfg(test)]
@@ -936,7 +800,6 @@ mod tests {
     fn test_evolved_packer() {
         let packer = EvolvedPacker::default();
         let packings = packer.pack_all(20);
-
         for (i, p) in packings.iter().enumerate() {
             assert_eq!(p.trees.len(), i + 1);
             assert!(!p.has_overlaps());

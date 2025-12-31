@@ -1,17 +1,12 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 52 ADAPTIVE TEMPERATURE
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: Adaptive SA temperature based on tree count
+//! Higher temperatures for larger n (more trees = more complex optimization)
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
-//!
-//! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
-//!
-//! Target: More organized, uniform packing
+//! Changes from Gen47:
+//! - Temperature scales with tree count
+//! - More iterations for larger problems
+//! - Longer cooling for complex cases
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -24,7 +19,7 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
+    ConcentricRings,
 }
 
 pub struct EvolvedConfig {
@@ -65,7 +60,7 @@ impl Default for EvolvedConfig {
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
+            num_strategies: 6,
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
@@ -103,7 +98,7 @@ impl EvolvedPacker {
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
+            PlacementStrategy::ConcentricRings,
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -117,8 +112,11 @@ impl EvolvedPacker {
                 let new_tree = self.find_placement_with_strategy(&trees, n, max_n, strategy, &mut rng);
                 trees.push(new_tree);
 
-                for pass in 0..self.config.sa_passes {
-                    self.local_search(&mut trees, n, pass, strategy, &mut rng);
+                // Adaptive passes based on tree count
+                let passes = if n > 150 { 3 } else { self.config.sa_passes };
+
+                for pass in 0..passes {
+                    self.local_search_adaptive(&mut trees, n, pass, strategy, &mut rng);
                 }
 
                 let side = compute_side_length(&trees);
@@ -177,7 +175,10 @@ impl EvolvedPacker {
 
         let gaps = self.find_gaps(existing, min_x, min_y, max_x, max_y);
 
-        for attempt in 0..self.config.search_attempts {
+        // More search attempts for larger problems
+        let attempts = if n > 100 { 250 } else { self.config.search_attempts };
+
+        for attempt in 0..attempts {
             let dir = if !gaps.is_empty() && attempt % 5 == 0 {
                 let gap = &gaps[attempt % gaps.len()];
                 let gap_cx = (gap.0 + gap.2) / 2.0;
@@ -243,7 +244,6 @@ impl EvolvedPacker {
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
             PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
                 if n % 2 == 0 {
                     vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
                 } else {
@@ -309,13 +309,10 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
                 let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
+                let trees_in_ring = (ring * 6).max(1);
                 let position_in_ring = n % trees_in_ring;
                 let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
                 (base_angle + offset).rem_euclid(2.0 * PI)
             }
@@ -530,7 +527,8 @@ impl EvolvedPacker {
         gaps
     }
 
-    fn local_search(
+    // ADAPTIVE local search - key mutation
+    fn local_search_adaptive(
         &self,
         trees: &mut Vec<PlacedTree>,
         n: usize,
@@ -548,20 +546,27 @@ impl EvolvedPacker {
 
         let mut elite_pool: Vec<(f64, Vec<PlacedTree>)> = vec![(current_side, trees.clone())];
 
+        // ADAPTIVE: Temperature scales with tree count
+        let temp_scale = 1.0 + (n as f64 / 200.0).min(0.5);
         let temp_multiplier = match pass {
-            0 => 1.0,
-            _ => 0.35,
+            0 => temp_scale,
+            _ => 0.35 * temp_scale,
         };
         let mut temp = self.config.sa_initial_temp * temp_multiplier;
 
+        // ADAPTIVE: More iterations for larger problems
+        let iter_scale = 1.0 + (n as f64 / 100.0).min(0.8);
         let base_iterations = match pass {
-            0 => self.config.sa_iterations + n * 100,
-            _ => self.config.sa_iterations / 2 + n * 50,
+            0 => ((self.config.sa_iterations + n * 100) as f64 * iter_scale) as usize,
+            _ => ((self.config.sa_iterations / 2 + n * 50) as f64 * iter_scale) as usize,
         };
+
+        // ADAPTIVE: Slower cooling for larger problems
+        let cooling_rate = self.config.sa_cooling_rate + (n as f64 / 2000.0).min(0.00003);
 
         let mut iterations_without_improvement = 0;
         let mut total_restarts = 0;
-        let max_restarts = 4;
+        let max_restarts = if n > 150 { 6 } else { 4 };
 
         let mut boundary_cache_iter = 0;
         let mut boundary_info: Vec<(usize, BoundaryEdge)> = Vec::new();
@@ -571,7 +576,7 @@ impl EvolvedPacker {
                 let elite_idx = rng.gen_range(0..elite_pool.len());
                 *trees = elite_pool[elite_idx].1.clone();
                 current_side = elite_pool[elite_idx].0;
-                temp = self.config.hot_restart_temp;
+                temp = self.config.hot_restart_temp * temp_scale;
                 iterations_without_improvement = 0;
                 total_restarts += 1;
                 boundary_cache_iter = 0;
@@ -636,7 +641,7 @@ impl EvolvedPacker {
                 iterations_without_improvement += 1;
             }
 
-            temp = (temp * self.config.sa_cooling_rate).max(self.config.sa_min_temp);
+            temp = (temp * cooling_rate).max(self.config.sa_min_temp);
         }
 
         if best_side < compute_side_length(trees) {

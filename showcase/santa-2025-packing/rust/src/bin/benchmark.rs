@@ -1,4 +1,4 @@
-//! Benchmark runner for evolved packing algorithm
+//! Benchmark the evolved packer
 //!
 //! Measures score and validates correctness for evolution fitness.
 
@@ -14,7 +14,6 @@ fn main() {
     println!("Benchmarking EvolvedPacker (n=1..{}, {} runs)", max_n, runs);
 
     let mut best_score = f64::INFINITY;
-    let mut best_packings = None;
     let mut total_time = 0.0;
 
     for run in 1..=runs {
@@ -41,29 +40,14 @@ fn main() {
 
         if valid && score < best_score {
             best_score = score;
-            best_packings = Some(packings);
         }
 
         println!("  Run {}: score={:.4}, time={:.2}s, valid={}", run, score, elapsed, valid);
     }
 
-    // Report scores at intervals
-    if let Some(ref packings) = best_packings {
-        println!("\nBest run breakdown:");
-        for n in [10, 25, 50, 100, 150, 200] {
-            if n <= max_n {
-                let partial = calculate_score(&packings[..n]);
-                let side = packings[n - 1].side_length();
-                println!("  n={:3}: score={:.4}, side={:.4}", n, partial, side);
-            }
-        }
-    }
-
     println!("\nResults:");
     println!("  Best score: {:.4}", best_score);
     println!("  Avg time: {:.2}s", total_time / runs as f64);
-    println!("  Target: ~69 (top leaderboard)");
-    println!("  Gap: {:.1}%", (best_score / 69.0 - 1.0) * 100.0);
 
     // Output for evolution fitness parsing
     println!("\n[EVOLVED_SCORE={:.6}]", best_score);

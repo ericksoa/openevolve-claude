@@ -1,17 +1,12 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 57 LASER FOCUS
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: Only use 3 best strategies, more iterations
+//! Hypothesis: 6 strategies dilutes optimization effort
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
-//!
-//! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
-//!
-//! Target: More organized, uniform packing
+//! Changes from Gen47:
+//! - Only 3 strategies: ConcentricRings, BoundaryFirst, ClockwiseSpiral
+//! - More search attempts: 200 -> 280
+//! - More SA iterations: 28000 -> 35000
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -20,11 +15,8 @@ use std::f64::consts::PI;
 #[derive(Clone, Copy, Debug)]
 pub enum PlacementStrategy {
     ClockwiseSpiral,
-    CounterclockwiseSpiral,
-    Grid,
-    Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
+    ConcentricRings,
 }
 
 pub struct EvolvedConfig {
@@ -53,9 +45,9 @@ pub struct EvolvedConfig {
 impl Default for EvolvedConfig {
     fn default() -> Self {
         Self {
-            search_attempts: 200,
+            search_attempts: 280,    // Increased from 200
             direction_samples: 64,
-            sa_iterations: 28000,
+            sa_iterations: 35000,    // Increased from 28000
             sa_initial_temp: 0.45,
             sa_cooling_rate: 0.99993,
             sa_min_temp: 0.00001,
@@ -63,16 +55,16 @@ impl Default for EvolvedConfig {
             rotation_granularity: 45.0,
             center_pull_strength: 0.07,
             sa_passes: 2,
-            early_exit_threshold: 2500,
+            early_exit_threshold: 3000,  // Increased patience
             boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
+            num_strategies: 3,           // Reduced from 6
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
             fill_move_prob: 0.15,
-            hot_restart_interval: 800,
+            hot_restart_interval: 900,
             hot_restart_temp: 0.35,
-            elite_pool_size: 3,
+            elite_pool_size: 4,          // Increased from 3
         }
     }
 }
@@ -97,13 +89,11 @@ impl EvolvedPacker {
         let mut rng = rand::thread_rng();
         let mut packings: Vec<Packing> = Vec::with_capacity(max_n);
 
+        // Only 3 strategies - the best ones
         let strategies = [
-            PlacementStrategy::ClockwiseSpiral,
-            PlacementStrategy::CounterclockwiseSpiral,
-            PlacementStrategy::Grid,
-            PlacementStrategy::Random,
-            PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
+            PlacementStrategy::ConcentricRings,  // Best
+            PlacementStrategy::BoundaryFirst,   // Good
+            PlacementStrategy::ClockwiseSpiral, // Classic
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -158,9 +148,6 @@ impl EvolvedPacker {
         if existing.is_empty() {
             let initial_angle = match strategy {
                 PlacementStrategy::ClockwiseSpiral => 0.0,
-                PlacementStrategy::CounterclockwiseSpiral => 90.0,
-                PlacementStrategy::Grid => 45.0,
-                PlacementStrategy::Random => rng.gen_range(0..8) as f64 * 45.0,
                 PlacementStrategy::BoundaryFirst => 180.0,
                 PlacementStrategy::ConcentricRings => 45.0,
             };
@@ -225,25 +212,10 @@ impl EvolvedPacker {
             PlacementStrategy::ClockwiseSpiral => {
                 vec![0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0]
             }
-            PlacementStrategy::CounterclockwiseSpiral => {
-                vec![315.0, 270.0, 225.0, 180.0, 135.0, 90.0, 45.0, 0.0]
-            }
-            PlacementStrategy::Grid => {
-                vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
-            }
-            PlacementStrategy::Random => {
-                match n % 4 {
-                    0 => vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0],
-                    1 => vec![90.0, 270.0, 0.0, 180.0, 135.0, 315.0, 45.0, 225.0],
-                    2 => vec![180.0, 0.0, 270.0, 90.0, 225.0, 45.0, 315.0, 135.0],
-                    _ => vec![270.0, 90.0, 180.0, 0.0, 315.0, 135.0, 225.0, 45.0],
-                }
-            }
             PlacementStrategy::BoundaryFirst => {
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
             PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
                 if n % 2 == 0 {
                     vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
                 } else {
@@ -257,8 +229,8 @@ impl EvolvedPacker {
     fn select_direction_for_strategy(
         &self,
         n: usize,
-        width: f64,
-        height: f64,
+        _width: f64,
+        _height: f64,
         strategy: PlacementStrategy,
         attempt: usize,
         rng: &mut impl Rng,
@@ -269,32 +241,6 @@ impl EvolvedPacker {
                 let base = (n as f64 * golden_angle) % (2.0 * PI);
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 2.0 * PI;
                 (base + offset) % (2.0 * PI)
-            }
-            PlacementStrategy::CounterclockwiseSpiral => {
-                let golden_angle = -PI * (3.0 - (5.0_f64).sqrt());
-                let base = (n as f64 * golden_angle).rem_euclid(2.0 * PI);
-                let offset = (attempt as f64 / self.config.search_attempts as f64) * 2.0 * PI;
-                (base - offset).rem_euclid(2.0 * PI)
-            }
-            PlacementStrategy::Grid => {
-                let num_dirs = 16;
-                let base_idx = attempt % num_dirs;
-                let base = (base_idx as f64 / num_dirs as f64) * 2.0 * PI;
-                base + rng.gen_range(-0.03..0.03)
-            }
-            PlacementStrategy::Random => {
-                let mix = rng.gen::<f64>();
-                if mix < 0.5 {
-                    rng.gen_range(0.0..2.0 * PI)
-                } else {
-                    if width < height {
-                        let angle = if rng.gen() { 0.0 } else { PI };
-                        angle + rng.gen_range(-PI / 3.0..PI / 3.0)
-                    } else {
-                        let angle = if rng.gen() { PI / 2.0 } else { -PI / 2.0 };
-                        angle + rng.gen_range(-PI / 3.0..PI / 3.0)
-                    }
-                }
             }
             PlacementStrategy::BoundaryFirst => {
                 let prob = rng.gen::<f64>();
@@ -309,13 +255,10 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
                 let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
+                let trees_in_ring = (ring * 6).max(1);
                 let position_in_ring = n % trees_in_ring;
                 let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
                 (base_angle + offset).rem_euclid(2.0 * PI)
             }
@@ -561,7 +504,7 @@ impl EvolvedPacker {
 
         let mut iterations_without_improvement = 0;
         let mut total_restarts = 0;
-        let max_restarts = 4;
+        let max_restarts = 5;
 
         let mut boundary_cache_iter = 0;
         let mut boundary_info: Vec<(usize, BoundaryEdge)> = Vec::new();

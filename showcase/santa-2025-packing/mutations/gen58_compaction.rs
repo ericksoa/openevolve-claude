@@ -1,17 +1,12 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 58 COMPACTION PHASE
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: Add compaction phase after initial placement
+//! After SA, try to compact by moving all trees toward center
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
-//!
-//! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
-//!
-//! Target: More organized, uniform packing
+//! Changes from Gen47:
+//! - Add post-SA compaction phase
+//! - Try to squeeze trees together more tightly
+//! - Extra passes for compaction
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -24,7 +19,7 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
+    ConcentricRings,
 }
 
 pub struct EvolvedConfig {
@@ -65,7 +60,7 @@ impl Default for EvolvedConfig {
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
+            num_strategies: 6,
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
@@ -103,7 +98,7 @@ impl EvolvedPacker {
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
+            PlacementStrategy::ConcentricRings,
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -117,9 +112,13 @@ impl EvolvedPacker {
                 let new_tree = self.find_placement_with_strategy(&trees, n, max_n, strategy, &mut rng);
                 trees.push(new_tree);
 
+                // Standard SA passes
                 for pass in 0..self.config.sa_passes {
                     self.local_search(&mut trees, n, pass, strategy, &mut rng);
                 }
+
+                // NEW: Compaction phase
+                self.compaction_phase(&mut trees, &mut rng);
 
                 let side = compute_side_length(&trees);
                 strategy_trees[s_idx] = trees.clone();
@@ -145,6 +144,107 @@ impl EvolvedPacker {
         }
 
         packings
+    }
+
+    // NEW: Compaction phase - try to pull all trees toward center
+    fn compaction_phase(&self, trees: &mut Vec<PlacedTree>, rng: &mut impl Rng) {
+        if trees.len() <= 1 {
+            return;
+        }
+
+        let mut current_side = compute_side_length(trees);
+        let mut best_side = current_side;
+        let mut best_config = trees.clone();
+
+        // Multiple compaction attempts
+        for _round in 0..3 {
+            // Get current center
+            let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
+            let center_x = (min_x + max_x) / 2.0;
+            let center_y = (min_y + max_y) / 2.0;
+
+            // Try to pull each tree toward center
+            for idx in 0..trees.len() {
+                let tree_x = trees[idx].x;
+                let tree_y = trees[idx].y;
+                let tree_angle = trees[idx].angle_deg;
+                let dx = center_x - tree_x;
+                let dy = center_y - tree_y;
+                let dist = (dx * dx + dy * dy).sqrt();
+
+                if dist < 0.01 {
+                    continue;
+                }
+
+                // Try different step sizes
+                for step in [0.1, 0.05, 0.02, 0.01] {
+                    let new_x = tree_x + dx * step;
+                    let new_y = tree_y + dy * step;
+                    let new_tree = PlacedTree::new(new_x, new_y, tree_angle);
+
+                    // Check if valid
+                    let mut valid = true;
+                    for (j, other) in trees.iter().enumerate() {
+                        if j != idx && new_tree.overlaps(other) {
+                            valid = false;
+                            break;
+                        }
+                    }
+
+                    if valid {
+                        let old_tree = trees[idx].clone();
+                        trees[idx] = new_tree;
+                        let new_side = compute_side_length(trees);
+
+                        if new_side < current_side {
+                            current_side = new_side;
+                            if current_side < best_side {
+                                best_side = current_side;
+                                best_config = trees.clone();
+                            }
+                            break;
+                        } else {
+                            trees[idx] = old_tree;
+                        }
+                    }
+                }
+
+                // Also try rotation
+                for delta in [45.0, -45.0, 90.0, -90.0] {
+                    let new_angle = (trees[idx].angle_deg + delta).rem_euclid(360.0);
+                    let new_tree = PlacedTree::new(trees[idx].x, trees[idx].y, new_angle);
+
+                    let mut valid = true;
+                    for (j, other) in trees.iter().enumerate() {
+                        if j != idx && new_tree.overlaps(other) {
+                            valid = false;
+                            break;
+                        }
+                    }
+
+                    if valid {
+                        let old_tree = trees[idx].clone();
+                        trees[idx] = new_tree;
+                        let new_side = compute_side_length(trees);
+
+                        if new_side < current_side {
+                            current_side = new_side;
+                            if current_side < best_side {
+                                best_side = current_side;
+                                best_config = trees.clone();
+                            }
+                            break;
+                        } else {
+                            trees[idx] = old_tree;
+                        }
+                    }
+                }
+            }
+        }
+
+        if best_side < compute_side_length(trees) {
+            *trees = best_config;
+        }
     }
 
     fn find_placement_with_strategy(
@@ -243,7 +343,6 @@ impl EvolvedPacker {
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
             PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
                 if n % 2 == 0 {
                     vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
                 } else {
@@ -309,13 +408,10 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
                 let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
+                let trees_in_ring = (ring * 6).max(1);
                 let position_in_ring = n % trees_in_ring;
                 let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
                 (base_angle + offset).rem_euclid(2.0 * PI)
             }

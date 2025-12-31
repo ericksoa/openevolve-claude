@@ -1,17 +1,16 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 60 SWAP MOVES
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: SWAP MOVES IN SA
+//! Add tree position swapping as an SA move to allow more aggressive exploration.
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
+//! Key insight: Sometimes two trees would pack better if they swapped positions.
+//! This adds swap moves to the SA neighborhood.
 //!
-//! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
+//! Changes from Gen47:
+//! - Add swap_move function that swaps positions of two trees
+//! - 15% probability of swap move during SA
 //!
-//! Target: More organized, uniform packing
+//! Target: Better escape from local optima
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -24,7 +23,7 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
+    ConcentricRings,
 }
 
 pub struct EvolvedConfig {
@@ -48,6 +47,7 @@ pub struct EvolvedConfig {
     pub hot_restart_interval: usize,
     pub hot_restart_temp: f64,
     pub elite_pool_size: usize,
+    pub swap_move_prob: f64,  // NEW
 }
 
 impl Default for EvolvedConfig {
@@ -65,7 +65,7 @@ impl Default for EvolvedConfig {
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
+            num_strategies: 6,
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
@@ -73,6 +73,7 @@ impl Default for EvolvedConfig {
             hot_restart_interval: 800,
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
+            swap_move_prob: 0.15,  // NEW: 15% chance of swap move
         }
     }
 }
@@ -103,7 +104,7 @@ impl EvolvedPacker {
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
+            PlacementStrategy::ConcentricRings,
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -243,7 +244,6 @@ impl EvolvedPacker {
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
             PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
                 if n % 2 == 0 {
                     vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
                 } else {
@@ -309,13 +309,10 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
                 let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
+                let trees_in_ring = (ring * 6).max(1);
                 let position_in_ring = n % trees_in_ring;
                 let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
                 (base_angle + offset).rem_euclid(2.0 * PI)
             }
@@ -586,54 +583,87 @@ impl EvolvedPacker {
                 boundary_cache_iter = iter;
             }
 
-            let do_fill_move = rng.gen::<f64>() < self.config.fill_move_prob;
+            // NEW: Check if we should do a swap move
+            let do_swap = rng.gen::<f64>() < self.config.swap_move_prob && trees.len() >= 2;
 
-            let (idx, edge) = if do_fill_move {
-                let interior_trees: Vec<usize> = (0..trees.len())
-                    .filter(|&i| !boundary_info.iter().any(|(bi, _)| *bi == i))
-                    .collect();
+            if do_swap {
+                // Try swapping two trees' positions
+                let old_trees = trees.clone();
+                let success = self.swap_move(trees, rng);
 
-                if !interior_trees.is_empty() && rng.gen::<f64>() < 0.5 {
-                    (interior_trees[rng.gen_range(0..interior_trees.len())], BoundaryEdge::None)
-                } else if !boundary_info.is_empty() {
+                if success {
+                    let new_side = compute_side_length(trees);
+                    let delta = new_side - current_side;
+
+                    if delta <= 0.0 || rng.gen::<f64>() < (-delta / temp).exp() {
+                        current_side = new_side;
+                        if current_side < best_side {
+                            best_side = current_side;
+                            best_config = trees.clone();
+                            iterations_without_improvement = 0;
+                            self.update_elite_pool(&mut elite_pool, current_side, trees.clone());
+                        } else {
+                            iterations_without_improvement += 1;
+                        }
+                    } else {
+                        *trees = old_trees;
+                        iterations_without_improvement += 1;
+                    }
+                } else {
+                    *trees = old_trees;
+                    iterations_without_improvement += 1;
+                }
+            } else {
+                // Regular move
+                let do_fill_move = rng.gen::<f64>() < self.config.fill_move_prob;
+
+                let (idx, edge) = if do_fill_move {
+                    let interior_trees: Vec<usize> = (0..trees.len())
+                        .filter(|&i| !boundary_info.iter().any(|(bi, _)| *bi == i))
+                        .collect();
+
+                    if !interior_trees.is_empty() && rng.gen::<f64>() < 0.5 {
+                        (interior_trees[rng.gen_range(0..interior_trees.len())], BoundaryEdge::None)
+                    } else if !boundary_info.is_empty() {
+                        let bi = &boundary_info[rng.gen_range(0..boundary_info.len())];
+                        (bi.0, bi.1)
+                    } else {
+                        (rng.gen_range(0..trees.len()), BoundaryEdge::None)
+                    }
+                } else if !boundary_info.is_empty() && rng.gen::<f64>() < self.config.boundary_focus_prob {
                     let bi = &boundary_info[rng.gen_range(0..boundary_info.len())];
                     (bi.0, bi.1)
                 } else {
                     (rng.gen_range(0..trees.len()), BoundaryEdge::None)
-                }
-            } else if !boundary_info.is_empty() && rng.gen::<f64>() < self.config.boundary_focus_prob {
-                let bi = &boundary_info[rng.gen_range(0..boundary_info.len())];
-                (bi.0, bi.1)
-            } else {
-                (rng.gen_range(0..trees.len()), BoundaryEdge::None)
-            };
+                };
 
-            let old_tree = trees[idx].clone();
+                let old_tree = trees[idx].clone();
 
-            let success = self.sa_move(trees, idx, temp, edge, do_fill_move, rng);
+                let success = self.sa_move(trees, idx, temp, edge, do_fill_move, rng);
 
-            if success {
-                let new_side = compute_side_length(trees);
-                let delta = new_side - current_side;
+                if success {
+                    let new_side = compute_side_length(trees);
+                    let delta = new_side - current_side;
 
-                if delta <= 0.0 || rng.gen::<f64>() < (-delta / temp).exp() {
-                    current_side = new_side;
-                    if current_side < best_side {
-                        best_side = current_side;
-                        best_config = trees.clone();
-                        iterations_without_improvement = 0;
+                    if delta <= 0.0 || rng.gen::<f64>() < (-delta / temp).exp() {
+                        current_side = new_side;
+                        if current_side < best_side {
+                            best_side = current_side;
+                            best_config = trees.clone();
+                            iterations_without_improvement = 0;
 
-                        self.update_elite_pool(&mut elite_pool, current_side, trees.clone());
+                            self.update_elite_pool(&mut elite_pool, current_side, trees.clone());
+                        } else {
+                            iterations_without_improvement += 1;
+                        }
                     } else {
+                        trees[idx] = old_tree;
                         iterations_without_improvement += 1;
                     }
                 } else {
                     trees[idx] = old_tree;
                     iterations_without_improvement += 1;
                 }
-            } else {
-                trees[idx] = old_tree;
-                iterations_without_improvement += 1;
             }
 
             temp = (temp * self.config.sa_cooling_rate).max(self.config.sa_min_temp);
@@ -642,6 +672,35 @@ impl EvolvedPacker {
         if best_side < compute_side_length(trees) {
             *trees = best_config;
         }
+    }
+
+    // NEW: Swap move - swap positions of two trees
+    fn swap_move(&self, trees: &mut [PlacedTree], rng: &mut impl Rng) -> bool {
+        if trees.len() < 2 {
+            return false;
+        }
+
+        let idx1 = rng.gen_range(0..trees.len());
+        let mut idx2 = rng.gen_range(0..trees.len());
+        while idx2 == idx1 {
+            idx2 = rng.gen_range(0..trees.len());
+        }
+
+        // Get positions (keep angles the same)
+        let x1 = trees[idx1].x;
+        let y1 = trees[idx1].y;
+        let angle1 = trees[idx1].angle_deg;
+
+        let x2 = trees[idx2].x;
+        let y2 = trees[idx2].y;
+        let angle2 = trees[idx2].angle_deg;
+
+        // Swap positions (keep original angles)
+        trees[idx1] = PlacedTree::new(x2, y2, angle1);
+        trees[idx2] = PlacedTree::new(x1, y1, angle2);
+
+        // Check for overlaps
+        !has_overlap(trees, idx1) && !has_overlap(trees, idx2)
     }
 
     fn update_elite_pool(&self, pool: &mut Vec<(f64, Vec<PlacedTree>)>, score: f64, config: Vec<PlacedTree>) {

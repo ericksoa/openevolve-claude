@@ -1,17 +1,12 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 54 FINE ANGLE GRANULARITY
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: Finer angle search for better fits
+//! Try 15-degree increments instead of 45-degree
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
-//!
-//! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
-//!
-//! Target: More organized, uniform packing
+//! Changes from Gen47:
+//! - 24 angle positions instead of 8
+//! - More thorough angle search during placement
+//! - Higher search attempts to compensate for more options
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -24,7 +19,7 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
+    ConcentricRings,
 }
 
 pub struct EvolvedConfig {
@@ -53,19 +48,19 @@ pub struct EvolvedConfig {
 impl Default for EvolvedConfig {
     fn default() -> Self {
         Self {
-            search_attempts: 200,
+            search_attempts: 150,  // Slightly less because more angles
             direction_samples: 64,
             sa_iterations: 28000,
             sa_initial_temp: 0.45,
             sa_cooling_rate: 0.99993,
             sa_min_temp: 0.00001,
             translation_scale: 0.055,
-            rotation_granularity: 45.0,
+            rotation_granularity: 15.0,  // Finer: 15 degrees instead of 45
             center_pull_strength: 0.07,
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
+            num_strategies: 6,
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
@@ -103,7 +98,7 @@ impl EvolvedPacker {
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
+            PlacementStrategy::ConcentricRings,
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -160,7 +155,7 @@ impl EvolvedPacker {
                 PlacementStrategy::ClockwiseSpiral => 0.0,
                 PlacementStrategy::CounterclockwiseSpiral => 90.0,
                 PlacementStrategy::Grid => 45.0,
-                PlacementStrategy::Random => rng.gen_range(0..8) as f64 * 45.0,
+                PlacementStrategy::Random => rng.gen_range(0..24) as f64 * 15.0,
                 PlacementStrategy::BoundaryFirst => 180.0,
                 PlacementStrategy::ConcentricRings => 45.0,
             };
@@ -221,33 +216,61 @@ impl EvolvedPacker {
 
     #[inline]
     fn select_angles_for_strategy(&self, n: usize, strategy: PlacementStrategy) -> Vec<f64> {
+        // 15-degree granularity = 24 angles
+        let fine_angles: Vec<f64> = (0..24).map(|i| i as f64 * 15.0).collect();
+
         match strategy {
             PlacementStrategy::ClockwiseSpiral => {
-                vec![0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0]
+                // Start with 0, 15, 30, ...
+                fine_angles.clone()
             }
             PlacementStrategy::CounterclockwiseSpiral => {
-                vec![315.0, 270.0, 225.0, 180.0, 135.0, 90.0, 45.0, 0.0]
+                // Reverse order
+                fine_angles.iter().rev().copied().collect()
             }
             PlacementStrategy::Grid => {
-                vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
+                // Prefer orthogonal and diagonal first
+                let mut ordered = vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0];
+                for a in fine_angles.iter() {
+                    if !ordered.contains(a) {
+                        ordered.push(*a);
+                    }
+                }
+                ordered
             }
             PlacementStrategy::Random => {
-                match n % 4 {
-                    0 => vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0],
-                    1 => vec![90.0, 270.0, 0.0, 180.0, 135.0, 315.0, 45.0, 225.0],
-                    2 => vec![180.0, 0.0, 270.0, 90.0, 225.0, 45.0, 315.0, 135.0],
-                    _ => vec![270.0, 90.0, 180.0, 0.0, 315.0, 135.0, 225.0, 45.0],
-                }
+                // Mix based on n
+                let offset = (n % 24) as f64 * 15.0;
+                (0..24).map(|i| ((i as f64 * 15.0 + offset) % 360.0)).collect()
             }
             PlacementStrategy::BoundaryFirst => {
-                vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
+                // Prefer diagonals first
+                let mut ordered = vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0];
+                for a in fine_angles.iter() {
+                    if !ordered.contains(a) {
+                        ordered.push(*a);
+                    }
+                }
+                ordered
             }
             PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
+                // Alternate between two orderings
                 if n % 2 == 0 {
-                    vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
+                    let mut ordered = vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0];
+                    for a in fine_angles.iter() {
+                        if !ordered.contains(a) {
+                            ordered.push(*a);
+                        }
+                    }
+                    ordered
                 } else {
-                    vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
+                    let mut ordered = vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0];
+                    for a in fine_angles.iter() {
+                        if !ordered.contains(a) {
+                            ordered.push(*a);
+                        }
+                    }
+                    ordered
                 }
             }
         }
@@ -277,10 +300,10 @@ impl EvolvedPacker {
                 (base - offset).rem_euclid(2.0 * PI)
             }
             PlacementStrategy::Grid => {
-                let num_dirs = 16;
+                let num_dirs = 24;  // Finer directional search
                 let base_idx = attempt % num_dirs;
                 let base = (base_idx as f64 / num_dirs as f64) * 2.0 * PI;
-                base + rng.gen_range(-0.03..0.03)
+                base + rng.gen_range(-0.02..0.02)
             }
             PlacementStrategy::Random => {
                 let mix = rng.gen::<f64>();
@@ -309,13 +332,10 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
                 let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
+                let trees_in_ring = (ring * 6).max(1);
                 let position_in_ring = n % trees_in_ring;
                 let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
                 (base_angle + offset).rem_euclid(2.0 * PI)
             }
@@ -733,7 +753,8 @@ impl EvolvedPacker {
                     trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
                 }
                 2 => {
-                    let angles = [45.0, 90.0, -45.0, -90.0, 30.0, -30.0];
+                    // Finer angle rotations
+                    let angles = [15.0, 30.0, 45.0, 60.0, 90.0, -15.0, -30.0, -45.0, -60.0, -90.0];
                     let delta = angles[rng.gen_range(0..angles.len())];
                     let new_angle = (old_angle + delta).rem_euclid(360.0);
                     trees[idx] = PlacedTree::new(old_x, old_y, new_angle);
@@ -810,7 +831,8 @@ impl EvolvedPacker {
                     trees[idx] = PlacedTree::new(old_x, old_y + dy, old_angle);
                 }
                 2 => {
-                    let angles = [45.0, 90.0, -45.0, -90.0];
+                    // Finer angle rotations
+                    let angles = [15.0, 30.0, 45.0, 90.0, -15.0, -30.0, -45.0, -90.0];
                     let delta = angles[rng.gen_range(0..angles.len())];
                     let new_angle = (old_angle + delta).rem_euclid(360.0);
                     trees[idx] = PlacedTree::new(old_x, old_y, new_angle);

@@ -1,17 +1,12 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 51 HEXAGONAL PACKING
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: True hexagonal grid placement
+//! Hexagonal packing is mathematically optimal for circles - try adapting for trees
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
-//!
-//! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
-//!
-//! Target: More organized, uniform packing
+//! Changes from Gen47:
+//! - New strategy: Hexagonal grid with staggered rows
+//! - Angles optimized for hexagonal tessellation
+//! - Tighter packing in theory
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -24,7 +19,8 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
+    ConcentricRings,
+    Hexagonal,  // NEW
 }
 
 pub struct EvolvedConfig {
@@ -65,7 +61,7 @@ impl Default for EvolvedConfig {
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
+            num_strategies: 7,  // Added Hexagonal
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
@@ -103,7 +99,8 @@ impl EvolvedPacker {
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
+            PlacementStrategy::ConcentricRings,
+            PlacementStrategy::Hexagonal,  // NEW
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -163,6 +160,7 @@ impl EvolvedPacker {
                 PlacementStrategy::Random => rng.gen_range(0..8) as f64 * 45.0,
                 PlacementStrategy::BoundaryFirst => 180.0,
                 PlacementStrategy::ConcentricRings => 45.0,
+                PlacementStrategy::Hexagonal => 30.0,  // 30 degrees for hex
             };
             return PlacedTree::new(0.0, 0.0, initial_angle);
         }
@@ -243,12 +241,15 @@ impl EvolvedPacker {
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
             PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
                 if n % 2 == 0 {
                     vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
                 } else {
                     vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
                 }
+            }
+            PlacementStrategy::Hexagonal => {
+                // Hexagonal: 0, 60, 120, 180, 240, 300 for tessellation
+                vec![0.0, 60.0, 120.0, 180.0, 240.0, 300.0, 30.0, 90.0]
             }
         }
     }
@@ -309,15 +310,20 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
                 let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
+                let trees_in_ring = (ring * 6).max(1);
                 let position_in_ring = n % trees_in_ring;
                 let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
                 (base_angle + offset).rem_euclid(2.0 * PI)
+            }
+            PlacementStrategy::Hexagonal => {
+                // Hexagonal: 60-degree increments with staggered rows
+                let hex_dirs = 6;
+                let base_dir = (attempt % hex_dirs) as f64 * (PI / 3.0);  // 0, 60, 120, 180, 240, 300
+                // Stagger based on row (n)
+                let row_offset = if (n / 3) % 2 == 0 { 0.0 } else { PI / 6.0 };
+                (base_dir + row_offset + rng.gen_range(-0.1..0.1)).rem_euclid(2.0 * PI)
             }
         }
     }
@@ -733,7 +739,7 @@ impl EvolvedPacker {
                     trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
                 }
                 2 => {
-                    let angles = [45.0, 90.0, -45.0, -90.0, 30.0, -30.0];
+                    let angles = [45.0, 90.0, -45.0, -90.0, 30.0, -30.0, 60.0, -60.0];
                     let delta = angles[rng.gen_range(0..angles.len())];
                     let new_angle = (old_angle + delta).rem_euclid(360.0);
                     trees[idx] = PlacedTree::new(old_x, old_y, new_angle);

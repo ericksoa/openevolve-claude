@@ -1,17 +1,18 @@
-//! Evolved Packing Algorithm - Generation 47 CONCENTRIC PLACEMENT
+//! Evolved Packing Algorithm - Generation 44 AGGRESSIVE SA
 //!
-//! MUTATION STRATEGY: CONCENTRIC RING PLACEMENT
-//! Place trees in concentric rings from the center outward.
+//! MUTATION STRATEGY: AGGRESSIVE SIMULATED ANNEALING
+//! Much higher initial temperature, larger moves, more iterations.
 //!
-//! Key insight: Instead of spiral/random placement, try placing trees
-//! in organized concentric rings, which might pack more uniformly.
+//! Key insight: We might be trapped in local minima because our search
+//! is too conservative. Try much more aggressive exploration.
 //!
 //! Changes from Gen28:
-//! - New placement strategy: ConcentricRings
-//! - Trees placed at specific radii and angles
-//! - More structured initial placement
+//! - sa_initial_temp: 0.45 -> 0.8 (77% higher)
+//! - translation_scale: 0.055 -> 0.09 (64% larger moves)
+//! - sa_iterations: 28000 -> 40000 (43% more iterations)
+//! - More aggressive hot restart temp
 //!
-//! Target: More organized, uniform packing
+//! Target: Escape local minima through aggressive exploration
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -24,7 +25,6 @@ pub enum PlacementStrategy {
     Grid,
     Random,
     BoundaryFirst,
-    ConcentricRings,  // NEW
 }
 
 pub struct EvolvedConfig {
@@ -55,24 +55,24 @@ impl Default for EvolvedConfig {
         Self {
             search_attempts: 200,
             direction_samples: 64,
-            sa_iterations: 28000,
-            sa_initial_temp: 0.45,
-            sa_cooling_rate: 0.99993,
+            sa_iterations: 40000,         // MORE iterations
+            sa_initial_temp: 0.8,         // HIGHER initial temp
+            sa_cooling_rate: 0.99995,     // Slower cooling to match more iters
             sa_min_temp: 0.00001,
-            translation_scale: 0.055,
+            translation_scale: 0.09,      // LARGER moves
             rotation_granularity: 45.0,
-            center_pull_strength: 0.07,
+            center_pull_strength: 0.10,   // Stronger center pull
             sa_passes: 2,
-            early_exit_threshold: 2500,
-            boundary_focus_prob: 0.85,
-            num_strategies: 6,  // Added ConcentricRings
+            early_exit_threshold: 3500,   // Higher threshold
+            boundary_focus_prob: 0.80,
+            num_strategies: 5,
             density_grid_resolution: 20,
             gap_penalty_weight: 0.15,
             local_density_radius: 0.5,
-            fill_move_prob: 0.15,
-            hot_restart_interval: 800,
-            hot_restart_temp: 0.35,
-            elite_pool_size: 3,
+            fill_move_prob: 0.20,         // More fill moves
+            hot_restart_interval: 1000,   // More patience before restart
+            hot_restart_temp: 0.55,       // Higher restart temp
+            elite_pool_size: 4,           // More elites
         }
     }
 }
@@ -103,7 +103,6 @@ impl EvolvedPacker {
             PlacementStrategy::Grid,
             PlacementStrategy::Random,
             PlacementStrategy::BoundaryFirst,
-            PlacementStrategy::ConcentricRings,  // NEW
         ];
 
         let mut strategy_trees: Vec<Vec<PlacedTree>> = vec![Vec::new(); strategies.len()];
@@ -162,7 +161,6 @@ impl EvolvedPacker {
                 PlacementStrategy::Grid => 45.0,
                 PlacementStrategy::Random => rng.gen_range(0..8) as f64 * 45.0,
                 PlacementStrategy::BoundaryFirst => 180.0,
-                PlacementStrategy::ConcentricRings => 45.0,
             };
             return PlacedTree::new(0.0, 0.0, initial_angle);
         }
@@ -242,14 +240,6 @@ impl EvolvedPacker {
             PlacementStrategy::BoundaryFirst => {
                 vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
             }
-            PlacementStrategy::ConcentricRings => {
-                // For concentric, prefer angles that alternate
-                if n % 2 == 0 {
-                    vec![45.0, 135.0, 225.0, 315.0, 0.0, 90.0, 180.0, 270.0]
-                } else {
-                    vec![0.0, 90.0, 180.0, 270.0, 45.0, 135.0, 225.0, 315.0]
-                }
-            }
         }
     }
 
@@ -307,17 +297,6 @@ impl EvolvedPacker {
                 } else {
                     rng.gen_range(0.0..2.0 * PI)
                 }
-            }
-            PlacementStrategy::ConcentricRings => {
-                // Place in concentric rings - evenly spaced angles
-                let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 6).max(1);  // Roughly hexagonal
-                let position_in_ring = n % trees_in_ring;
-                let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
-
-                // Add some variation based on attempt
-                let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
-                (base_angle + offset).rem_euclid(2.0 * PI)
             }
         }
     }
@@ -561,7 +540,7 @@ impl EvolvedPacker {
 
         let mut iterations_without_improvement = 0;
         let mut total_restarts = 0;
-        let max_restarts = 4;
+        let max_restarts = 5;  // More restarts allowed
 
         let mut boundary_cache_iter = 0;
         let mut boundary_info: Vec<(usize, BoundaryEdge)> = Vec::new();
