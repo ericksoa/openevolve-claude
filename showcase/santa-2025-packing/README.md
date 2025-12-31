@@ -117,11 +117,28 @@ let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
 | 65 | More iterations (40k, 3 passes) | 91.36 | More search = lower variance but worse best |
 | 66 | Better placement (300 attempts) | 89.99 | Same plateau |
 
-**Key insight**: Incremental changes won't break through. We've reached a LOCAL OPTIMUM of the current algorithm structure. Need RADICAL changes:
-1. Continuous angle optimization (not discrete 45° steps)
-2. Completely different packing algorithm
-3. Machine learning-guided placement
-4. Or accept this is near-optimal for our approach
+**Key insight**: Incremental changes won't break through. We've reached a LOCAL OPTIMUM of the current algorithm structure. Need RADICAL changes.
+
+### Phase 8: Radical Mutations (Gen67)
+**Goal**: Try completely different approaches to break the plateau
+
+| Gen | Strategy | Score | Learning |
+|-----|----------|-------|----------|
+| 67a | Continuous angles (24 steps, 15°) | 97.51 | MUCH WORSE - finer angles hurt convergence |
+| 67b | NFP-based tangent placement | 93.80 | Worse - tangent sampling misses good spots |
+| 67c | Integrated global rotation | 98.65 | MUCH WORSE - rotating whole packing during SA hurts |
+| 67d | Hybrid crossover (all features) | 97.16 | Kitchen sink approach = slower + worse |
+
+**Key insight**: The "radical" changes all made things WORSE (by 6-12%). This confirms:
+1. **Discrete 45° angles are optimal** for our SA-based approach (continuous hurts convergence)
+2. **Global rotation during SA is harmful** - it destabilizes the search
+3. **NFP tangent sampling** adds compute without finding better positions
+4. **Our current algorithm is a strong local optimum** - the 88.22 champion is robust
+
+**Analysis**: The top 70.1 solutions likely use a fundamentally different algorithm (possibly constraint programming or advanced metaheuristics) rather than SA with incremental improvements. Simply adding "continuous angles" or "global rotation" to our SA framework makes it worse because:
+- SA relies on discrete move acceptance for convergence
+- Continuous angles expand the search space too much
+- Global rotation invalidates cached boundary info
 
 ### Analysis of Top Solutions
 
@@ -174,11 +191,15 @@ for attempt in 0..200 {
 ## What Doesn't Work
 
 1. **More iterations alone** - Diminishing returns without new ideas
-2. **Finer angle granularity** (15°) - 4x slower, worse results
+2. **Finer angle granularity** (15° or 30°) - 4x slower, worse results
 3. **Too many strategies** (7+) - Overhead > benefit
 4. **Multi-seed approach** - 2x time, no improvement
 5. **Post-processing compaction** - Should be in SA
 6. **Greedy angle selection** - Need exhaustive 8-angle search
+7. **Continuous angles in SA** (Gen67a) - Hurts convergence badly
+8. **Global rotation during SA** (Gen67c) - Destabilizes search
+9. **NFP tangent placement** (Gen67b) - Misses good positions
+10. **Kitchen sink approach** (Gen67d) - More features ≠ better
 
 ## Running
 
