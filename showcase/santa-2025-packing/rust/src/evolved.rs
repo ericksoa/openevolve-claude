@@ -1,18 +1,17 @@
-//! Evolved Packing Algorithm - Generation 64 PAIR EXCHANGE
+//! Evolved Packing Algorithm - Generation 66 BETTER PLACEMENT
 //!
-//! MUTATION STRATEGY: PAIR EXCHANGE MOVES
-//! Add pair exchange moves that swap positions of two trees.
-//! This helps escape local minima by exploring larger-scale reconfigurations.
+//! MUTATION STRATEGY: IMPROVED INITIAL PLACEMENT
+//! Focus on better initial placement rather than SA tuning.
 //!
-//! Key insight: Sometimes two trees would be better off swapping positions,
-//! but individual moves can't easily reach that configuration.
+//! Key insight: Better initial placement = less SA work needed.
+//! Increase search attempts and tune placement scoring weights.
 //!
 //! Changes from Gen62:
-//! - Add pair_exchange_move that swaps positions of two trees
-//! - 10% probability of pair exchange during SA
-//! - Prefer swapping boundary trees with non-boundary trees
+//! - Increase search_attempts from 200 to 300
+//! - Increase extension_penalty for tighter initial placements
+//! - Higher neighbor_proximity bonus for dense packing
 //!
-//! Target: Better exploration through pair swaps
+//! Target: Better initial placements lead to better final results
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -50,13 +49,14 @@ pub struct EvolvedConfig {
     pub hot_restart_temp: f64,
     pub elite_pool_size: usize,
     pub compression_prob: f64,
-    pub pair_exchange_prob: f64,  // NEW: Probability of pair exchange move
+    pub extension_penalty_weight: f64,  // Gen66: weight for extension penalty
+    pub neighbor_bonus_weight: f64,     // Gen66: weight for neighbor proximity bonus
 }
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
         Self {
-            search_attempts: 200,
+            search_attempts: 300,      // Gen66: increased from 200
             direction_samples: 64,
             sa_iterations: 28000,
             sa_initial_temp: 0.45,
@@ -77,7 +77,8 @@ impl Default for EvolvedConfig {
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
             compression_prob: 0.20,
-            pair_exchange_prob: 0.10,  // NEW: 10% chance of pair exchange move
+            extension_penalty_weight: 0.12,  // Gen66: increased from 0.08
+            neighbor_bonus_weight: 1.5,      // Gen66: multiplier for neighbor bonus
         }
     }
 }
@@ -360,7 +361,7 @@ impl EvolvedPacker {
 
         let x_extension = (pack_max_x - old_max_x).max(0.0) + (old_min_x - pack_min_x).max(0.0);
         let y_extension = (pack_max_y - old_max_y).max(0.0) + (old_min_y - pack_min_y).max(0.0);
-        let extension_penalty = (x_extension + y_extension) * 0.08;
+        let extension_penalty = (x_extension + y_extension) * self.config.extension_penalty_weight;  // Gen66: use config
 
         let gap_penalty = self.estimate_unusable_gap(tree, existing) * self.config.gap_penalty_weight;
 
@@ -368,7 +369,7 @@ impl EvolvedPacker {
         let center_y = (pack_min_y + pack_max_y) / 2.0;
         let center_penalty = (center_x.abs() + center_y.abs()) * 0.005 / (n as f64).sqrt();
 
-        let neighbor_bonus = self.neighbor_proximity_bonus(tree, existing);
+        let neighbor_bonus = self.neighbor_proximity_bonus(tree, existing) * self.config.neighbor_bonus_weight;  // Gen66: use config
 
         side_score + balance_penalty + extension_penalty + gap_penalty + center_penalty + density_bonus - neighbor_bonus
     }
@@ -587,38 +588,10 @@ impl EvolvedPacker {
                 boundary_cache_iter = iter;
             }
 
-            // NEW: Check if we should do a pair exchange move
-            let do_pair_exchange = rng.gen::<f64>() < self.config.pair_exchange_prob;
-            // Check if we should do a compression move
-            let do_compression = !do_pair_exchange && rng.gen::<f64>() < self.config.compression_prob;
+            // NEW: Check if we should do a compression move
+            let do_compression = rng.gen::<f64>() < self.config.compression_prob;
 
-            if do_pair_exchange {
-                // Try pair exchange
-                let old_trees = trees.clone();
-                let success = self.pair_exchange_move(trees, &boundary_info, rng);
-
-                if success {
-                    let new_side = compute_side_length(trees);
-                    let delta = new_side - current_side;
-
-                    if delta <= 0.0 || rng.gen::<f64>() < (-delta / temp).exp() {
-                        current_side = new_side;
-                        if current_side < best_side {
-                            best_side = current_side;
-                            best_config = trees.clone();
-                            iterations_without_improvement = 0;
-                            self.update_elite_pool(&mut elite_pool, current_side, trees.clone());
-                        } else {
-                            iterations_without_improvement += 1;
-                        }
-                    } else {
-                        *trees = old_trees;
-                        iterations_without_improvement += 1;
-                    }
-                } else {
-                    iterations_without_improvement += 1;
-                }
-            } else if do_compression {
+            if do_compression {
                 // Try radius-based compression
                 let old_trees = trees.clone();
                 let success = self.compression_move(trees, rng);
@@ -757,64 +730,6 @@ impl EvolvedPacker {
         trees[idx] = PlacedTree::new(new_x, new_y, old_angle);
 
         !has_overlap(trees, idx)
-    }
-
-    // NEW: Pair exchange move - swap positions of two trees
-    fn pair_exchange_move(&self, trees: &mut [PlacedTree], boundary_info: &[(usize, BoundaryEdge)], rng: &mut impl Rng) -> bool {
-        if trees.len() < 2 {
-            return false;
-        }
-
-        // Select first tree (prefer boundary trees)
-        let idx1 = if !boundary_info.is_empty() && rng.gen::<f64>() < 0.7 {
-            boundary_info[rng.gen_range(0..boundary_info.len())].0
-        } else {
-            rng.gen_range(0..trees.len())
-        };
-
-        // Select second tree (prefer non-boundary if first is boundary)
-        let is_boundary = boundary_info.iter().any(|(i, _)| *i == idx1);
-        let idx2 = if is_boundary {
-            // Try to find a non-boundary tree
-            let non_boundary: Vec<usize> = (0..trees.len())
-                .filter(|&i| i != idx1 && !boundary_info.iter().any(|(bi, _)| *bi == i))
-                .collect();
-            if !non_boundary.is_empty() && rng.gen::<f64>() < 0.6 {
-                non_boundary[rng.gen_range(0..non_boundary.len())]
-            } else {
-                loop {
-                    let i = rng.gen_range(0..trees.len());
-                    if i != idx1 {
-                        break i;
-                    }
-                }
-            }
-        } else {
-            loop {
-                let i = rng.gen_range(0..trees.len());
-                if i != idx1 {
-                    break i;
-                }
-            }
-        };
-
-        // Swap positions (keeping angles the same)
-        let (x1, y1) = (trees[idx1].x, trees[idx1].y);
-        let (x2, y2) = (trees[idx2].x, trees[idx2].y);
-        let angle1 = trees[idx1].angle_deg;
-        let angle2 = trees[idx2].angle_deg;
-
-        trees[idx1] = PlacedTree::new(x2, y2, angle1);
-        trees[idx2] = PlacedTree::new(x1, y1, angle2);
-
-        // Check for overlaps
-        let valid = !has_overlap(trees, idx1) && !has_overlap(trees, idx2);
-        if !valid {
-            // Revert
-            trees[idx1] = PlacedTree::new(x1, y1, angle1);
-            trees[idx2] = PlacedTree::new(x2, y2, angle2);
-        }
-        valid
     }
 
     fn update_elite_pool(&self, pool: &mut Vec<(f64, Vec<PlacedTree>)>, score: f64, config: Vec<PlacedTree>) {

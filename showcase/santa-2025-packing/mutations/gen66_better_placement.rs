@@ -1,16 +1,17 @@
-//! Evolved Packing Algorithm - Generation 63 DOUBLE RING
+//! Evolved Packing Algorithm - Generation 66 BETTER PLACEMENT
 //!
-//! MUTATION STRATEGY: DOUBLE RING CONCENTRIC
-//! Use double the trees per ring for denser concentric placement.
+//! MUTATION STRATEGY: IMPROVED INITIAL PLACEMENT
+//! Focus on better initial placement rather than SA tuning.
 //!
-//! Key insight: The original concentric rings uses ring*6 trees per ring.
-//! Double that to ring*12 for even denser packing in each ring.
+//! Key insight: Better initial placement = less SA work needed.
+//! Increase search attempts and tune placement scoring weights.
 //!
-//! Changes from Gen47:
-//! - trees_in_ring = ring * 12 instead of ring * 6
-//! - More trees per ring = denser packing
+//! Changes from Gen62:
+//! - Increase search_attempts from 200 to 300
+//! - Increase extension_penalty for tighter initial placements
+//! - Higher neighbor_proximity bonus for dense packing
 //!
-//! Target: Denser concentric rings
+//! Target: Better initial placements lead to better final results
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -47,12 +48,15 @@ pub struct EvolvedConfig {
     pub hot_restart_interval: usize,
     pub hot_restart_temp: f64,
     pub elite_pool_size: usize,
+    pub compression_prob: f64,
+    pub extension_penalty_weight: f64,  // Gen66: weight for extension penalty
+    pub neighbor_bonus_weight: f64,     // Gen66: weight for neighbor proximity bonus
 }
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
         Self {
-            search_attempts: 200,
+            search_attempts: 300,      // Gen66: increased from 200
             direction_samples: 64,
             sa_iterations: 28000,
             sa_initial_temp: 0.45,
@@ -72,6 +76,9 @@ impl Default for EvolvedConfig {
             hot_restart_interval: 800,
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
+            compression_prob: 0.20,
+            extension_penalty_weight: 0.12,  // Gen66: increased from 0.08
+            neighbor_bonus_weight: 1.5,      // Gen66: multiplier for neighbor bonus
         }
     }
 }
@@ -307,9 +314,8 @@ impl EvolvedPacker {
                 }
             }
             PlacementStrategy::ConcentricRings => {
-                // CHANGED: Double the trees per ring
                 let ring = ((n as f64).sqrt() as usize).max(1);
-                let trees_in_ring = (ring * 12).max(1);  // DOUBLED from ring*6 to ring*12
+                let trees_in_ring = (ring * 6).max(1);
                 let position_in_ring = n % trees_in_ring;
                 let base_angle = (position_in_ring as f64 / trees_in_ring as f64) * 2.0 * PI;
                 let offset = (attempt as f64 / self.config.search_attempts as f64) * 0.5 * PI;
@@ -355,7 +361,7 @@ impl EvolvedPacker {
 
         let x_extension = (pack_max_x - old_max_x).max(0.0) + (old_min_x - pack_min_x).max(0.0);
         let y_extension = (pack_max_y - old_max_y).max(0.0) + (old_min_y - pack_min_y).max(0.0);
-        let extension_penalty = (x_extension + y_extension) * 0.08;
+        let extension_penalty = (x_extension + y_extension) * self.config.extension_penalty_weight;  // Gen66: use config
 
         let gap_penalty = self.estimate_unusable_gap(tree, existing) * self.config.gap_penalty_weight;
 
@@ -363,7 +369,7 @@ impl EvolvedPacker {
         let center_y = (pack_min_y + pack_max_y) / 2.0;
         let center_penalty = (center_x.abs() + center_y.abs()) * 0.005 / (n as f64).sqrt();
 
-        let neighbor_bonus = self.neighbor_proximity_bonus(tree, existing);
+        let neighbor_bonus = self.neighbor_proximity_bonus(tree, existing) * self.config.neighbor_bonus_weight;  // Gen66: use config
 
         side_score + balance_penalty + extension_penalty + gap_penalty + center_penalty + density_bonus - neighbor_bonus
     }
@@ -582,54 +588,87 @@ impl EvolvedPacker {
                 boundary_cache_iter = iter;
             }
 
-            let do_fill_move = rng.gen::<f64>() < self.config.fill_move_prob;
+            // NEW: Check if we should do a compression move
+            let do_compression = rng.gen::<f64>() < self.config.compression_prob;
 
-            let (idx, edge) = if do_fill_move {
-                let interior_trees: Vec<usize> = (0..trees.len())
-                    .filter(|&i| !boundary_info.iter().any(|(bi, _)| *bi == i))
-                    .collect();
+            if do_compression {
+                // Try radius-based compression
+                let old_trees = trees.clone();
+                let success = self.compression_move(trees, rng);
 
-                if !interior_trees.is_empty() && rng.gen::<f64>() < 0.5 {
-                    (interior_trees[rng.gen_range(0..interior_trees.len())], BoundaryEdge::None)
-                } else if !boundary_info.is_empty() {
+                if success {
+                    let new_side = compute_side_length(trees);
+                    let delta = new_side - current_side;
+
+                    if delta <= 0.0 || rng.gen::<f64>() < (-delta / temp).exp() {
+                        current_side = new_side;
+                        if current_side < best_side {
+                            best_side = current_side;
+                            best_config = trees.clone();
+                            iterations_without_improvement = 0;
+                            self.update_elite_pool(&mut elite_pool, current_side, trees.clone());
+                        } else {
+                            iterations_without_improvement += 1;
+                        }
+                    } else {
+                        *trees = old_trees;
+                        iterations_without_improvement += 1;
+                    }
+                } else {
+                    *trees = old_trees;
+                    iterations_without_improvement += 1;
+                }
+            } else {
+                // Regular move
+                let do_fill_move = rng.gen::<f64>() < self.config.fill_move_prob;
+
+                let (idx, edge) = if do_fill_move {
+                    let interior_trees: Vec<usize> = (0..trees.len())
+                        .filter(|&i| !boundary_info.iter().any(|(bi, _)| *bi == i))
+                        .collect();
+
+                    if !interior_trees.is_empty() && rng.gen::<f64>() < 0.5 {
+                        (interior_trees[rng.gen_range(0..interior_trees.len())], BoundaryEdge::None)
+                    } else if !boundary_info.is_empty() {
+                        let bi = &boundary_info[rng.gen_range(0..boundary_info.len())];
+                        (bi.0, bi.1)
+                    } else {
+                        (rng.gen_range(0..trees.len()), BoundaryEdge::None)
+                    }
+                } else if !boundary_info.is_empty() && rng.gen::<f64>() < self.config.boundary_focus_prob {
                     let bi = &boundary_info[rng.gen_range(0..boundary_info.len())];
                     (bi.0, bi.1)
                 } else {
                     (rng.gen_range(0..trees.len()), BoundaryEdge::None)
-                }
-            } else if !boundary_info.is_empty() && rng.gen::<f64>() < self.config.boundary_focus_prob {
-                let bi = &boundary_info[rng.gen_range(0..boundary_info.len())];
-                (bi.0, bi.1)
-            } else {
-                (rng.gen_range(0..trees.len()), BoundaryEdge::None)
-            };
+                };
 
-            let old_tree = trees[idx].clone();
+                let old_tree = trees[idx].clone();
 
-            let success = self.sa_move(trees, idx, temp, edge, do_fill_move, rng);
+                let success = self.sa_move(trees, idx, temp, edge, do_fill_move, rng);
 
-            if success {
-                let new_side = compute_side_length(trees);
-                let delta = new_side - current_side;
+                if success {
+                    let new_side = compute_side_length(trees);
+                    let delta = new_side - current_side;
 
-                if delta <= 0.0 || rng.gen::<f64>() < (-delta / temp).exp() {
-                    current_side = new_side;
-                    if current_side < best_side {
-                        best_side = current_side;
-                        best_config = trees.clone();
-                        iterations_without_improvement = 0;
+                    if delta <= 0.0 || rng.gen::<f64>() < (-delta / temp).exp() {
+                        current_side = new_side;
+                        if current_side < best_side {
+                            best_side = current_side;
+                            best_config = trees.clone();
+                            iterations_without_improvement = 0;
 
-                        self.update_elite_pool(&mut elite_pool, current_side, trees.clone());
+                            self.update_elite_pool(&mut elite_pool, current_side, trees.clone());
+                        } else {
+                            iterations_without_improvement += 1;
+                        }
                     } else {
+                        trees[idx] = old_tree;
                         iterations_without_improvement += 1;
                     }
                 } else {
                     trees[idx] = old_tree;
                     iterations_without_improvement += 1;
                 }
-            } else {
-                trees[idx] = old_tree;
-                iterations_without_improvement += 1;
             }
 
             temp = (temp * self.config.sa_cooling_rate).max(self.config.sa_min_temp);
@@ -638,6 +677,59 @@ impl EvolvedPacker {
         if best_side < compute_side_length(trees) {
             *trees = best_config;
         }
+    }
+
+    // NEW: Radius-based compression move
+    fn compression_move(&self, trees: &mut [PlacedTree], rng: &mut impl Rng) -> bool {
+        if trees.is_empty() {
+            return false;
+        }
+
+        // Compute center of bounding box
+        let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
+        let center_x = (min_x + max_x) / 2.0;
+        let center_y = (min_y + max_y) / 2.0;
+
+        // Pick a tree, preferably one that's far from center
+        let idx = if rng.gen::<f64>() < 0.7 {
+            // Pick tree with largest distance from center
+            let mut max_dist = 0.0;
+            let mut max_idx = 0;
+            for (i, tree) in trees.iter().enumerate() {
+                let dx = tree.x - center_x;
+                let dy = tree.y - center_y;
+                let dist = dx * dx + dy * dy;
+                if dist > max_dist {
+                    max_dist = dist;
+                    max_idx = i;
+                }
+            }
+            max_idx
+        } else {
+            rng.gen_range(0..trees.len())
+        };
+
+        let old_x = trees[idx].x;
+        let old_y = trees[idx].y;
+        let old_angle = trees[idx].angle_deg;
+
+        // Compute direction toward center
+        let dx = center_x - old_x;
+        let dy = center_y - old_y;
+        let dist = (dx * dx + dy * dy).sqrt();
+
+        if dist < 0.01 {
+            return false;
+        }
+
+        // Move toward center proportionally to distance
+        let compression_factor = rng.gen_range(0.02..0.08);  // Move 2-8% of distance toward center
+        let new_x = old_x + dx * compression_factor;
+        let new_y = old_y + dy * compression_factor;
+
+        trees[idx] = PlacedTree::new(new_x, new_y, old_angle);
+
+        !has_overlap(trees, idx)
     }
 
     fn update_elite_pool(&self, pool: &mut Vec<(f64, Vec<PlacedTree>)>, score: f64, config: Vec<PlacedTree>) {
