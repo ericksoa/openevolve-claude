@@ -10,10 +10,10 @@
 |------|---------|----------|---------|-------------|
 | `0520fde7` | Grid comparison | 80 bytes | **57 bytes** | -29% |
 | `00d62c1b` | Fill enclosed regions | 280 bytes | **238 bytes** | -15% |
-| `a64e4611` | Largest rectangle + cross | ~1200 bytes | **712 bytes** | -41% |
+| `a64e4611` | Largest rectangle + cross | ~1200 bytes | **615 bytes** | -49% |
 | `017c7c7b` | Simple transform | 54 bytes | **54 bytes** | baseline |
 
-**Total score improvement**: +553 points across evolved tasks
+**Total score improvement**: +650 points across evolved tasks
 
 ---
 
@@ -170,31 +170,41 @@ This task required significant reverse-engineering:
 | 65 | 750 | `[*map(list,G)]` | Shorter deep copy |
 | 70 | 718 | `I=range` alias | range used 11 times, saves 32 bytes |
 | 75 | 717 | `r and X or Y` ternary | Shorter than `X if r else Y` |
-| 80 | **712** | `c<C and h[r][c]` | Shorter ternary for zero fallback |
+| 80 | 712 | `c<C and h[r][c]` | Shorter ternary for zero fallback |
+| **85** | **642** | **O(n⁴) brute-force** | **Algorithm swap: simpler is shorter** |
+| 90 | 631 | List as tuple `[I(f),I(j+1,C)]` | Shorter than `[(I(f),f),...]` pairs |
+| 95 | 619 | Range truthiness | `if L` works for empty ranges |
+| **100** | **615** | `-~x` trick + `[0,]` | `(c-a+1)` → `-~(c-a)`, `[(0,)]` → `[0,]` |
 
-### Champion Solution (712 bytes)
+### Key Breakthrough: Algorithm Swap (Gen 85)
+
+The biggest single improvement came from **switching algorithms**:
+
+- **Old (O(n²) histogram)**: Complex stack-based maximal rectangle (712 bytes)
+- **New (O(n⁴) brute-force)**: Simple nested loops checking all rectangles (642 bytes)
+
+Despite being computationally slower, the brute-force approach is **70 bytes shorter** because:
+1. No histogram construction or stack manipulation
+2. Single `max()` comprehension vs complex while loop
+3. All conditions inline in one expression
+
+### Champion Solution (615 bytes)
 
 ```python
 def solve(G):
- I=range;R,C=len(G),len(G[0]);O=[*map(list,G)];h=[];b=0,
- for r in I(R):
-  h+=[(r and 1+h[r-1][c]or 1)*(O[r][c]<1)for c in I(C)],;s=[]
-  for c in I(C+1):
-   t=c<C and h[r][c];x=c
-   while s and s[-1][1]>t:q,w=s.pop();b=max(b,(w*(c-q),r-w+1,q,r,c-1));x=q
-   s+=(x,t),
- if b[0]<1:return G
+ I=range;R,C=len(G),len(G[0]);O=[*map(list,G)]
+ if(b:=max([-~(c-a)*-~(k-d),a,d,c,k]for a in I(R)for d in I(C)for c in I(a,R)for k in I(d,C)if all(O[r][j]<1for r in I(a,c+1)for j in I(d,k+1)))or[0,])[0]<1:return G
  _,e,f,g,j=b;H=j-f>g-e;e+=e>0;g-=H*(g<R-1);f+=1-H;j-=1-H
  for r in I(e,g+1):G[r][f:j+1]=[3]*(j-f+1)
  E=lambda i,L,z,d=0:d or all(O[(v,i)[z]][(i,v)[z]]<1for v in L)
- for i,A,B,P,z in[(r,e,g,[(I(f),f),(I(j+1,C),j<C-1)],1)for r in I(e,g+1)]+[(c,f,j,[(I(e),e),(I(g+1,R),g<R-1)],0)for c in I(f,j+1)]:
-  for L,k in P:
-   if k*E(i,L,z)*E(i-1,L,z,i==A)*E(i+1,L,z,i==B):
+ for i,A,B,P,z in[(r,e,g,[I(f),I(j+1,C)],1)for r in I(e,g+1)]+[(c,f,j,[I(e),I(g+1,R)],0)for c in I(f,j+1)]:
+  for L in P:
+   if L and E(i,L,z)*E(i-1,L,z,i==A)*E(i+1,L,z,i==B):
     for v in L:G[(v,i)[z]][(i,v)[z]]=3
  return G
 ```
 
-**Improvement**: ~1200 → 712 bytes (**-41%**, +488 competition points)
+**Improvement**: ~1200 → 615 bytes (**-49%**, +585 competition points)
 
 ---
 
@@ -234,6 +244,11 @@ Tricks discovered during evolution, applicable to other tasks:
 | `I=range` alias | When range used 5+ times, alias saves bytes | 3+ bytes/use |
 | `x and Y or Z` | Shorter than `Y if x else Z` for truthy Y | 2 bytes |
 | E with default | `E(i,L,z,d=0):d or F` for edge-case bypass | 2+ bytes |
+| **Algorithm swap** | O(n⁴) brute-force can be shorter than O(n²) | 70+ bytes |
+| `-~x` for `x+1` | Bitwise not trick: `-~(c-a)` = `c-a+1` | 1 byte |
+| `[0,]` fallback | Shorter than `[(0,)]` for empty fallback | 2 bytes |
+| Range truthiness | `if L` works for empty `range()` checks | 4+ bytes |
+| Lists in tuples | `[I(f),I(j+1,C)]` vs `[(I(f),f),...]` pairs | 10+ bytes |
 
 ---
 
@@ -309,7 +324,7 @@ showcase/code-golf/
 ├── solutions/                   # Evolved Python solutions
 │   ├── 00d62c1b.py             # 238 bytes (champion)
 │   ├── 0520fde7.py             # 57 bytes (champion)
-│   ├── a64e4611.py             # 712 bytes (champion)
+│   ├── a64e4611.py             # 615 bytes (champion)
 │   └── 017c7c7b.py             # 54 bytes (baseline)
 └── mutations/                   # Evolution logs
     ├── arc_fill_enclosed_regions.md
