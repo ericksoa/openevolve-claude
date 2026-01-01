@@ -47,7 +47,7 @@ fn main() {
         for (i, tree) in packing.trees.iter().enumerate() {
             writeln!(
                 writer,
-                "{:03}_{},{:.6},{:.6},{:.6}",
+                "{:03}_{},s{:.6},s{:.6},s{:.6}",
                 n, i, tree.x, tree.y, tree.angle_deg
             )
             .unwrap();
