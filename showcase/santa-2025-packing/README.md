@@ -231,6 +231,10 @@ for wave in 0..3 {
 17. **Gradient angle refinement** (Gen74b) - Refining near best angle doesn't help
 18. **Adaptive density-based angles** (Gen74c) - Much worse and 40% slower
 19. **Angle changes during wave compaction** (Gen74d) - Completely breaks algorithm
+20. **Extending fine angles to 40%** (Gen75a) - More trees with fine angles doesn't help
+21. **Finer 10° steps** (Gen75b) - Marginal gain for 22% more runtime
+22. **Two-tier angle granularity** (Gen75c) - More complexity = worse
+23. **More wave passes** (Gen75d) - 5 waves worse than 3
 
 ### Phase 9: Surgical Improvements (Gen68-Gen71)
 **Goal**: Small, targeted parameter changes to break the plateau
@@ -308,6 +312,24 @@ for wave in 0..3 {
 4. **Changing angles during wave compaction** completely breaks the algorithm
 
 **Gen74a innovation**: Use 15° step angles for n >= 140 (last 30% of trees) instead of n >= 160 (last 20%). This allows more trees in the dense late-stage packing to find optimal orientations.
+
+### Phase 13: Further Angle Experiments (Gen75)
+**Goal**: Build on Gen74a success with more angle variations
+
+| Gen | Strategy | Score | Learning |
+|-----|----------|-------|----------|
+| 75a | Extend fine angles to n>=120 (last 40%) | 88.97 | Extending further doesn't help |
+| 75b | 10° steps instead of 15° | 88.59 | Marginal improvement but 22% slower |
+| 75c | Two-tier (15° for n>=140, 7.5° for n>=180) | 89.99 | More complexity = worse results |
+| 75d | 5 wave passes instead of 3 | 89.86 | More waves = worse results |
+
+**Key insights**:
+1. **n>=140 is the sweet spot** - extending to 40% (n>=120) doesn't help
+2. **15° steps are optimal** - 10° is marginal gain for significant runtime cost
+3. **Two-tier angle schemes add complexity without benefit** - simpler is better
+4. **3 wave passes is optimal** - more waves don't improve compaction
+
+**Conclusion**: Gen74a (88.72) remains champion. Further angle refinements don't break through the 88-90 plateau. Need fundamentally different approach.
 
 ## Running
 
