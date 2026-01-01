@@ -62,7 +62,7 @@ impl Default for EvolvedConfig {
             sa_min_temp: 0.00001,
             translation_scale: 0.055,
             rotation_granularity: 45.0,
-            center_pull_strength: 0.09,
+            center_pull_strength: 0.10,
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
@@ -76,7 +76,7 @@ impl Default for EvolvedConfig {
             elite_pool_size: 3,
             compression_prob: 0.25,
             wave_passes: 3,
-            late_stage_threshold: 150,  // CHANGED: was 160, now 140 (last 30%)
+            late_stage_threshold: 140,  // CHANGED: was 160, now 140 (last 30%)
             fine_angle_step: 15.0,
         }
     }

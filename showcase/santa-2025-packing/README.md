@@ -8,7 +8,7 @@ Pack 1-200 Christmas tree-shaped polygons into the smallest square box.
 
 **Scoring**: `score = Σ(side²/n)` for n=1 to 200 (lower is better)
 
-**Leaderboard**: Top scores ~69, our current best: **88.72** (Gen74a)
+**Leaderboard**: Top scores ~69, our current best: **87.86** (Gen76d)
 
 ## Tree Shape
 
@@ -156,7 +156,7 @@ Analyzed a [70.1 score solution](https://github.com/berkaycamur/Santa-Competitio
 2. Dedicated compaction/squeeze passes
 3. Continuous angle optimization (careful - Gen54 showed pitfalls)
 
-## Current Best Algorithm (Gen74a)
+## Current Best Algorithm (Gen76d)
 
 ```rust
 // 6 parallel placement strategies
@@ -167,8 +167,8 @@ strategies = [ClockwiseSpiral, CounterclockwiseSpiral, Grid,
 for attempt in 0..200 {
     let dir = select_direction_for_strategy(n, strategy, attempt);
 
-    // Gen74a: Use finer angles for late-stage trees (last 30%)
-    let angles = if n >= 140 {  // Changed from 160 in Gen73c
+    // Gen76d: Use finer angles for late-stage trees (last 25%)
+    let angles = if n >= 150 {  // Crossover: between Gen73c (160) and Gen74a (140)
         // Last 30% of trees: 15° step angles (24 total)
         [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165,
          180, 195, 210, 225, 240, 255, 270, 285, 300, 315, 330, 345]
@@ -183,10 +183,10 @@ for attempt in 0..200 {
     }
 }
 
-// SA optimization with Gen62's proven parameters:
+// SA optimization with Gen76d's crossover parameters:
 // - 85% boundary-focused moves
-// - 20% radius compression moves
-// - center_pull_strength: 0.07
+// - 25% compression probability (from Gen71a crossover)
+// - center_pull_strength: 0.09 (from Gen71a crossover)
 // - Hot restarts from elite pool
 // - 28,000 iterations per pass
 // - NOTE: SA still uses 45° angles only (maintains stability)
@@ -331,6 +331,33 @@ for wave in 0..3 {
 
 **Conclusion**: Gen74a (88.72) remains champion. Further angle refinements don't break through the 88-90 plateau. Need fundamentally different approach.
 
+### Phase 14: Crossover & AlphaEvolve Techniques (Gen76)
+**Goal**: Use crossover of successful parents + AlphaEvolve-inspired adaptive techniques
+
+Tested 8 candidates using crossover (combining best features from multiple generations) and AlphaEvolve-inspired techniques:
+
+| Gen | Type | Strategy | Score | Learning |
+|-----|------|----------|-------|----------|
+| 76a | Crossover | Gen74a × Gen71a: stronger compression (25%, 0.10) | 90.17 | Too aggressive |
+| 76b | Crossover | Gen74a × Gen72b: 4 wave passes | 89.16 | More waves doesn't help |
+| 76c | Crossover | Gen74a × Gen62: radius squeeze moves | 90.12 | Separate squeeze doesn't help |
+| **76d** | **Crossover** | **Gen73c × Gen74a × Gen71a: threshold=150, 25%, 0.09** | **87.86** | **🎉 NEW BEST!** |
+| 76e | AlphaEvolve | More iterations (35k) + higher early-exit | 89.36 | More search ≠ better |
+| 76f | AlphaEvolve | Slower cooling (0.999945) + higher temp (0.50) | 88.23 | Marginal improvement |
+| 76g | Crossover | 3 SA passes | 88.88 | No improvement |
+| 76h | AlphaEvolve | Larger elite pool (5) + faster restarts | 89.02 | Doesn't help |
+
+**Key insights**:
+1. **3-way crossover works!** Gen76d combined the best aspects of three generations
+2. **Middle threshold (150) is optimal** - between Gen73c (160) and Gen74a (140)
+3. **Moderate compression (25%) + moderate pull (0.09)** - balanced approach
+4. **AlphaEvolve-style adaptive techniques** didn't help much for this problem
+
+**Gen76d innovation**: Three-way crossover combining:
+- Gen73c: Late-stage continuous angles concept
+- Gen74a: Extended threshold approach
+- Gen71a: Compression probability and center pull strength
+
 ## Running
 
 ```bash
@@ -356,12 +383,13 @@ santa-2025-packing/
 ├── README.md
 ├── data/
 │   └── sample_submission.csv
-├── mutations/           # All generation variants (Gen29-Gen74+)
+├── mutations/           # All generation variants (Gen29-Gen76+)
 │   ├── gen47_concentric.rs         # First sub-90
 │   ├── gen62_radius_compress.rs    # Former best (88.22)
 │   ├── gen72b_wave_compaction.rs   # Former best (89.46)
 │   ├── gen73c_late_continuous.rs   # Former best (88.90)
-│   ├── gen74a_extended_late_continuous.rs  # Current best (88.72)
+│   ├── gen74a_extended_late_continuous.rs  # Former best (88.72)
+│   ├── gen76d_middle_threshold.rs  # Current best (87.86) - 3-way crossover
 │   └── ...
 └── rust/
     ├── Cargo.toml
@@ -384,7 +412,8 @@ santa-2025-packing/
 | Gen62 RadiusCompress | 88.22 | +28% | Compression moves (lucky run) |
 | Gen72b WaveCompaction | 89.46 | +30% | Post-SA wave compaction |
 | Gen73c LateContinuous | 88.90 | +29% | Fine angles for last 20% trees |
-| **Gen74a ExtendedLate** | **88.72** | **+29%** | **Fine angles for last 30% trees** |
+| Gen74a ExtendedLate | 88.72 | +29% | Fine angles for last 30% trees |
+| **Gen76d Crossover** | **87.86** | **+27%** | **3-way crossover: threshold=150, 25% compression** |
 | *Target (top solution)* | *~69* | - | Continuous angles + global rotation |
 
 **Status**: Active evolution. Competition deadline: January 30, 2026.

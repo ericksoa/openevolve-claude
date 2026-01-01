@@ -1,6 +1,6 @@
 //! Evolved Packing Algorithm - Generation 74a EXTENDED LATE-STAGE CONTINUOUS
 //!
-//! MUTATION STRATEGY: EXTEND FINE ANGLES TO LAST 30% OF TREES
+//! CROSSOVER STRATEGY: 3 SA passes instead of 2
 //! Gen73c showed that late-stage continuous angles help (88.90).
 //! Hypothesis: Extending fine angles to n >= 140 (last 30%) instead of
 //! n >= 160 (last 20%) might help more trees fit into gaps.
@@ -62,8 +62,8 @@ impl Default for EvolvedConfig {
             sa_min_temp: 0.00001,
             translation_scale: 0.055,
             rotation_granularity: 45.0,
-            center_pull_strength: 0.09,
-            sa_passes: 2,
+            center_pull_strength: 0.07,
+            sa_passes: 3,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
             num_strategies: 6,
@@ -74,9 +74,9 @@ impl Default for EvolvedConfig {
             hot_restart_interval: 800,
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
-            compression_prob: 0.25,
+            compression_prob: 0.20,
             wave_passes: 3,
-            late_stage_threshold: 150,  // CHANGED: was 160, now 140 (last 30%)
+            late_stage_threshold: 140,  // CHANGED: was 160, now 140 (last 30%)
             fine_angle_step: 15.0,
         }
     }

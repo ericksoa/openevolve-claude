@@ -1,14 +1,18 @@
-//! Evolved Packing Algorithm - Generation 74a EXTENDED LATE-STAGE CONTINUOUS
+//! Evolved Packing Algorithm - Generation 76c CROSSOVER: Gen74a × Gen62
 //!
-//! MUTATION STRATEGY: EXTEND FINE ANGLES TO LAST 30% OF TREES
-//! Gen73c showed that late-stage continuous angles help (88.90).
-//! Hypothesis: Extending fine angles to n >= 140 (last 30%) instead of
-//! n >= 160 (last 20%) might help more trees fit into gaps.
+//! CROSSOVER STRATEGY: Late-stage angles + dedicated radius squeeze moves
+//! Gen74a has late-stage continuous angles (88.72).
+//! Gen62 had radius compression that gave lucky 88.22.
 //!
-//! Risk: More trees with fine angles = more computation + potential SA instability
+//! Hypothesis: Add dedicated radius squeeze moves that are MORE AGGRESSIVE
+//! than the standard compression moves. These moves specifically:
+//! - Target trees far from center
+//! - Try multiple squeeze distances
+//! - Run with 15% probability (separate from compression_prob)
 //!
-//! Changes from Gen73c:
-//! - Change late_stage_threshold from 160 to 140
+//! Changes from Gen74a:
+//! - Add radius_squeeze_prob: 0.15
+//! - Add dedicated squeeze_toward_center move with multi-step attempts
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -49,6 +53,7 @@ pub struct EvolvedConfig {
     pub wave_passes: usize,
     pub late_stage_threshold: usize,
     pub fine_angle_step: f64,
+    pub radius_squeeze_prob: f64,  // NEW: Probability of aggressive radius squeeze
 }
 
 impl Default for EvolvedConfig {
@@ -62,7 +67,7 @@ impl Default for EvolvedConfig {
             sa_min_temp: 0.00001,
             translation_scale: 0.055,
             rotation_granularity: 45.0,
-            center_pull_strength: 0.09,
+            center_pull_strength: 0.07,
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
@@ -74,10 +79,11 @@ impl Default for EvolvedConfig {
             hot_restart_interval: 800,
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
-            compression_prob: 0.25,
+            compression_prob: 0.20,
             wave_passes: 3,
-            late_stage_threshold: 150,  // CHANGED: was 160, now 140 (last 30%)
+            late_stage_threshold: 140,
             fine_angle_step: 15.0,
+            radius_squeeze_prob: 0.15,  // NEW: 15% chance of aggressive squeeze
         }
     }
 }
@@ -678,6 +684,38 @@ impl EvolvedPacker {
                 boundary_cache_iter = iter;
             }
 
+            // NEW: Aggressive radius squeeze (from Gen62 crossover)
+            let do_squeeze = rng.gen::<f64>() < self.config.radius_squeeze_prob;
+
+            if do_squeeze {
+                let old_trees = trees.clone();
+                let success = self.radius_squeeze_move(trees, rng);
+
+                if success {
+                    let new_side = compute_side_length(trees);
+                    let delta = new_side - current_side;
+
+                    if delta <= 0.0 || rng.gen::<f64>() < (-delta / temp).exp() {
+                        current_side = new_side;
+                        if current_side < best_side {
+                            best_side = current_side;
+                            best_config = trees.clone();
+                            iterations_without_improvement = 0;
+                            self.update_elite_pool(&mut elite_pool, current_side, trees.clone());
+                        } else {
+                            iterations_without_improvement += 1;
+                        }
+                    } else {
+                        *trees = old_trees;
+                        iterations_without_improvement += 1;
+                    }
+                } else {
+                    *trees = old_trees;
+                    iterations_without_improvement += 1;
+                }
+                continue;  // Skip regular moves this iteration
+            }
+
             let do_compression = rng.gen::<f64>() < self.config.compression_prob;
 
             if do_compression {
@@ -811,6 +849,61 @@ impl EvolvedPacker {
         trees[idx] = PlacedTree::new(new_x, new_y, old_angle);
 
         !has_overlap(trees, idx)
+    }
+
+    /// NEW: Aggressive radius squeeze from Gen62 crossover
+    /// More aggressive than compression_move - tries multiple squeeze steps
+    fn radius_squeeze_move(&self, trees: &mut [PlacedTree], rng: &mut impl Rng) -> bool {
+        if trees.len() < 3 {
+            return false;
+        }
+
+        let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
+        let center_x = (min_x + max_x) / 2.0;
+        let center_y = (min_y + max_y) / 2.0;
+
+        // Find the 3 trees farthest from center
+        let mut tree_distances: Vec<(usize, f64)> = trees.iter().enumerate()
+            .map(|(i, t)| {
+                let dx = t.x - center_x;
+                let dy = t.y - center_y;
+                (i, (dx * dx + dy * dy).sqrt())
+            })
+            .collect();
+        tree_distances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+        // Pick one of the top 3 farthest trees
+        let pick = rng.gen_range(0..3.min(tree_distances.len()));
+        let idx = tree_distances[pick].0;
+
+        let old_x = trees[idx].x;
+        let old_y = trees[idx].y;
+        let old_angle = trees[idx].angle_deg;
+
+        let dx = center_x - old_x;
+        let dy = center_y - old_y;
+        let dist = (dx * dx + dy * dy).sqrt();
+
+        if dist < 0.05 {
+            return false;
+        }
+
+        // Try multiple squeeze factors, find the best valid one
+        let squeeze_factors = [0.15, 0.12, 0.10, 0.08, 0.06, 0.04, 0.02];
+
+        for &factor in &squeeze_factors {
+            let new_x = old_x + dx * factor;
+            let new_y = old_y + dy * factor;
+            trees[idx] = PlacedTree::new(new_x, new_y, old_angle);
+
+            if !has_overlap(trees, idx) {
+                return true;  // Found valid squeeze
+            }
+        }
+
+        // All failed, restore original
+        trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
+        false
     }
 
     fn update_elite_pool(&self, pool: &mut Vec<(f64, Vec<PlacedTree>)>, score: f64, config: Vec<PlacedTree>) {
