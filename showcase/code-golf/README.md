@@ -4,16 +4,157 @@
 
 ---
 
-## Results Summary
+## Progress Summary
 
-| Task | Pattern | Original | Evolved | Improvement |
-|------|---------|----------|---------|-------------|
-| `0520fde7` | Grid comparison | 80 bytes | **57 bytes** | -29% |
-| `00d62c1b` | Fill enclosed regions | 280 bytes | **238 bytes** | -15% |
-| `a64e4611` | Largest rectangle + cross | ~1200 bytes | **541 bytes** | -55% |
-| `017c7c7b` | Simple transform | 54 bytes | **54 bytes** | baseline |
+| Metric | Value |
+|--------|-------|
+| **Solved** | 4 / 400 (1.0%) |
+| **Total Score** | 9,102 points |
+| **Projected Final** | ~910,000 points (at current avg) |
 
-**Total score improvement**: +724 points across evolved tasks
+---
+
+## Solved Problems (4)
+
+| Task | Pattern | Bytes | Score | Solution |
+|------|---------|-------|-------|----------|
+| [`0520fde7`](./0520fde7/README.md) | Grid AND comparison | **57** | 2,443 | [solution.py](./0520fde7/solution.py) |
+| [`017c7c7b`](./017c7c7b/README.md) | Extend pattern + double | **80** | 2,420 | [solution.py](./017c7c7b/solution.py) |
+| [`00d62c1b`](./00d62c1b/README.md) | Fill enclosed regions | **238** | 2,262 | [solution.py](./00d62c1b/solution.py) |
+| [`a64e4611`](./a64e4611/README.md) | Largest rectangle + cross | **523** | 1,977 | [solution.py](./a64e4611/solution.py) |
+
+---
+
+## Unsolved Problems (396)
+
+<details>
+<summary>Click to expand full list of unsolved tasks</summary>
+
+| Task ID | Task ID | Task ID | Task ID |
+|---------|---------|---------|---------|
+| `007bbfb7` | `025d127b` | `045e512c` | `05269061` |
+| `05f2a901` | `06df4c85` | `08ed6ac7` | `09629e4f` |
+| `0962bcdd` | `0a938d79` | `0b148d64` | `0ca9ddb6` |
+| `0d3d703e` | `0dfd9992` | `0e206a2e` | `10fcaaa3` |
+| `11852cab` | `1190e5a7` | `137eaa0f` | `150deff5` |
+| `178fcbfb` | `1a07d186` | `1b2d62fb` | `1b60fb0c` |
+| `1bfc4729` | `1c786137` | `1caeab9d` | `1cf80156` |
+| `1e0a9b12` | `1e32b0e9` | `1f0c79e5` | `1f642eb9` |
+| `1f85a75f` | `1f876c06` | `1fad071e` | `2013d3e2` |
+| `2204b7a8` | `22168020` | `22233c11` | `2281f1f4` |
+| `228f6490` | `22eb0ac0` | `234bbc79` | `23581191` |
+| `239be575` | `23b5c85d` | `253bf280` | `25d487eb` |
+| `25d8a9c8` | `25ff71a9` | `264363fd` | `272f95fa` |
+| `27a28665` | `28bf18c6` | `28e73c20` | `29623171` |
+| `29c11459` | `29ec7d0e` | `2bcee788` | `2bee17df` |
+| `2c608aff` | `2dc579da` | `2dd70a9a` | `2dee498d` |
+| `31aa019c` | `321b1fc6` | `32597951` | `3345333e` |
+| `3428a4f5` | `3618c87e` | `3631a71a` | `363442ee` |
+| `36d67576` | `36fdfd69` | `3906de3d` | `39a8645d` |
+| `39e1d7f9` | `3aa6fb7a` | `3ac3eb23` | `3af2c5a8` |
+| `3bd67248` | `3bdb4ada` | `3befdf3e` | `3c9b0459` |
+| `3de23699` | `3e980e27` | `3eda0437` | `3f7978a0` |
+| `40853293` | `4093f84a` | `41e4d17e` | `4258a5f9` |
+| `4290ef0e` | `42a50994` | `4347f46a` | `444801d8` |
+| `445eab21` | `447fd412` | `44d8ac46` | `44f52bb0` |
+| `4522001f` | `4612dd53` | `46442a0e` | `469497ad` |
+| `46f33fce` | `47c1f68c` | `484b58aa` | `48d8fb45` |
+| `4938f0c2` | `496994bd` | `49d1d64f` | `4be741c5` |
+| `4c4377d9` | `4c5c2cf0` | `50846271` | `508bd3b6` |
+| `50cb2852` | `5117e062` | `5168d44c` | `539a4f51` |
+| `53b68214` | `543a7ed5` | `54d82841` | `54d9e175` |
+| `5521c0d9` | `5582e5ca` | `5614dbcf` | `56dc2b01` |
+| `56ff96f3` | `57aa92db` | `5ad4f10b` | `5bd6f4ac` |
+| `5c0a986e` | `5c2c9af4` | `5daaa586` | `60b61512` |
+| `6150a2bd` | `623ea044` | `62c24649` | `63613498` |
+| `6430c8c4` | `6455b5f5` | `662c240a` | `67385a82` |
+| `673ef223` | `6773b310` | `67a3c6ac` | `67a423a3` |
+| `67e8384a` | `681b3aeb` | `6855a6e4` | `68b16354` |
+| `694f12f3` | `6a1e5592` | `6aa20dc0` | `6b9890af` |
+| `6c434453` | `6cdd2623` | `6cf79266` | `6d0160f0` |
+| `6d0aefbc` | `6d58a25d` | `6d75e8bb` | `6e02f1e3` |
+| `6e19193c` | `6e82a1ae` | `6ecd11f4` | `6f8cd79b` |
+| `6fa7a44f` | `72322fa7` | `72ca375d` | `73251a56` |
+| `7447852a` | `7468f01a` | `746b3537` | `74dd1130` |
+| `75b8110e` | `760b3cac` | `776ffc46` | `77fdfe62` |
+| `780d0b14` | `7837ac64` | `794b24be` | `7b6016b9` |
+| `7b7f7511` | `7c008303` | `7ddcd7ec` | `7df24a62` |
+| `7e0986d6` | `7f4411dc` | `7fe24cdd` | `80af3007` |
+| `810b9b61` | `82819916` | `83302e8f` | `834ec97d` |
+| `8403a5d5` | `846bdb03` | `855e0971` | `85c4e7cd` |
+| `868de0fa` | `8731374e` | `88a10436` | `88a62173` |
+| `890034e9` | `8a004b2b` | `8be77c9e` | `8d5021e8` |
+| `8d510a79` | `8e1813be` | `8e5a5113` | `8eb1be9a` |
+| `8efcae92` | `8f2ea7aa` | `90c28cc7` | `90f3ed37` |
+| `913fb3ed` | `91413438` | `91714a58` | `9172f3a0` |
+| `928ad970` | `93b581b8` | `941d9a10` | `94f9d214` |
+| `952a094c` | `9565186b` | `95990924` | `963e52fc` |
+| `97999447` | `97a05b5b` | `98cf29f8` | `995c5fa3` |
+| `99b1bc43` | `99fa7670` | `9aec4887` | `9af7a82c` |
+| `9d9215db` | `9dfd6313` | `9ecd008a` | `9edfc990` |
+| `9f236235` | `a1570a43` | `a2fd1cf0` | `a3325580` |
+| `a3df8b1e` | `a416b8f3` | `a48eeaf7` | `a5313dff` |
+| `a5f85a15` | `a61ba2ce` | `a61f2674` | `a65b410d` |
+| `a68b268e` | `a699fb00` | `a740d043` | `a78176bb` |
+| `a79310a0` | `a85d4709` | `a87f7484` | `a8c38be5` |
+| `a8d7556c` | `a9f96cdd` | `aabf363d` | `aba27056` |
+| `ac0a08a4` | `ae3edfdc` | `ae4f1146` | `aedd82e4` |
+| `af902bf9` | `b0c4d837` | `b190f7f5` | `b1948b0a` |
+| `b230c067` | `b27ca6d3` | `b2862040` | `b527c5c6` |
+| `b548a754` | `b60334d2` | `b6afb2da` | `b7249182` |
+| `b775ac94` | `b782dc8a` | `b8825c91` | `b8cdaf2b` |
+| `b91ae062` | `b94a9452` | `b9b7f026` | `ba26e723` |
+| `ba97ae07` | `bb43febb` | `bbc9ae5d` | `bc1d5164` |
+| `bd4472b8` | `bda2d7a6` | `bdad9b1f` | `be94b721` |
+| `beb8660c` | `c0f76784` | `c1d99e64` | `c3e719e8` |
+| `c3f564a4` | `c444b776` | `c59eb873` | `c8cbb738` |
+| `c8f0f002` | `c909285e` | `c9e6f938` | `c9f8e694` |
+| `caa06a1f` | `cbded52d` | `cce03e0d` | `cdecee7f` |
+| `ce22a75a` | `ce4f8723` | `ce602527` | `ce9e57f2` |
+| `cf98881b` | `d037b0a7` | `d06dbe63` | `d07ae81c` |
+| `d0f5fe59` | `d10ecb37` | `d13f3404` | `d22278a0` |
+| `d23f8c26` | `d2abd087` | `d364b489` | `d406998b` |
+| `d43fd935` | `d4469b4b` | `d4a91cb9` | `d4f3cd78` |
+| `d511f180` | `d5d6de2d` | `d631b094` | `d687bc17` |
+| `d6ad076f` | `d89b689b` | `d8c310e9` | `d90796e8` |
+| `d9f24cd1` | `d9fac9be` | `dae9d2b5` | `db3e9e38` |
+| `db93a21d` | `dbc1a6ce` | `dc0a314f` | `dc1df850` |
+| `dc433765` | `ddf7fa4f` | `de1cd16c` | `ded97339` |
+| `e179c5f4` | `e21d9049` | `e26a3af2` | `e3497940` |
+| `e40b9e2f` | `e48d4e1a` | `e5062a87` | `e509e548` |
+| `e50d258f` | `e6721834` | `e73095fd` | `e76a88a6` |
+| `e8593010` | `e8dc4411` | `e9614598` | `e98196ab` |
+| `e9afcf9a` | `ea32f347` | `ea786f4a` | `eb281b96` |
+| `eb5a1d5d` | `ec883f72` | `ecdecbb3` | `ed36ccf7` |
+| `ef135b50` | `f15e1fac` | `f1cefba8` | `f25fbde4` |
+| `f25ffba3` | `f2829549` | `f35d900a` | `f5b8619d` |
+| `f76d97a5` | `f8a8fe49` | `f8b3ba0a` | `f8c80d96` |
+| `f8ff0b80` | `f9012d9b` | `fafffa47` | `fcb5c309` |
+| `fcc82909` | `feca6190` | `ff28f65a` | `ff805c23` |
+
+</details>
+
+---
+
+## Directory Structure
+
+Each solved task has its own subdirectory:
+
+```
+code-golf/
+├── 0520fde7/           # Grid AND comparison (57 bytes)
+├── 017c7c7b/           # Extend pattern + double (80 bytes)
+├── 00d62c1b/           # Fill enclosed regions (238 bytes)
+├── a64e4611/           # Largest rectangle task (523 bytes)
+├── evaluator.py        # Scoring and validation
+├── tasks/              # All 400 ARC-AGI tasks (legacy)
+└── README.md           # This file
+```
+
+Each task directory contains:
+- `solution.py` - Golfed Python solution
+- `task.json` - ARC-AGI task definition
+- `README.md` - Task-specific notes and evolution history
 
 ---
 
@@ -77,137 +218,6 @@ fitness = correctness × (2500 - bytes) / 2500
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
-
----
-
-## Evolution Journey: Fill Enclosed Regions (`00d62c1b`)
-
-This medium-difficulty task demonstrates the full evolution pipeline.
-
-### The Task
-
-Fill enclosed regions (surrounded by 3s) with 4s. Cells connected to edges remain 0.
-
-```
-Input:                    Output:
-0 0 0 0 0 0              0 0 0 0 0 0
-0 0 3 0 0 0              0 0 3 0 0 0
-0 3 0 3 0 0    →         0 3 4 3 0 0
-0 0 3 0 3 0              0 0 3 4 3 0
-0 0 0 3 0 0              0 0 0 3 0 0
-0 0 0 0 0 0              0 0 0 0 0 0
-```
-
-### Evolution Progress
-
-| Gen | Bytes | Technique | Insight |
-|-----|-------|-----------|---------|
-| 0 | 280 | Original edge-detection flood fill | Working baseline |
-| 1 | 262 | **Padding approach** | Pad grid with 0s, flood from corner |
-| 2 | 241 | Walrus + unpacking | Reuse padding row with `:=` |
-| 3 | **238** | **Marker = 1** | Eliminates modulo in lookup |
-
-### Key Breakthrough: Padding Approach
-
-Instead of complex edge detection:
-```python
-# Old (42 bytes just for initialization)
-s=[(i,j)for i in range(H)for j in range(W)if g[i][j]<1if i%~-H<1or j%~-W<1]
-```
-
-Pad the grid and start from corner:
-```python
-# New (~22 bytes, simpler)
-g=[o:=[0]*w,*[[0,*r,0]for r in G],o];s=[(0,0)]
-```
-
-### Champion Solution (238 bytes)
-
-```python
-def solve(G):
- w=len(G[0])+2;g=[o:=[0]*w,*[[0,*r,0]for r in G],o];s=[(0,0)]
- while s:
-  a,b=s.pop()
-  if len(g)>a>=0<=b<w and g[a][b]<1:g[a][b]=1;s+=(a+1,b),(a-1,b),(a,b+1),(a,b-1),
- return[[[4,0,0,3][c]for c in r[1:-1]]for r in g[1:-1]]
-```
-
-**Improvement**: 280 → 238 bytes (**-15%**, +42 competition points)
-
----
-
-## Evolution Journey: Largest Rectangle Cross (`a64e4611`)
-
-This hard-difficulty task demonstrates evolution on a complex algorithm with multiple phases.
-
-### The Task
-
-Find the largest rectangular region of zeros in a 30x30 grid, then fill with 3s using orientation-dependent shrinking and neighbor-conditional extensions to create a cross pattern.
-
-```
-Input (30x30):                Output (30x30):
-[mostly 8s with a            [same but largest zero
- region of 0s]                region filled with 3s
-                              in a cross pattern]
-```
-
-### Algorithm Discovery
-
-This task required significant reverse-engineering:
-- **Initial hypothesis**: Simple maximal rectangle - WRONG (output is a cross, not rectangle)
-- **Second hypothesis**: Flood fill - WRONG (connected components don't match)
-- **Key insight**: Orientation-dependent shrinking + neighbor-conditional extensions
-
-### Evolution Progress
-
-| Gen | Bytes | Technique | Insight |
-|-----|-------|-----------|---------|
-| 0 | ~1200 | Verbose with helpers | Working baseline |
-| 20 | 858 | Unified E lambda, max() | Eliminate redundant functions |
-| 40 | 794 | Tuple indexing | `O[(v,i)[z]][(i,v)[z]]` for row/col swap |
-| 50 | 763 | Merged loops | Histogram + max rect in single pass |
-| 60 | 751 | Unified shrink formula | `H=j-f>g-e;e+=e>0;g-=H*(g<R-1);...` |
-| 65 | 750 | `[*map(list,G)]` | Shorter deep copy |
-| 70 | 718 | `I=range` alias | range used 11 times, saves 32 bytes |
-| 75 | 717 | `r and X or Y` ternary | Shorter than `X if r else Y` |
-| 80 | 712 | `c<C and h[r][c]` | Shorter ternary for zero fallback |
-| **85** | **642** | **O(n⁴) brute-force** | **Algorithm swap: simpler is shorter** |
-| 90 | 631 | List as tuple `[I(f),I(j+1,C)]` | Shorter than `[(I(f),f),...]` pairs |
-| 95 | 619 | Range truthiness | `if L` works for empty ranges |
-| 100 | 615 | `-~x` trick + `[0,]` | `(c-a+1)` → `-~(c-a)`, `[(0,)]` → `[0,]` |
-| 105 | 578 | Merged extension check | Single `all()` with `I(i-(i>A),...)` range |
-| 110 | 571 | Tuple iteration | `for A,B,P,M,z in(row_tuple),(col_tuple):` |
-| 115 | 549 | Single list comp + `__setitem__` | Flatten extension into `[...for v in L]` |
-| 120 | 547 | Tuple for neighbor range | `(i,i-(i>a),i+(i<b))` vs `I(i-(i>a),...)` |
-| 125 | 544 | **1D array** | `O=sum(G,[])` + `O[r*C+j]` indexing |
-| 130 | 542 | **~-any trick** | `~-any(...)` replaces `all(...<1)` |
-| **135** | **541** | **[0] fallback** | `or[0]` instead of `or[0,]` |
-
-### Key Breakthrough: Algorithm Swap (Gen 85)
-
-The biggest single improvement came from **switching algorithms**:
-
-- **Old (O(n²) histogram)**: Complex stack-based maximal rectangle (712 bytes)
-- **New (O(n⁴) brute-force)**: Simple nested loops checking all rectangles (642 bytes)
-
-Despite being computationally slower, the brute-force approach is **70 bytes shorter** because:
-1. No histogram construction or stack manipulation
-2. Single `max()` comprehension vs complex while loop
-3. All conditions inline in one expression
-
-### Champion Solution (541 bytes)
-
-```python
-def solve(G):
- I=range;R,C=len(G),len(G[0]);O=sum(G,[])
- if(b:=max([-~(c-a)*-~(k-d),a,d,c,k]for a in I(R)for d in I(C)for c in I(a,R)for k in I(d,C)if~-any(O[r*C+j]for r in I(a,c+1)for j in I(d,k+1)))or[0])[0]<1:return G
- _,e,f,g,j=b;H=j-f>g-e;e+=e>0;g-=H*(g<R-1);f+=1-H;j-=1-H
- for r in I(e,g+1):G[r][f:j+1]=[3]*(j-f+1)
- [G[(v,i)[z]].__setitem__((i,v)[z],3)for a,b,*P,z in((e,g,I(f),I(j+1,C),1),(f,j,I(e),I(g+1,R),0))for i in I(a,b+1)for L in P if L and~-any(O[C*(v,w)[z]+(w,v)[z]]for w in(i,i-(i>a),i+(i<b))for v in L)for v in L]
- return G
-```
-
-**Improvement**: ~1200 → 541 bytes (**-55%**, +659 competition points)
 
 ---
 
@@ -394,7 +404,7 @@ python evaluator.py <task_id> solutions/<task_id>.py
 | Metric | Current | Target |
 |--------|---------|--------|
 | Tasks solved | 4 | 400 |
-| Total score | ~8,450 | ~960,000+ |
+| Total score | 9,102 | ~960,000+ |
 | Competition status | Ended (Oct 2025) | - |
 
 This showcase demonstrates the `/evolve-size` capability. The techniques transfer to any code golf challenge.

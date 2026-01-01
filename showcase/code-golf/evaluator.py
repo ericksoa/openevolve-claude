@@ -16,11 +16,36 @@ from typing import Any
 
 TASKS_DIR = Path(__file__).parent / "tasks"
 SOLUTIONS_DIR = Path(__file__).parent / "solutions"
+BASE_DIR = Path(__file__).parent
+
+def get_solution_path(task_id: str) -> Path | None:
+    """Find solution file - checks new structure first, then legacy."""
+    # New structure: {task_id}/solution.py
+    new_path = BASE_DIR / task_id / "solution.py"
+    if new_path.exists():
+        return new_path
+    # Legacy structure: solutions/{task_id}.py
+    legacy_path = SOLUTIONS_DIR / f"{task_id}.py"
+    if legacy_path.exists():
+        return legacy_path
+    return None
+
+def get_task_path(task_id: str) -> Path | None:
+    """Find task file - checks new structure first, then legacy."""
+    # New structure: {task_id}/task.json
+    new_path = BASE_DIR / task_id / "task.json"
+    if new_path.exists():
+        return new_path
+    # Legacy structure: tasks/{task_id}.json
+    legacy_path = TASKS_DIR / f"{task_id}.json"
+    if legacy_path.exists():
+        return legacy_path
+    return None
 
 def load_task(task_id: str) -> dict:
     """Load a task JSON file."""
-    task_path = TASKS_DIR / f"{task_id}.json"
-    if not task_path.exists():
+    task_path = get_task_path(task_id)
+    if task_path is None:
         raise FileNotFoundError(f"Task {task_id} not found")
     with open(task_path) as f:
         return json.load(f)
@@ -141,19 +166,28 @@ def evaluate_solution(task_id: str, solution_code: str) -> dict:
     }
 
 def evaluate_all_solutions(solutions_dir: Path = None) -> dict:
-    """Evaluate all solutions in the solutions directory."""
-    solutions_dir = solutions_dir or SOLUTIONS_DIR
-
+    """Evaluate all solutions - checks both new and legacy structures."""
     total_score = 0
     results = {}
     solved = 0
 
-    for task_file in sorted(TASKS_DIR.glob("*.json")):
-        task_id = task_file.stem
-        solution_file = solutions_dir / f"{task_id}.py"
+    # Find all task IDs from both structures
+    task_ids = set()
 
-        if solution_file.exists():
-            with open(solution_file) as f:
+    # From legacy tasks directory
+    for task_file in TASKS_DIR.glob("*.json"):
+        task_ids.add(task_file.stem)
+
+    # From new subdirectory structure
+    for subdir in BASE_DIR.iterdir():
+        if subdir.is_dir() and (subdir / "task.json").exists():
+            task_ids.add(subdir.name)
+
+    for task_id in sorted(task_ids):
+        solution_path = get_solution_path(task_id)
+
+        if solution_path:
+            with open(solution_path) as f:
                 solution_code = f.read()
             result = evaluate_solution(task_id, solution_code)
             results[task_id] = result
@@ -174,8 +208,8 @@ def evaluate_all_solutions(solutions_dir: Path = None) -> dict:
     return {
         "total_score": round(total_score, 3),
         "tasks_solved": solved,
-        "tasks_total": 400,
-        "solve_rate": round(solved / 400 * 100, 1),
+        "tasks_total": len(task_ids),
+        "solve_rate": round(solved / len(task_ids) * 100, 1) if task_ids else 0,
         "results": results
     }
 
