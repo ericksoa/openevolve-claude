@@ -1,21 +1,7 @@
 def solve(g):
- R,C=len(g),len(g[0]);o=[r[:]for r in g];p2=[(i,j)for i in range(R)for j in range(C)if g[i][j]==2];p3=[(i,j)for i in range(R)for j in range(C)if g[i][j]==3]
- if not p2 or not p3:return o
- r2,c2=sorted(set(i for i,j in p2)),sorted(set(j for i,j in p2));r3,c3=sorted(set(i for i,j in p3)),sorted(set(j for i,j in p3));G=c2[0]-c3[-1];D=abs(r2[0]-r3[0])
- if G<3:
-  V=max(c2[-1],c3[-1])+(G if G>0 else D+1)
-  for j in range(c2[-1]+1,V+1):
-   if j<C and o[r2[0]][j]<1:o[r2[0]][j]=3
-  for j in range(c3[-1]+1,V+1):
-   if j<C and o[r3[0]][j]<1:o[r3[0]][j]=3
-  for i in range(min(r2[0],r3[0])+1,max(r2[-1],r3[-1])):
-   if V<C and o[i][V]<1:o[i][V]=3
- else:
-  K=(r2[-1]+(r3[0]-r2[-1])//3)if r3[0]>r2[-1]else(r3[-1]+(r2[0]-r3[-1])//3);a,b=(c2[-1],c3[0])if r3[0]>r2[-1]else(c3[0],c2[-1])
-  for i in range((r2[-1]if r3[0]>r2[-1]else r3[-1])+1,K+1):
-   if o[i][a if r3[0]>r2[-1]else c3[0]]<1:o[i][a if r3[0]>r2[-1]else c3[0]]=3
-  for j in range(min(c2[-1],c3[0]),max(c2[-1],c3[0])+1):
-   if o[K][j]<1:o[K][j]=3
-  for i in range(K+1,(r3[0]if r3[0]>r2[-1]else r2[0])):
-   if o[i][c3[0]if r3[0]>r2[-1]else c2[-1]]<1:o[i][c3[0]if r3[0]>r2[-1]else c2[-1]]=3
+ R,C=len(g),len(g[0]);o=[r[:]for r in g];F=lambda v:[(i,j)for i in range(R)for j in range(C)if g[i][j]==v]
+ if[]in[p:=F(2),q:=F(3)]:return o
+ a,b,c,d=[sorted({z[k]for z in t})for t in[p,q]for k in(0,1)];G=b[0]-d[-1];D=lambda i,j:o[i][j]or o[i].__setitem__(j,3);I=range;m=min;x=max
+ if G<3:V=m(x(*b,*d)+(G*(G>0)or-~abs(a[0]-c[0])),~-C);[D(a[0],j)for j in I(-~b[-1],-~V)];[D(c[0],j)for j in I(-~d[-1],-~V)];[D(i,V)for i in I(-~m(a[0],c[0]),x(a[-1],c[-1]))]
+ else:u=c[0]>a[-1];X=(c[-1],a[-1])[u];Z=(a[0],c[0])[u];K=X+(Z-X)//3;e,f=(d[0],b[-1])[u],(b[-1],d[0])[u];[D(i,e)for i in I(-~X,-~K)];[D(K,j)for j in I(m(e,f),-~x(e,f))];[D(i,f)for i in I(-~K,Z)]
  return o
