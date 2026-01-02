@@ -8,17 +8,17 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 49 / 400 (12.3%) |
-| **Total Score** | 110,540 points |
-| **Avg Score/Task** | 2,256 points |
-| **% of Winner Avg** | 93.8% (winner: 2,405 pts/task) |
-| **Projected Final** | ~902,000 points ([details](./PROJECTION.md)) |
+| **Solved** | 50 / 400 (12.5%) |
+| **Total Score** | 112,566 points |
+| **Avg Score/Task** | 2,251 points |
+| **% of Winner Avg** | 93.6% (winner: 2,405 pts/task) |
+| **Projected Final** | ~900,000 points ([details](./PROJECTION.md)) |
 
 <!-- Competition winner: Code Golf International with 962,070 pts (DO NOT MODIFY) -->
 
 ---
 
-## Solved Problems (49)
+## Solved Problems (50)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
@@ -65,6 +65,7 @@
 | [`1a07d186`](./1a07d186/README.md) | Line projection | **434** | 2,066 | [solution.py](./1a07d186/solution.py) |
 | [`0b148d64`](./0b148d64/README.md) | Quadrant extraction | **454** | 2,046 | [solution.py](./0b148d64/solution.py) |
 | [`2bcee788`](./2bcee788/README.md) | Color replacement by marker | **465** | 2,035 | [solution.py](./2bcee788/solution.py) |
+| [`22233c11`](./22233c11/README.md) | Diagonal corner marking | **474** | 2,026 | [solution.py](./22233c11/solution.py) |
 | [`150deff5`](./150deff5/README.md) | Grid extraction borders | **494** | 2,006 | [solution.py](./150deff5/solution.py) |
 | [`a64e4611`](./a64e4611/README.md) | Largest rectangle + cross | **523** | 1,977 | [solution.py](./a64e4611/solution.py) |
 | [`045e512c`](./045e512c/README.md) | Pattern replication | **486** | 2,014 | [solution.py](./045e512c/solution.py) |
@@ -76,7 +77,7 @@
 
 ## Unsolved Problems (351)
 
-### Analyzed Tasks (30)
+### Analyzed Tasks (29)
 
 | Task ID | Pattern | Est. Difficulty |
 |---------|---------|-----------------|
@@ -88,7 +89,6 @@
 | `2013d3e2` | Symmetry axis extraction | Medium |
 | `2204b7a8` | Border region coloring | Medium |
 | `22168020` | Copy pattern to endpoints | Hard |
-| `22233c11` | Horizontal line interpolation | Medium |
 | `228f6490` | Diagonal shape continuation | Medium |
 | `22eb0ac0` | Marker color detection | Hard |
 | `234bbc79` | Bounding box intersection | Very Hard |
@@ -483,14 +483,14 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 | Metric | Current | Projected | Winner |
 |--------|---------|-----------|--------|
-| Tasks solved | 49 | 400 | 400 |
-| Total score | 110,540 | ~902,000 | **962,070** |
-| Avg pts/task | 2,256 | 2,256 | 2,405 |
-| % of winner | 93.8% | 93.8% | 100% |
+| Tasks solved | 50 | 400 | 400 |
+| Total score | 112,566 | ~900,400 | **962,070** |
+| Avg pts/task | 2,251 | 2,251 | 2,405 |
+| % of winner | 93.6% | 93.6% | 100% |
 
 **Winner**: Code Golf International (962,070 pts) - [Final Leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/)
 
-**Projection**: At current avg (2,256 pts/task), we project ~902,000 points if all 400 tasks solved (93.8% of winner). See [PROJECTION.md](./PROJECTION.md) for details.
+**Projection**: At current avg (2,251 pts/task), we project ~900,400 points if all 400 tasks solved (93.6% of winner). See [PROJECTION.md](./PROJECTION.md) for details.
 
 This showcase demonstrates the `/evolve-size` capability. The techniques transfer to any code golf challenge.
 

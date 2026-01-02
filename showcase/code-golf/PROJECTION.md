@@ -27,11 +27,11 @@
 
 | Metric | Value |
 |--------|-------|
-| Tasks Solved | 49 / 400 |
-| Total Score | 110,540 |
-| Avg Score/Task | 2,256 |
-| **% of Winner Avg** | 93.8% (2,256 ÷ 2,405) |
-| Projected Final (if all 400 solved) | ~902,000 (93.8% of winner) |
+| Tasks Solved | 50 / 400 |
+| Total Score | 112,566 |
+| Avg Score/Task | 2,251 |
+| **% of Winner Avg** | 93.6% (2,251 ÷ 2,405) |
+| Projected Final (if all 400 solved) | ~900,400 (93.6% of winner) |
 
 ---
 
@@ -85,7 +85,7 @@
 | 11852cab | 280 | 2,220 | ~2,300 | 96.5% |
 | **Avg** | **189** | **2,310** | **2,358** | **97.9%** |
 
-### Hard (300-600 bytes) - 8 tasks
+### Hard (300-600 bytes) - 9 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
 |------|-------|-------|-------------|-------------|
 | 05f2a901 | 326 | 2,174 | ~2,260 | 96.2% |
@@ -93,10 +93,11 @@
 | 1a07d186 | 434 | 2,066 | ~2,150 | 96.1% |
 | 0b148d64 | 454 | 2,046 | ~2,150 | 95.2% |
 | 2bcee788 | 465 | 2,035 | ~2,140 | 95.1% |
+| 22233c11 | 474 | 2,026 | ~2,130 | 95.1% |
 | 150deff5 | 494 | 2,006 | ~2,100 | 95.5% |
 | a64e4611 | 523 | 1,977 | ~2,100 | 94.1% |
 | 045e512c | **486** | **2,014** | ~2,050 | 98.2% |
-| **Avg** | **443** | **2,055** | **2,143** | **95.9%** |
+| **Avg** | **447** | **2,052** | **2,139** | **95.9%** |
 
 ### Very Hard (600+ bytes) - 3 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
@@ -110,19 +111,19 @@
 
 ## Projection Model
 
-Based on 49 solved tasks with tier distribution:
+Based on 50 solved tasks with tier distribution:
 
 | Tier | Solved | Our Avg | Assumed # | Projected | Winner Est. |
 |------|--------|---------|-----------|-----------|-------------|
 | Easy | 12 | 2,435 | 180 | 438,300 | 441,000 |
 | Medium | 26 | 2,310 | 140 | 323,400 | 330,120 |
-| Hard | 8 | 2,055 | 60 | 123,300 | 128,580 |
+| Hard | 9 | 2,052 | 60 | 123,120 | 128,340 |
 | V.Hard | 3 | 1,555 | 20 | 31,100 | 35,000 |
-| **Total** | **49** | **2,256** | **400** | **916,100** | **934,700** |
+| **Total** | **50** | **2,251** | **400** | **915,920** | **934,460** |
 
-**Conservative estimate (current avg × 400)**: 2,256 × 400 = **902,400 points**
+**Conservative estimate (current avg × 400)**: 2,251 × 400 = **900,400 points**
 
-**Optimistic estimate (tier-weighted)**: **916,100 points** (if we maintain tier averages)
+**Optimistic estimate (tier-weighted)**: **915,920 points** (if we maintain tier averages)
 
 ---
 
