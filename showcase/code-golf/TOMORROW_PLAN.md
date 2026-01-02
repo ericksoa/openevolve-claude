@@ -35,7 +35,7 @@
 | `0a938d79` | ~~539~~ **237** | ✅ DONE! README + re-golf (-56%, +302 pts) |
 | `1bfc4729` | ~~406~~ **108** | ✅ DONE! README + re-golf (-73%, +298 pts) |
 | `11852cab` | ~~333~~ **280** | ✅ DONE! README + AlphaEvolve (-16%, +53 pts) |
-| `178fcbfb` | 304 | Missing README |
+| `178fcbfb` | ~~304~~ **217** | ✅ DONE! README + AlphaEvolve (-29%, +87 pts) |
 
 #### Medium (100-300 bytes) - Document + Quick Golf Check
 | Task | Bytes | Status |
@@ -139,9 +139,9 @@ Only after documentation is complete. Pick from Medium difficulty analyzed list.
 | Metric | Current | Target |
 |--------|---------|--------|
 | READMEs Complete | 32/41 | 41/41 |
-| Total Score | 90,665 | 92,000+ |
+| Total Score | 90,752 | 92,000+ |
 | Avg Score/Task | 2,211 | 2,250+ |
-| Points Gained | **+1,534** | +2,000+ |
+| Points Gained | **+1,621** | +2,000+ |
 
 ### Points Breakdown
 - `2dd70a9a`: +490 pts (1163→673)
@@ -150,7 +150,8 @@ Only after documentation is complete. Pick from Medium difficulty analyzed list.
 - `1a07d186`: +201 pts (635→434)
 - `150deff5`: +190 pts (684→494)
 - `11852cab`: +53 pts (333→280) **AlphaEvolve: 10 gens, 40 mutations**
-- **Total gained: +1,534 pts**
+- `178fcbfb`: +87 pts (304→217) **AlphaEvolve: 10 gens, 40 mutations**
+- **Total gained: +1,621 pts**
 
 ---
 

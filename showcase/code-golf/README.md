@@ -9,8 +9,8 @@
 | Metric | Value |
 |--------|-------|
 | **Solved** | 41 / 400 (10.3%) |
-| **Total Score** | 90,665 points |
-| **Avg Score/Task** | 2,211 points |
+| **Total Score** | 90,752 points |
+| **Avg Score/Task** | 2,213 points |
 | **Projected Final** | ~884,000 points ([details](./PROJECTION.md)) |
 
 ---
@@ -47,7 +47,7 @@
 | [`025d127b`](./025d127b/README.md) | Parallelogram to rect | **266** | 2,234 | [solution.py](./025d127b/solution.py) |
 | [`32597951`](./32597951/README.md) | Extract repeating tile | **274** | 2,226 | [solution.py](./32597951/solution.py) |
 | [`1caeab9d`](./1caeab9d/) | Line intersection marking | **280** | 2,220 | [solution.py](./1caeab9d/solution.py) |
-| [`178fcbfb`](./178fcbfb/) | Fill cross pattern gaps | **304** | 2,196 | [solution.py](./178fcbfb/solution.py) |
+| [`178fcbfb`](./178fcbfb/README.md) | Extend markers to lines | **217** | 2,283 | [solution.py](./178fcbfb/solution.py) |
 | [`05f2a901`](./05f2a901/README.md) | Move shape to reference | **326** | 2,174 | [solution.py](./05f2a901/solution.py) |
 | [`11852cab`](./11852cab/README.md) | 4-fold rotational symmetry | **280** | 2,220 | [solution.py](./11852cab/solution.py) |
 | [`06df4c85`](./06df4c85/README.md) | Grid line completion | **378** | 2,122 | [solution.py](./06df4c85/solution.py) |
