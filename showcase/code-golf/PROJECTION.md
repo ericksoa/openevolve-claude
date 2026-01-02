@@ -28,10 +28,10 @@
 | Metric | Value |
 |--------|-------|
 | Tasks Solved | 41 / 400 |
-| Total Score | 91,234 |
-| Avg Score/Task | 2,225 |
-| **% of Winner Avg** | 92.5% (2,225 ÷ 2,405) |
-| Projected Final (if all 400 solved) | ~890,000 (92.5% of winner) |
+| Total Score | 91,339 |
+| Avg Score/Task | 2,228 |
+| **% of Winner Avg** | 92.6% (2,228 ÷ 2,405) |
+| Projected Final (if all 400 solved) | ~891,200 (92.6% of winner) |
 
 ---
 
@@ -87,8 +87,8 @@
 | 2bcee788 | 465 | 2,035 | ~2,140 | 95.1% |
 | 150deff5 | 494 | 2,006 | ~2,100 | 95.5% |
 | a64e4611 | 523 | 1,977 | ~2,100 | 94.1% |
-| 045e512c | 591 | 1,909 | ~2,050 | 93.1% |
-| **Avg** | **456** | **2,042** | **2,143** | **95.3%** |
+| 045e512c | **486** | **2,014** | ~2,050 | 98.2% |
+| **Avg** | **443** | **2,055** | **2,143** | **95.9%** |
 
 ### Very Hard (600+ bytes) - 3 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
@@ -128,20 +128,20 @@ Tasks with byte counts significantly above tier average:
 |------|---------|----------|-----|--------|
 | 0e206a2e | ~~1,384~~ **1,135** | 945 | +190 | ✅ Re-golfed! (-249 bytes) |
 | 1b60fb0c | ~~933~~ **1,026** | 945 | +81 | ✅ Fixed & golfed! (1456→1026, -430 bytes) |
-| 045e512c | 591 | 456 | +135 | Medium priority |
-| a64e4611 | 523 | 456 | +67 | Medium priority |
+| 045e512c | ~~591~~ **486** | 443 | +43 | ✅ Re-golfed! (591→486, -105 bytes) |
+| a64e4611 | 523 | 443 | +80 | Medium priority |
 
 ### Score Impact of Re-golfing
 
 Remaining opportunities:
-- `045e512c`: 591→400 bytes = +191 points
 - `a64e4611`: 523→400 bytes = +123 points
 
-**Total potential gain: ~314 points**
+**Total potential gain: ~123 points**
 
 ### Recent Re-golf Wins
 - `1b60fb0c`: 1456→1026 bytes = **+430 points** (30% reduction) - 18 gens evolution (was broken, fixed & golfed!)
 - `0e206a2e`: 1384→1135 bytes = **+249 points** (18% reduction) - 12 gens evolution
+- `045e512c`: 591→486 bytes = **+105 points** (18% reduction) - 15 gens evolution
 - `1bfc4729`: 406→108 bytes = **+298 points** (73% reduction)
 - `0a938d79`: 539→237 bytes = **+302 points** (56% reduction)
 - `1a07d186`: 635→434 bytes = **+201 points** (32% reduction)

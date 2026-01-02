@@ -92,7 +92,7 @@ After documenting, these need major algorithm rework:
 
 | Task | Current | Target | Potential Gain | Notes |
 |------|---------|--------|----------------|-------|
-| `045e512c` | 591 | ~400 | +191 pts | Template matching (has README) |
+| `045e512c` | ~~591~~ **486** | ✅ | **+105 pts** | ✅ DONE! 15 gens evolution |
 | `0a938d79` | ~~539~~ **237** | ✅ | **+302 pts** | ✅ DONE! |
 | `a64e4611` | 523 | ~400 | +123 pts | Largest rectangle (has README) |
 
@@ -223,16 +223,16 @@ Context availability directly correlates with evolution effectiveness.
 | Metric | Current | Target |
 |--------|---------|--------|
 | READMEs Complete | **41/41** | 41/41 ✅ |
-| Total Score | 91,234 | 92,000+ |
-| Avg Score/Task | 2,225 | 2,250+ |
-| Points Gained | **+2,626** | +2,000+ ✅ |
+| Total Score | 91,339 | 92,000+ |
+| Avg Score/Task | 2,228 | 2,250+ |
+| Points Gained | **+2,731** | +2,000+ ✅ |
 
 ### Remaining Potential (Phase 2)
 | Source | Tasks | Est. Gain |
 |--------|-------|-----------|
 | V.Hard re-golf | 0 | ✅ All done! |
-| Hard re-golf | 2 | ~314 pts |
-| **Total remaining** | **2** | **~314 pts** |
+| Hard re-golf | 1 | ~123 pts |
+| **Total remaining** | **1** | **~123 pts** |
 
 ### Points Breakdown
 - `2dd70a9a`: +490 pts (1163→673)
@@ -243,6 +243,7 @@ Context availability directly correlates with evolution effectiveness.
 - `1a07d186`: +201 pts (635→434)
 - `150deff5`: +190 pts (684→494)
 - `1b2d62fb`: +112 pts (170→58) **8 gens, 32 mutations** (MASSIVELY exceeded target!)
+- `045e512c`: +105 pts (591→486) **15 gens, 60 mutations** (Phase 2)
 - `178fcbfb`: +87 pts (304→217) **10 gens, 40 mutations**
 - `1caeab9d`: +73 pts (280→207) **10 gens, 40 mutations**
 - `1190e5a7`: +64 pts (188→124) **11 gens, 44 mutations** (exceeded target!)
@@ -254,7 +255,8 @@ Context availability directly correlates with evolution effectiveness.
 - **Phase 0 total: +1,947 pts** ✅ COMPLETE
 - **Phase 1 (0e206a2e): +249 pts** ✅ COMPLETE
 - **Phase 1 (1b60fb0c): +430 pts** ✅ COMPLETE (fixed broken + golfed)
-- **GRAND TOTAL: +2,626 pts** ✅ TARGET EXCEEDED!
+- **Phase 2 (045e512c): +105 pts** ✅ COMPLETE
+- **GRAND TOTAL: +2,731 pts** ✅ TARGET EXCEEDED!
 
 ---
 

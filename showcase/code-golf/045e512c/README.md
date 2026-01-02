@@ -1,55 +1,61 @@
 # ARC Task 045e512c - Pattern Replication with Direction Markers
 
-## Task Description
+## Pattern
 
-Given a grid containing:
-1. A main pattern (the color with the most cells)
-2. Marker cells of different colors positioned around the pattern
-
-The transformation replicates the main pattern in directions indicated by each marker cell:
-- Each marker cell indicates a direction from the pattern center (up, down, left, right, or diagonal)
-- The pattern is replicated in that direction using the marker's color
-- Replication continues until reaching the grid edge, with gaps between copies
-
-## Evolution Summary
-
-| Gen | Bytes | Score | Key Changes |
-|-----|-------|-------|-------------|
-| 0 | 2370 | 130 | Initial working solution with comments |
-| 1 | 1112 | 1388 | Remove comments, short variable names |
-| 2 | 763 | 1737 | Use enumerate, semicolons, compact conditionals |
-| 3 | 754 | 1746 | Walrus operator, chained comparisons |
-| 4 | 700 | 1800 | zip(*M) for coord extraction, simplified direction calc |
-| 5 | 670 | 1830 | Bitwise or for direction check |
-| 6 | 621 | 1879 | for loop with range instead of while |
-| 7 | 613 | 1887 | Inline setitem with and operator |
-| 8 | 611 | 1889 | More compact direction calculation |
-| 9 | 595 | 1905 | Shorter variable names throughout |
-| 10 | 591 | 1909 | -~ph trick for (ph+1) |
-
-## Final Solution
-
-**591 bytes, Score: 1909**
-
-## Key Golf Tricks
-
-1. **Walrus operator** (`:=`): Assign and use in same expression
-2. **Bitwise OR** (`|`): Shorter than `or` for truthy checks
-3. **Chained comparisons**: `-ph<nr<h>-pw<nc<w` instead of multiple `and`
-4. **-~x trick**: `-~x` equals `x+1` for integers, saves 2 chars
-5. **zip(*M)**: Unpack list of tuples into separate lists
-6. **v-m**: Shorter than `v!=m` (truthy when non-zero)
-7. **__setitem__ with and**: `cond and(o[r].__setitem__(c,v))` avoids if statement
-8. **Single-char names**: Use all single-letter variable names
-9. **Semicolon chaining**: Multiple statements on one line
-10. **Tuple unpacking in comprehensions**: `{(r-a,c-e)for r,c in M}`
+Replicate a main pattern in directions indicated by marker cells of different colors.
 
 ## Algorithm
 
-1. Group all non-zero cells by color
+1. Group all non-zero cells by color into dict C
 2. Find main pattern (color with most cells)
 3. Extract bounding box and relative pattern positions
-4. For each marker cell of non-main colors:
-   - Determine direction from pattern center
-   - Replicate pattern in that direction until edge
-   - Use marker's color for the replicated copies
+4. For each marker (non-main color):
+   - Calculate direction from pattern center
+   - Replicate pattern in that direction using marker's color
+
+## Key Golf Tricks
+
+1. **Flat indexing**: `for i in range(h*w)` with `i//w, i%w` instead of nested enumerate
+2. **eval(str(g))**: Deep copy in 12 bytes vs 16 for `[r[:]for r in g]`
+3. **Walrus operator**: `:=` for inline assignment
+4. **Integer center trick**: `(2*u-a-b>2)` avoids float division for center comparison
+5. **List comprehension with side effects**: Replace nested loops with single comprehension
+6. **Inline D,E**: `(b-a+2)` and `(f-e+2)` inlined instead of stored in variables
+7. **Bitwise or**: `dr|dc` shorter than `dr or dc`
+8. **Bounds in comprehension**: Eliminate outer bounds check, handle inside
+
+## Evolution Summary (AlphaEvolve-Inspired)
+
+15 generations, ~60 mutations tested. Final: **486 bytes** (-105 bytes, -17.8%)
+
+### Key Breakthroughs
+
+| Gen | Discovery | Bytes | Delta |
+|-----|-----------|-------|-------|
+| 1 | `>1` instead of `>1.4` for direction | 579 | -12 |
+| 2 | Inline ph/pw as (b-a+2) | 572 | -7 |
+| 5 | Flat indexing `range(h*w)` | 559 | -13 |
+| 6 | Integer center `A,B=a+b,e+f` | 553 | -6 |
+| 8 | Store D,E variables | 550 | -3 |
+| 9 | List comprehension for inner loop | 545 | -5 |
+| 10 | Combine no A,B with list comp | 541 | -4 |
+| 11 | Use `range(1,h)` instead of `range(1,50)` | 540 | -1 |
+| 12 | Remove outer bounds check | 522 | -18 |
+| 13 | Nested list comprehension | 492 | -30 |
+| 14 | Inline D,E in comprehension | 488 | -4 |
+| 15 | Flat comprehension `for s... for p,q...` | 486 | -2 |
+
+### Failed Approaches
+
+- `setdefault` for dict building (syntax error)
+- `min(M)` / `max(M)` for bounding box (wrong semantics)
+- `divmod(i,w)` (actually longer)
+- Storing S,T for center sums (no savings)
+
+## Byte History
+
+| Version | Bytes | Score | Change |
+|---------|-------|-------|--------|
+| v1 | 2370 | 130 | Initial working solution |
+| v2 | 591 | 1909 | Manual golf (pre-evolution) |
+| v3 | 486 | 2014 | AlphaEvolve-inspired evolution (-105 bytes) |
