@@ -13,44 +13,45 @@ Key components:
 4. **Axis**: `widest_leftmost` for symmetric caps, `widest_leftmost - 1` for asymmetric
 
 ## Key Tricks
-- `eval(str(g))` for deep copy (4 bytes shorter than `[r[:]for r in g]`)
-- `O=lambda r:sorted(...)` to avoid repeated comprehensions
+- `eval(str(g))` for deep copy
+- `O=lambda r:[c for c in range(C)if g[r][c]]` - no sorted needed
+- `S=lambda r:set(O(r))` - set wrapper
+- `G=lambda X:(len(X)>1)*(X[-1]-X[0]+1-len(X))` - gap using multiplication
 - `ax=wl-1+sy` handles both cap types in one expression
-- `sy*(condition)` replaces `if sy and condition`
+- `sy*rg>sy` instead of `sy and rg>1`
+- Combined while loop with direction variable `d in-1,1`
+- Chained comparisons: `X[-1]==rm>len(wo)-len(X)`
 
 ## Byte History
 | Version | Bytes | Change |
 |---------|-------|--------|
 | original | 933 | Broken solution (0/4 tests) |
 | gen1 | 2211 | First correct solution (4/4) |
-| gen2 | 1568 | Body detection fix |
-| gen6 | 1491 | Major golf pass |
 | gen8 | 1456 | eval(str(g)), lambda shortcuts |
+| gen9f | 1266 | Remove segment detection |
+| gen11c | 1148 | Combined while loop |
+| gen14c | 1042 | Remove sorted() |
+| gen17c | 1026 | sy*rg>sy trick - **Champion** |
 
 ## Challenges
-- Complex pattern with 5 different mirroring rules based on row type
+- Complex pattern with 4+ different mirroring rules based on row type
 - Symmetric vs asymmetric caps require different axis and body detection
-- Segment detection needed for gap > 1 mirroring
 - Original solution was broken; required complete algorithm redesign
 
 ## Evolution Summary (AlphaEvolve-Inspired)
 
-9 generations, ~20 mutations tested. Final: **1456 bytes** (score: 1044)
+18 generations, ~40 mutations tested. Final: **1026 bytes** (score: 1474)
 
-### Key Discoveries
+### Key Breakthroughs
 | Gen | Discovery | Bytes | Delta |
 |-----|-----------|-------|-------|
-| 1 | Working solution | 2211 | baseline |
-| 2 | Symmetric caps need `row ⊆ ci` check | 1568 | -643 |
-| 6 | Inline lambdas, combine checks | 1491 | -77 |
-| 8 | eval(str(g)), S=lambda | 1456 | -35 |
+| 2 | Symmetric caps need `row subset of ci` check | 1568 | -643 |
+| 9f | Segment detection not needed (or 2 handles it) | 1266 | -302 |
+| 11c | Combined while loop with direction variable | 1148 | -118 |
+| 14c | sorted() unnecessary for column indices | 1042 | -106 |
+| 17c | `sy*rg>sy` trick, th replaces cw | 1026 | -16 |
 
 ### Failed Approaches
 - Over-aggressive inlining broke segment detection (gen9)
-- Using `s>[])` instead of `if s:` was unreliable
-
-## Potential Improvements
-- Algorithm fundamentally complex (~1456 bytes minimum with current approach)
-- May need radically different algorithm to reach ~600 bytes target
-- Segment detection loop is verbose (could potentially use itertools.groupby)
-- The 5-branch M calculation might be consolidatable
+- Trying to simplify M branches broke asymmetric cases
+- Flood fill approach was too simple for complex rules

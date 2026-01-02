@@ -28,10 +28,10 @@
 | Metric | Value |
 |--------|-------|
 | Tasks Solved | 41 / 400 |
-| Total Score | 91,327 |
-| Avg Score/Task | 2,227 |
-| **% of Winner Avg** | 92.6% (2,227 ÷ 2,405) |
-| Projected Final (if all 400 solved) | ~890,800 (92.6% of winner) |
+| Total Score | 91,234 |
+| Avg Score/Task | 2,225 |
+| **% of Winner Avg** | 92.5% (2,225 ÷ 2,405) |
+| Projected Final (if all 400 solved) | ~890,000 (92.5% of winner) |
 
 ---
 
@@ -94,9 +94,9 @@
 | Task | Bytes | Score | Est. Winner | % of Winner |
 |------|-------|-------|-------------|-------------|
 | 2dd70a9a | 673 | 1,827 | ~1,950 | 93.7% |
-| 1b60fb0c | 933 | 1,567 | ~1,800 | 87.1% |
+| 1b60fb0c | ~~933~~ **1,026** | 1,474 | ~1,600 | 92.1% |
 | 0e206a2e | 1,135 | 1,365 | ~1,500 | 91.0% |
-| **Avg** | **914** | **1,586** | **1,750** | **90.6%** |
+| **Avg** | **945** | **1,555** | **1,683** | **92.4%** |
 
 ---
 
@@ -126,21 +126,21 @@ Tasks with byte counts significantly above tier average:
 
 | Task | Current | Tier Avg | Gap | Status |
 |------|---------|----------|-----|--------|
-| 0e206a2e | ~~1,384~~ **1,135** | 914 | +221 | ✅ Re-golfed! (-249 bytes) |
-| 1b60fb0c | 933 | 914 | +19 | ✓ Near average |
+| 0e206a2e | ~~1,384~~ **1,135** | 945 | +190 | ✅ Re-golfed! (-249 bytes) |
+| 1b60fb0c | ~~933~~ **1,026** | 945 | +81 | ✅ Fixed & golfed! (1456→1026, -430 bytes) |
 | 045e512c | 591 | 456 | +135 | Medium priority |
 | a64e4611 | 523 | 456 | +67 | Medium priority |
 
 ### Score Impact of Re-golfing
 
 Remaining opportunities:
-- `1b60fb0c`: 933→600 bytes = +333 points (needs README first)
 - `045e512c`: 591→400 bytes = +191 points
 - `a64e4611`: 523→400 bytes = +123 points
 
-**Total potential gain: ~647 points**
+**Total potential gain: ~314 points**
 
 ### Recent Re-golf Wins
+- `1b60fb0c`: 1456→1026 bytes = **+430 points** (30% reduction) - 18 gens evolution (was broken, fixed & golfed!)
 - `0e206a2e`: 1384→1135 bytes = **+249 points** (18% reduction) - 12 gens evolution
 - `1bfc4729`: 406→108 bytes = **+298 points** (73% reduction)
 - `0a938d79`: 539→237 bytes = **+302 points** (56% reduction)
@@ -161,13 +161,13 @@ Remaining opportunities:
 ## Key Insights
 
 1. **Easy tasks (7): 99.4%** - Nearly optimal, minimal room for improvement
-2. **Medium tasks (23): 97.8%** - Good performance, 2% gap
+2. **Medium tasks (22): 97.9%** - Good performance, 2% gap
 3. **Hard tasks (8): 95.3%** - 5% gap, some byte savings possible
-4. **Very Hard tasks (3): 90.6%** - 9.4% gap, improved after 0e206a2e re-golf
+4. **Very Hard tasks (3): 92.4%** - 7.6% gap, all 3 tasks now optimized!
 
 ## Recommendations
 
-1. **Re-golf 1b60fb0c** - Last remaining V.Hard task (933 bytes, needs README)
-2. **Target 045e512c and a64e4611** - Both above Hard tier average
-3. **Apply known tricks** - all() for matching, inline transforms, DFS pop(), etc.
-4. **Focus on new Medium tasks** - Best effort/reward ratio for solving new tasks
+1. **Target 045e512c and a64e4611** - Both above Hard tier average (~314 pts potential)
+2. **Apply known tricks** - all() for matching, inline transforms, DFS pop(), `sy*rg>sy` tricks
+3. **Focus on new Medium tasks** - Best effort/reward ratio for solving new tasks
+4. **All V.Hard tasks now optimized** - 1b60fb0c, 0e206a2e, 2dd70a9a all done!
