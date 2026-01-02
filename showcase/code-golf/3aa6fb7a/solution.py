@@ -1,0 +1,1 @@
+def solve(g):E=enumerate;[g[r+d].__setitem__(c+e,1)for r,R in E(g)for c,v in E(R)if v>7for d in(-1,1)for e in(-1,1)if 7>r+d>-1<c+e<7and g[r+d][c]==8==R[c+e]>g[r+d][c+e]];return g
