@@ -1,11 +1,12 @@
-//! Evolved Packing Algorithm - Generation 87d GREEDY BACKTRACKING WAVE (CHAMPION)
+//! Evolved Packing Algorithm - Generation 91b ROTATION-FIRST OPTIMIZATION
 //!
-//! MUTATION: Post-wave greedy pass targeting boundary-defining trees
+//! MUTATION: Exhaustive rotation search at each candidate position
 //!
-//! Strategy: After wave compaction, additional greedy pass focusing on
-//!           trees that define the bounding box edges.
+//! Strategy: For each candidate position found via binary search,
+//!           try ALL 8 rotations and keep the best (position, rotation) pair.
+//!           This is O(8x) slower but potentially much better placements.
 //!
-//! This is the current champion after Gen90 plateau.
+//! Parent: Gen87d (greedy backtracking wave)
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -425,11 +426,8 @@ impl EvolvedPacker {
         let mut best_tree = PlacedTree::new(0.0, 0.0, 90.0);
         let mut best_score = f64::INFINITY;
 
-        let angles = if n >= self.config.late_stage_threshold {
-            self.select_fine_angles_for_strategy(n, strategy)
-        } else {
-            self.select_angles_for_strategy(n, strategy)
-        };
+        // GEN91b: All 8 standard rotations for exhaustive search
+        let all_rotations = [0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0];
 
         let (min_x, min_y, max_x, max_y) = compute_bounds(existing);
         let current_width = max_x - min_x;
@@ -450,9 +448,34 @@ impl EvolvedPacker {
             let vx = dir.cos();
             let vy = dir.sin();
 
-            for &tree_angle in &angles {
-                let mut low = 0.0;
-                let mut high = 12.0;
+            // GEN91b: First find a valid position using any rotation
+            // Use angle 0 as probe to find approximate valid distance
+            let mut probe_low = 0.0;
+            let mut probe_high = 12.0;
+            while probe_high - probe_low > 0.01 {
+                let mid = (probe_low + probe_high) / 2.0;
+                // Try any rotation to see if this distance works
+                let mut any_valid = false;
+                for &angle in &all_rotations {
+                    let candidate = PlacedTree::new(mid * vx, mid * vy, angle);
+                    if is_valid(&candidate, existing) {
+                        any_valid = true;
+                        break;
+                    }
+                }
+                if any_valid {
+                    probe_high = mid;
+                } else {
+                    probe_low = mid;
+                }
+            }
+
+            // GEN91b: Now at this approximate position, try ALL 8 rotations
+            // with fine-tuned positioning for each
+            for &tree_angle in &all_rotations {
+                // Fine-tune the distance for this specific rotation
+                let mut low = (probe_high - 0.5).max(0.0);
+                let mut high = probe_high + 0.5;
 
                 while high - low > 0.001 {
                     let mid = (low + high) / 2.0;

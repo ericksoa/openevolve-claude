@@ -1,65 +1,57 @@
-# Evolution State - Gen90 Complete (Plateau Extended)
+# Evolution State - Gen91 Complete
 
 ## Current Champion
-- **Gen87d** (greedy backtracking wave)
-- **Score: 88.03** (lower is better)
+- **Gen91b** (rotation-first optimization)
+- **Score: 87.29** (lower is better)
 - Location: `rust/src/evolved.rs`
 
-## Gen90 Results Summary (All REJECTED)
+## Gen91 Results Summary
 
-Generation 90 exhaustively explored multiple orthogonal mutation strategies. None improved on the champion.
+Generation 91 explored multiple paradigm shifts after Gen90 plateau. Found improvement with rotation-first optimization.
 
 | Candidate | Score | Strategy | Result |
 |-----------|-------|----------|--------|
-| Gen90b (phase reversal) | 89.25 | U→D→L→R instead of R→L→U→D wave order | REJECTED |
-| Gen90c (boundary swap) | 88.80 | 5% probability swap positions of boundary trees | REJECTED |
-| Gen90d (SA boost) | 88.50 | Increase SA iterations 28000→35000 | REJECTED |
-| Gen90e (3+2 split) | 89.30 | Wave split 3+2 instead of 4+1 | REJECTED |
-| Gen90f (more greedy) | 88.42 | Increase greedy passes 3→5 (inconsistent) | REJECTED |
-| Gen90g (finer steps) | 88.66 | Add finer greedy step sizes | REJECTED |
-| Gen90h (center-directed) | 89.02 | All boundary trees move toward center | REJECTED |
+| Gen91a (size-ordered) | N/A | Place larger trees first | SKIPPED - all trees identical |
+| Gen91b (rotation-first) | **87.29** | Exhaustive 8-rotation search at each position | **NEW CHAMPION** |
+| Gen91c (BLF hybrid) | 88.62 | Bottom-left-fill placement strategy | REJECTED |
+| Gen91d (SA temp tuning) | 87.64 | Higher initial temp (0.45→0.60) | REJECTED |
+| Gen91e (SA iterations) | 88.32 | More iterations (28k→35k) | REJECTED |
+| Gen91f (more search) | 87.99 | More search attempts (200→300) | REJECTED |
 
-## Plateau Analysis
+## Gen91b Key Innovation
 
-After Gen88-90 (3 generations without improvement), the champion is at a robust local optimum:
+The rotation-first optimization fundamentally changes placement:
 
-### What We Learned:
-1. **Wave order doesn't matter much**: Reversing phase order hurt performance
-2. **Multi-tree operations hurt**: Swap operations added noise without improvement
-3. **More compute doesn't help**: More SA iterations or greedy passes didn't improve
-4. **Split ratios are sensitive**: 4+1 is better than 3+2
-5. **Finer steps don't help**: The current step sizes are adequate
-6. **Edge-specific > general**: Edge-specific greedy movement beats center-directed
+**Before (Gen87d):**
+- For each direction, try each rotation separately
+- Find closest valid position per rotation
+- Compare results
 
-### Champion Key Features:
-- 4+1 wave split (4 outside-in, 1 inside-out)
-- R→L→U→D→diagonal phase order
-- Edge-specific greedy movement (3 passes)
-- Rotation fallback when translation fails
+**After (Gen91b):**
+- For each direction, find approximate valid distance (any rotation)
+- At that position, try ALL 8 rotations with fine-tuned positioning
+- This finds better (position, rotation) pairs that fit tighter
 
 ## Performance Summary
-- Champion score: 88.03
+- Previous champion (Gen87d): 88.03
+- New champion (Gen91b): 87.29
+- **Improvement: 0.74 points (0.8%)**
 - Target (leaderboard top): ~69
-- Gap: ~27.6%
+- Gap to target: 26.5%
 
-## Next Directions (Gen91+)
+## What We Learned in Gen91
+1. **Rotation-first helps**: Exhaustive rotation search at each position finds better fits
+2. **BLF doesn't help**: Adding bottom-left-fill strategy increased variance and hurt score
+3. **SA parameter tuning marginal**: Higher temp and more iterations didn't improve
+4. **More search attempts**: Marginal or no improvement with increased compute
 
-Having exhausted local modifications, consider:
+## Next Directions (Gen92+)
 
-1. **Completely different algorithms**:
-   - Bottom-left-fill heuristics
-   - Genetic algorithms for tree placement
-   - Machine learning-guided placement
-
-2. **Problem reformulation**:
-   - Focus on specific N ranges (e.g., optimize only high-N)
-   - Specialized strategies for different tree counts
-
-3. **Hybrid approaches**:
-   - Use current algorithm as initialization, then apply different optimizer
-
-4. **Parameter tuning with Bayesian optimization**:
-   - Systematic hyperparameter search instead of manual tuning
+Consider:
+1. **Fine-tune rotation-first**: Try 16 or 24 rotation angles instead of 8
+2. **Position refinement passes**: After initial placement, try local position adjustments
+3. **Improved gap filling**: Better detection and filling of internal gaps
+4. **Specialized high-N handling**: Different strategy for n > 150
 
 ## File Locations
 - Champion code: `rust/src/evolved.rs`
