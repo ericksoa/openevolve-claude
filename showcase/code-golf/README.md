@@ -8,17 +8,17 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 45 / 400 (11.3%) |
-| **Total Score** | 100,911 points |
-| **Avg Score/Task** | 2,242 points |
-| **% of Winner Avg** | 93.2% (winner: 2,405 pts/task) |
-| **Projected Final** | ~896,800 points ([details](./PROJECTION.md)) |
+| **Solved** | 46 / 400 (11.5%) |
+| **Total Score** | 103,262 points |
+| **Avg Score/Task** | 2,245 points |
+| **% of Winner Avg** | 93.3% (winner: 2,405 pts/task) |
+| **Projected Final** | ~898,000 points ([details](./PROJECTION.md)) |
 
 <!-- Competition winner: Code Golf International with 962,070 pts (DO NOT MODIFY) -->
 
 ---
 
-## Solved Problems (45)
+## Solved Problems (46)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
@@ -43,6 +43,7 @@
 | [`3aa6fb7a`](./3aa6fb7a/README.md) | L-shaped 8s + corner 1 | **178** | 2,322 | [solution.py](./3aa6fb7a/solution.py) |
 | [`1190e5a7`](./1190e5a7/README.md) | Count cells by grid lines | **124** | 2,376 | [solution.py](./1190e5a7/solution.py) |
 | [`363442ee`](./363442ee/README.md) | Fill bottom row pattern | **144** | 2,356 | [solution.py](./363442ee/solution.py) |
+| [`28e73c20`](./28e73c20/README.md) | Spiral maze generation | **149** | 2,351 | [solution.py](./28e73c20/solution.py) |
 | [`4258a5f9`](./4258a5f9/README.md) | 3×3 box around 5s | **160** | 2,340 | [solution.py](./4258a5f9/solution.py) |
 | [`0ca9ddb6`](./0ca9ddb6/README.md) | Color spread from seeds | **207** | 2,293 | [solution.py](./0ca9ddb6/solution.py) |
 | [`1e32b0e9`](./1e32b0e9/README.md) | Grid template completion | **201** | 2,299 | [solution.py](./1e32b0e9/solution.py) |
@@ -72,7 +73,7 @@
 
 ## Unsolved Problems (355)
 
-### Analyzed Tasks (34)
+### Analyzed Tasks (33)
 
 | Task ID | Pattern | Est. Difficulty |
 |---------|---------|-----------------|
@@ -97,7 +98,6 @@
 | `264363fd` | Grid region coloring | Very Hard |
 | `272f95fa` | Grid cell quadrant coloring | Very Hard |
 | `28bf18c6` | Extract and duplicate shape | Medium |
-| `28e73c20` | Nested recursive maze | Very Hard |
 | `29623171` | Grid cell fill by quadrant | Hard |
 | `29ec7d0e` | Fill missing pattern | Hard |
 | `2bee17df` | Extract rectangular patch | Medium |
@@ -483,10 +483,10 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 | Metric | Current | Projected | Winner |
 |--------|---------|-----------|--------|
-| Tasks solved | 45 | 400 | 400 |
-| Total score | 100,911 | ~896,800 | **962,070** |
-| Avg pts/task | 2,242 | 2,242 | 2,405 |
-| % of winner | 93.2% | 93.2% | 100% |
+| Tasks solved | 46 | 400 | 400 |
+| Total score | 103,262 | ~898,000 | **962,070** |
+| Avg pts/task | 2,245 | 2,245 | 2,405 |
+| % of winner | 93.3% | 93.3% | 100% |
 
 **Winner**: Code Golf International (962,070 pts) - [Final Leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/)
 

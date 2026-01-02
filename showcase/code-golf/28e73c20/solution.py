@@ -1,0 +1,1 @@
+def solve(g):L=len(g);return[[(~(d:=min(r,c,L+~r,L+~c))%2and(r-d-1or c-d or d>=L-1>>1)or d%2and r==d+1==c+1)and 3for c in range(L)]for r in range(L)]
