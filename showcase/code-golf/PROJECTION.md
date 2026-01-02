@@ -5,9 +5,9 @@
 | Metric | Value |
 |--------|-------|
 | Tasks Solved | 41 / 400 |
-| Total Score | 90,752 |
-| Avg Score/Task | 2,214 |
-| Projected Final | ~885,400 (92.0% of winner) |
+| Total Score | 90,825 |
+| Avg Score/Task | 2,215 |
+| Projected Final | ~886,000 (92.0% of winner) |
 
 ---
 
@@ -48,10 +48,10 @@
 | 1c786137 | 249 | 2,251 | ~2,330 | 96.6% |
 | 025d127b | 266 | 2,234 | ~2,320 | 96.3% |
 | 32597951 | 274 | 2,226 | ~2,310 | 96.4% |
+| 1caeab9d | 207 | 2,293 | ~2,360 | 97.2% |
 | 178fcbfb | 217 | 2,283 | ~2,350 | 97.1% |
-| 1caeab9d | 280 | 2,220 | ~2,300 | 96.5% |
 | 11852cab | 280 | 2,220 | ~2,300 | 96.5% |
-| **Avg** | **193** | **2,305** | **2,358** | **97.8%** |
+| **Avg** | **190** | **2,308** | **2,358** | **97.9%** |
 
 ### Hard (300-600 bytes) - 8 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
@@ -83,14 +83,14 @@ Based on 41 solved tasks with tier distribution:
 | Tier | Solved | Our Avg | Assumed # | Projected | Winner Est. |
 |------|--------|---------|-----------|-----------|-------------|
 | Easy | 7 | 2,433 | 180 | 437,940 | 440,820 |
-| Medium | 23 | 2,305 | 140 | 322,700 | 330,120 |
+| Medium | 23 | 2,308 | 140 | 323,120 | 330,120 |
 | Hard | 8 | 2,042 | 60 | 122,520 | 128,580 |
 | V.Hard | 3 | 1,503 | 20 | 30,060 | 34,340 |
-| **Total** | **41** | **2,214** | **400** | **913,220** | **933,860** |
+| **Total** | **41** | **2,215** | **400** | **913,640** | **933,860** |
 
-**Conservative estimate (current avg × 400)**: 2,214 × 400 = **885,400 points**
+**Conservative estimate (current avg × 400)**: 2,215 × 400 = **886,000 points**
 
-**Optimistic estimate (tier-weighted)**: **913,220 points** (if we maintain tier averages)
+**Optimistic estimate (tier-weighted)**: **913,640 points** (if we maintain tier averages)
 
 ---
 
@@ -122,6 +122,7 @@ If we could reduce:
 - `1a07d186`: 635→434 bytes = **+201 points** (32% reduction)
 - `150deff5`: 684→494 bytes = **+190 points** (28% reduction)
 - `178fcbfb`: 304→217 bytes = **+87 points** (29% reduction) - 10 gens evolution
+- `1caeab9d`: 280→207 bytes = **+73 points** (26% reduction) - 10 gens evolution
 - `11852cab`: 333→280 bytes = **+53 points** (16% reduction) - 10 gens evolution
 
 ---
