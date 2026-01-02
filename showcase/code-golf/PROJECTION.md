@@ -5,9 +5,9 @@
 | Metric | Value |
 |--------|-------|
 | Tasks Solved | 41 / 400 |
-| Total Score | 90,958 |
-| Avg Score/Task | 2,218 |
-| Projected Final | ~887,200 (92.1% of winner) |
+| Total Score | 91,078 |
+| Avg Score/Task | 2,221 |
+| Projected Final | ~888,400 (92.2% of winner) |
 
 ---
 
@@ -31,11 +31,11 @@
 | 1bfc4729 | 108 | 2,392 | ~2,420 | 98.8% |
 | 05269061 | 113 | 2,387 | ~2,420 | 98.6% |
 | 137eaa0f | 130 | 2,370 | ~2,400 | 98.8% |
-| 1cf80156 | 138 | 2,362 | ~2,400 | 98.4% |
+| 1cf80156 | 130 | 2,370 | ~2,400 | 98.8% |
 | 08ed6ac7 | 142 | 2,358 | ~2,400 | 98.3% |
 | 09629e4f | 170 | 2,330 | ~2,380 | 97.9% |
 | 239be575 | 170 | 2,330 | ~2,380 | 97.9% |
-| 1b2d62fb | 170 | 2,330 | ~2,380 | 97.9% |
+| 1b2d62fb | 58 | 2,442 | ~2,450 | 99.7% |
 | 10fcaaa3 | 174 | 2,326 | ~2,380 | 97.7% |
 | 1190e5a7 | 124 | 2,376 | ~2,400 | 99.0% |
 | 363442ee | 144 | 2,356 | ~2,400 | 98.2% |
@@ -82,15 +82,15 @@ Based on 41 solved tasks with tier distribution:
 
 | Tier | Solved | Our Avg | Assumed # | Projected | Winner Est. |
 |------|--------|---------|-----------|-----------|-------------|
-| Easy | 7 | 2,433 | 180 | 437,940 | 440,820 |
-| Medium | 23 | 2,308 | 140 | 323,120 | 330,120 |
+| Easy | 8 | 2,435 | 180 | 438,300 | 441,000 |
+| Medium | 22 | 2,318 | 140 | 324,520 | 330,120 |
 | Hard | 8 | 2,042 | 60 | 122,520 | 128,580 |
 | V.Hard | 3 | 1,503 | 20 | 30,060 | 34,340 |
-| **Total** | **41** | **2,215** | **400** | **913,640** | **933,860** |
+| **Total** | **41** | **2,221** | **400** | **915,400** | **934,040** |
 
-**Conservative estimate (current avg × 400)**: 2,215 × 400 = **886,000 points**
+**Conservative estimate (current avg × 400)**: 2,221 × 400 = **888,400 points**
 
-**Optimistic estimate (tier-weighted)**: **913,640 points** (if we maintain tier averages)
+**Optimistic estimate (tier-weighted)**: **915,400 points** (if we maintain tier averages)
 
 ---
 
@@ -128,6 +128,8 @@ If we could reduce:
 - `11852cab`: 333→280 bytes = **+53 points** (16% reduction) - 10 gens evolution
 - `1e32b0e9`: 207→201 bytes = **+6 points** (3% reduction) - 10 gens evolution (plateau)
 - `10fcaaa3`: 176→174 bytes = **+2 points** (1% reduction) - 10 gens evolution (near plateau)
+- `1b2d62fb`: 170→58 bytes = **+112 points** (66% reduction) - 8 gens evolution (MASSIVE breakthrough)
+- `1cf80156`: 138→130 bytes = **+8 points** (6% reduction) - 10 gens evolution (near plateau)
 
 ---
 
