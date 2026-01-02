@@ -8,20 +8,21 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 41 / 400 (10.3%) |
-| **Total Score** | 91,339 points |
-| **Avg Score/Task** | 2,228 points |
-| **% of Winner Avg** | 92.6% (winner: 2,405 pts/task) |
-| **Projected Final** | ~891,200 points ([details](./PROJECTION.md)) |
+| **Solved** | 42 / 400 (10.5%) |
+| **Total Score** | 93,789 points |
+| **Avg Score/Task** | 2,233 points |
+| **% of Winner Avg** | 92.8% (winner: 2,405 pts/task) |
+| **Projected Final** | ~893,200 points ([details](./PROJECTION.md)) |
 
 <!-- Competition winner: Code Golf International with 962,070 pts (DO NOT MODIFY) -->
 
 ---
 
-## Solved Problems (41)
+## Solved Problems (42)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
+| [`25d8a9c8`](./25d8a9c8/README.md) | Row uniformity check | **50** | 2,450 | [solution.py](./25d8a9c8/solution.py) |
 | [`0520fde7`](./0520fde7/README.md) | Grid AND comparison | **57** | 2,443 | [solution.py](./0520fde7/solution.py) |
 | [`0d3d703e`](./0d3d703e/README.md) | Color mapping (LUT) | **58** | 2,442 | [solution.py](./0d3d703e/solution.py) |
 | [`007bbfb7`](./007bbfb7/README.md) | Outer product grid | **65** | 2,435 | [solution.py](./007bbfb7/solution.py) |
@@ -66,9 +67,9 @@
 
 ---
 
-## Unsolved Problems (369)
+## Unsolved Problems (358)
 
-### Analyzed Tasks (35)
+### Analyzed Tasks (34)
 
 | Task ID | Pattern | Est. Difficulty |
 |---------|---------|-----------------|
@@ -89,7 +90,6 @@
 | `23b5c85d` | Rare color ray extension | Hard |
 | `253bf280` | Position-based lines | Hard |
 | `25d487eb` | Container fill with color | Hard |
-| `25d8a9c8` | Cross-based split regions | Very Hard |
 | `25ff71a9` | Pattern isolation | Hard |
 | `264363fd` | Grid region coloring | Very Hard |
 | `272f95fa` | Grid cell quadrant coloring | Very Hard |
@@ -480,10 +480,10 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 | Metric | Current | Projected | Winner |
 |--------|---------|-----------|--------|
-| Tasks solved | 41 | 400 | 400 |
-| Total score | 91,339 | ~891,200 | **962,070** |
-| Avg pts/task | 2,228 | 2,228 | 2,405 |
-| % of winner | 92.6% | 92.6% | 100% |
+| Tasks solved | 42 | 400 | 400 |
+| Total score | 93,789 | ~893,200 | **962,070** |
+| Avg pts/task | 2,233 | 2,233 | 2,405 |
+| % of winner | 92.8% | 92.8% | 100% |
 
 **Winner**: Code Golf International (962,070 pts) - [Final Leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/)
 

@@ -27,19 +27,20 @@
 
 | Metric | Value |
 |--------|-------|
-| Tasks Solved | 41 / 400 |
-| Total Score | 91,339 |
-| Avg Score/Task | 2,228 |
-| **% of Winner Avg** | 92.6% (2,228 ÷ 2,405) |
-| Projected Final (if all 400 solved) | ~891,200 (92.6% of winner) |
+| Tasks Solved | 42 / 400 |
+| Total Score | 93,789 |
+| Avg Score/Task | 2,233 |
+| **% of Winner Avg** | 92.8% (2,233 ÷ 2,405) |
+| Projected Final (if all 400 solved) | ~893,200 (92.8% of winner) |
 
 ---
 
 ## Tasks by Difficulty
 
-### Easy (< 100 bytes) - 7 tasks
+### Easy (< 100 bytes) - 8 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
 |------|-------|-------|-------------|-------------|
+| 25d8a9c8 | 50 | 2,450 | ~2,455 | 99.8% |
 | 0520fde7 | 57 | 2,443 | ~2,450 | 99.7% |
 | 0d3d703e | 58 | 2,442 | ~2,450 | 99.7% |
 | 007bbfb7 | 65 | 2,435 | ~2,450 | 99.4% |
@@ -47,7 +48,7 @@
 | 1e0a9b12 | 69 | 2,431 | ~2,450 | 99.2% |
 | 27a28665 | 70 | 2,430 | ~2,450 | 99.2% |
 | 017c7c7b | 80 | 2,420 | ~2,445 | 99.0% |
-| **Avg** | **67** | **2,433** | **2,449** | **99.4%** |
+| **Avg** | **65** | **2,435** | **2,449** | **99.4%** |
 
 ### Medium (100-300 bytes) - 21 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
@@ -102,19 +103,19 @@
 
 ## Projection Model
 
-Based on 41 solved tasks with tier distribution:
+Based on 42 solved tasks with tier distribution:
 
 | Tier | Solved | Our Avg | Assumed # | Projected | Winner Est. |
 |------|--------|---------|-----------|-----------|-------------|
 | Easy | 8 | 2,435 | 180 | 438,300 | 441,000 |
 | Medium | 22 | 2,318 | 140 | 324,520 | 330,120 |
-| Hard | 8 | 2,042 | 60 | 122,520 | 128,580 |
+| Hard | 9 | 2,055 | 60 | 123,300 | 128,580 |
 | V.Hard | 3 | 1,586 | 20 | 31,720 | 35,000 |
-| **Total** | **41** | **2,227** | **400** | **917,060** | **934,700** |
+| **Total** | **42** | **2,233** | **400** | **917,840** | **934,700** |
 
-**Conservative estimate (current avg × 400)**: 2,227 × 400 = **890,800 points**
+**Conservative estimate (current avg × 400)**: 2,233 × 400 = **893,200 points**
 
-**Optimistic estimate (tier-weighted)**: **917,060 points** (if we maintain tier averages)
+**Optimistic estimate (tier-weighted)**: **917,840 points** (if we maintain tier averages)
 
 ---
 
@@ -161,9 +162,9 @@ Tasks with byte counts significantly above tier average:
 
 ## Key Insights
 
-1. **Easy tasks (7): 99.4%** - Nearly optimal, minimal room for improvement
+1. **Easy tasks (8): 99.4%** - Nearly optimal, minimal room for improvement
 2. **Medium tasks (22): 97.9%** - Good performance, 2% gap
-3. **Hard tasks (8): 95.3%** - 5% gap, some byte savings possible
+3. **Hard tasks (9): 95.3%** - 5% gap, some byte savings possible
 4. **Very Hard tasks (3): 92.4%** - 7.6% gap, all 3 tasks now optimized!
 
 ## Recommendations

@@ -1,0 +1,1 @@
+def solve(g):return[[5*(len({*r})<2)]*3for r in g]
