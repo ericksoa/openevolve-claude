@@ -5,9 +5,9 @@
 | Metric | Value |
 |--------|-------|
 | Tasks Solved | 41 / 400 |
-| Total Score | 89,131 |
-| Avg Score/Task | 2,174 |
-| Projected Final | ~870,000 (90.4% of winner) |
+| Total Score | 89,621 |
+| Avg Score/Task | 2,186 |
+| Projected Final | ~875,000 (90.9% of winner) |
 
 ---
 
@@ -68,11 +68,11 @@
 | Task | Bytes | Score | Est. Winner | % of Winner |
 |------|-------|-------|-------------|-------------|
 | 1a07d186 | 635 | 1,865 | ~2,000 | 93.3% |
+| 2dd70a9a | 673 | 1,827 | ~1,950 | 93.7% |
 | 150deff5 | 684 | 1,816 | ~1,950 | 93.1% |
 | 1b60fb0c | 933 | 1,567 | ~1,800 | 87.1% |
-| 2dd70a9a | 1,163 | 1,337 | ~1,600 | 83.6% |
 | 0e206a2e | 1,384 | 1,116 | ~1,400 | 79.7% |
-| **Avg** | **960** | **1,540** | **1,750** | **88.0%** |
+| **Avg** | **862** | **1,638** | **1,820** | **90.0%** |
 
 ---
 
@@ -85,12 +85,12 @@ Based on 41 solved tasks with tier distribution:
 | Easy | 7 | 2,433 | 180 | 437,940 | 440,820 |
 | Medium | 19 | 2,301 | 140 | 322,140 | 329,980 |
 | Hard | 10 | 2,068 | 60 | 124,080 | 130,380 |
-| V.Hard | 5 | 1,540 | 20 | 30,800 | 35,000 |
-| **Total** | **41** | **2,174** | **400** | **914,960** | **936,180** |
+| V.Hard | 5 | 1,638 | 20 | 32,760 | 36,400 |
+| **Total** | **41** | **2,186** | **400** | **916,920** | **937,580** |
 
-**Conservative estimate (current avg × 400)**: 2,174 × 400 = **869,600 points**
+**Conservative estimate (current avg × 400)**: 2,186 × 400 = **874,400 points**
 
-**Optimistic estimate (tier-weighted)**: **914,960 points** (if we maintain tier averages)
+**Optimistic estimate (tier-weighted)**: **916,920 points** (if we maintain tier averages)
 
 ---
 
@@ -102,9 +102,9 @@ Tasks with byte counts significantly above tier average:
 
 | Task | Current | Tier Avg | Gap | Potential Savings |
 |------|---------|----------|-----|-------------------|
-| 0e206a2e | 1,384 | 960 | +424 | High priority |
-| 2dd70a9a | 1,163 | 960 | +203 | High priority |
-| 1b60fb0c | 933 | 960 | -27 | At average |
+| 0e206a2e | 1,384 | 862 | +522 | High priority |
+| 1b60fb0c | 933 | 862 | +71 | Medium priority |
+| 2dd70a9a | 673 | 862 | -189 | ✓ Optimized! |
 | 045e512c | 591 | 432 | +159 | Medium priority |
 | 0a938d79 | 539 | 432 | +107 | Medium priority |
 | a64e4611 | 523 | 432 | +91 | Medium priority |
@@ -113,10 +113,13 @@ Tasks with byte counts significantly above tier average:
 
 If we could reduce:
 - `0e206a2e`: 1384→600 bytes = +784 points
-- `2dd70a9a`: 1163→600 bytes = +563 points
+- `1b60fb0c`: 933→600 bytes = +333 points
 - `045e512c`: 591→400 bytes = +191 points
 
-**Total potential gain: ~1,500+ points**
+**Total potential gain: ~1,300+ points**
+
+### Recent Re-golf Wins
+- `2dd70a9a`: 1163→673 bytes = **+490 points** (42% reduction)
 
 ---
 
@@ -125,11 +128,11 @@ If we could reduce:
 1. **Easy tasks: 99.4%** - Nearly optimal, minimal room for improvement
 2. **Medium tasks: 97.6%** - Good performance, 2-3% gap
 3. **Hard tasks: 95.1%** - 5% gap, some byte savings possible
-4. **Very Hard tasks: 88.0%** - 12% gap, major algorithm rework needed
+4. **Very Hard tasks: 90.0%** - 10% gap, 2dd70a9a now optimized!
 
 ## Recommendations
 
-1. **Re-golf very hard tasks** - 0e206a2e and 2dd70a9a need major rework
+1. **Re-golf very hard tasks** - 0e206a2e and 1b60fb0c need major rework
 2. **Scan for low-hanging fruit** - Check if new tricks apply to older solutions
 3. **Focus on medium difficulty new tasks** - Best effort/reward ratio
-4. **Avoid very hard new tasks** - They tank the average; defer if possible
+4. **Apply 2dd70a9a tricks** - Walrus, tuple indexing, __setitem__ tricks

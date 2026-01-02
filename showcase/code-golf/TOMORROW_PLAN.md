@@ -24,7 +24,7 @@
 #### V.Hard (600+ bytes) - Document + Major Re-golf
 | Task | Bytes | Status |
 |------|-------|--------|
-| `2dd70a9a` | 1,163 | Missing README, high re-golf priority |
+| `2dd70a9a` | ~~1,163~~ **673** | ✅ DONE! README + re-golf (-42%, +490 pts) |
 | `1b60fb0c` | 933 | Missing README |
 | `150deff5` | 684 | Missing README |
 | `1a07d186` | 635 | Missing README |
@@ -78,7 +78,7 @@ After documenting, these need major algorithm rework:
 | Task | Current | Target | Potential Gain | Notes |
 |------|---------|--------|----------------|-------|
 | `0e206a2e` | 1,384 | ~600 | +784 pts | Rotated template (has README) |
-| `2dd70a9a` | 1,163 | ~600 | +563 pts | Periodic pattern (needs README) |
+| `2dd70a9a` | ~~1,163~~ **673** | ✅ | **+490 pts** | ✅ DONE! |
 | `1b60fb0c` | 933 | ~600 | +333 pts | (needs README) |
 
 **Strategy**: Fresh session per task. Document → Understand → Rethink algorithm.
@@ -103,12 +103,11 @@ Only after documentation is complete. Pick from Medium difficulty analyzed list.
 
 ## Execution Order
 
-### Session 1: Document + Re-golf `2dd70a9a` (1163 bytes)
-1. Read `tasks/2dd70a9a.json`
-2. Read current solution, understand approach
-3. Write README.md documenting pattern
-4. Attempt major algorithm rework
-5. Target: <700 bytes
+### Session 1: Document + Re-golf `2dd70a9a` ✅ COMPLETE
+- ~~1163 bytes~~ → **673 bytes** (-42%)
+- README.md written with 11 evolution steps documented
+- Key tricks: walrus, tuple indexing, __setitem__, variable reuse
+- **+490 points gained!**
 
 ### Session 2: Document + Re-golf `1b60fb0c` (933 bytes)
 Same process as Session 1
@@ -131,10 +130,10 @@ Same process as Session 1
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| READMEs Complete | 26/41 | 41/41 |
-| Total Score | 89,131 | 92,000+ |
-| Avg Score/Task | 2,174 | 2,200+ |
-| V.Hard Avg | 1,540 | 1,700+ |
+| READMEs Complete | 27/41 | 41/41 |
+| Total Score | 89,621 | 92,000+ |
+| Avg Score/Task | 2,186 | 2,200+ |
+| V.Hard Avg | 1,638 | 1,700+ |
 
 ---
 

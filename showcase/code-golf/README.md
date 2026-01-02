@@ -9,9 +9,9 @@
 | Metric | Value |
 |--------|-------|
 | **Solved** | 41 / 400 (10.3%) |
-| **Total Score** | 89,131 points |
-| **Avg Score/Task** | 2,174 points |
-| **Projected Final** | ~870,000 points ([details](./PROJECTION.md)) |
+| **Total Score** | 89,621 points |
+| **Avg Score/Task** | 2,186 points |
+| **Projected Final** | ~875,000 points ([details](./PROJECTION.md)) |
 
 ---
 
@@ -49,13 +49,14 @@
 | [`2bcee788`](./2bcee788/README.md) | Color replacement by marker | **465** | 2,035 | [solution.py](./2bcee788/solution.py) |
 | [`a64e4611`](./a64e4611/README.md) | Largest rectangle + cross | **523** | 1,977 | [solution.py](./a64e4611/solution.py) |
 | [`045e512c`](./045e512c/README.md) | Template matching | **591** | 1,909 | [solution.py](./045e512c/solution.py) |
+| [`2dd70a9a`](./2dd70a9a/README.md) | U-shape connector | **673** | 1,827 | [solution.py](./2dd70a9a/solution.py) |
 | [`0e206a2e`](./0e206a2e/README.md) | Rotated template placement | **1384** | 1,116 | [solution.py](./0e206a2e/solution.py) |
 
 ---
 
 ## Unsolved Problems (369)
 
-### Analyzed Tasks (45)
+### Analyzed Tasks (44)
 
 | Task ID | Pattern | Est. Difficulty |
 |---------|---------|-----------------|
@@ -95,7 +96,6 @@
 | `2bee17df` | Extract rectangular patch | Medium |
 | `2c608aff` | Connect marked cross lines | Hard |
 | `2dc579da` | Remove noise keep signal | Hard |
-| `2dd70a9a` | Periodic pattern completion | Medium |
 | `2dee498d` | Shape replication | Hard |
 | `31aa019c` | Vertical background lines | Hard |
 | `321b1fc6` | Find unique odd pattern | Hard |
@@ -476,10 +476,10 @@ python evaluator.py <task_id> solutions/<task_id>.py
 | Metric | Current | Target | Winner |
 |--------|---------|--------|--------|
 | Tasks solved | 41 | 400 | 400 |
-| Total score | 89,131 | ~870,000 | 962,070 |
+| Total score | 89,621 | ~875,000 | 962,070 |
 | Competition status | Ended (Oct 2025) | - | - |
 
-**Projection**: At current performance levels (avg 2,174 pts/task), we project a final score of ~870,000 points (90.4% of winner). See [PROJECTION.md](./PROJECTION.md) for details.
+**Projection**: At current performance levels (avg 2,186 pts/task), we project a final score of ~875,000 points (90.9% of winner). See [PROJECTION.md](./PROJECTION.md) for details.
 
 This showcase demonstrates the `/evolve-size` capability. The techniques transfer to any code golf challenge.
 
