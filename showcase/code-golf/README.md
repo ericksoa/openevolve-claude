@@ -8,17 +8,17 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 47 / 400 (11.8%) |
-| **Total Score** | 105,695 points |
-| **Avg Score/Task** | 2,249 points |
-| **% of Winner Avg** | 93.5% (winner: 2,405 pts/task) |
-| **Projected Final** | ~900,000 points ([details](./PROJECTION.md)) |
+| **Solved** | 48 / 400 (12.0%) |
+| **Total Score** | 108,128 points |
+| **Avg Score/Task** | 2,253 points |
+| **% of Winner Avg** | 93.7% (winner: 2,405 pts/task) |
+| **Projected Final** | ~901,000 points ([details](./PROJECTION.md)) |
 
 <!-- Competition winner: Code Golf International with 962,070 pts (DO NOT MODIFY) -->
 
 ---
 
-## Solved Problems (47)
+## Solved Problems (48)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
@@ -28,6 +28,7 @@
 | [`0d3d703e`](./0d3d703e/README.md) | Color mapping (LUT) | **58** | 2,442 | [solution.py](./0d3d703e/solution.py) |
 | [`007bbfb7`](./007bbfb7/README.md) | Outer product grid | **65** | 2,435 | [solution.py](./007bbfb7/solution.py) |
 | [`2281f1f4`](./2281f1f4/README.md) | Row/column intersection fill | **67** | 2,433 | [solution.py](./2281f1f4/solution.py) |
+| [`28bf18c6`](./28bf18c6/README.md) | Extract + duplicate shape | **67** | 2,433 | [solution.py](./28bf18c6/solution.py) |
 | [`29c11459`](./29c11459/README.md) | Horizontal line splitting | **68** | 2,432 | [solution.py](./29c11459/solution.py) |
 | [`1e0a9b12`](./1e0a9b12/README.md) | Gravity (drop cells) | **69** | 2,431 | [solution.py](./1e0a9b12/solution.py) |
 | [`27a28665`](./27a28665/README.md) | Pattern shape classification | **70** | 2,430 | [solution.py](./27a28665/solution.py) |
@@ -74,7 +75,7 @@
 
 ## Unsolved Problems (355)
 
-### Analyzed Tasks (32)
+### Analyzed Tasks (31)
 
 | Task ID | Pattern | Est. Difficulty |
 |---------|---------|-----------------|
@@ -97,7 +98,6 @@
 | `25ff71a9` | Pattern isolation | Hard |
 | `264363fd` | Grid region coloring | Very Hard |
 | `272f95fa` | Grid cell quadrant coloring | Very Hard |
-| `28bf18c6` | Extract and duplicate shape | Medium |
 | `29623171` | Grid cell fill by quadrant | Hard |
 | `29ec7d0e` | Fill missing pattern | Hard |
 | `2bee17df` | Extract rectangular patch | Medium |
@@ -483,14 +483,14 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 | Metric | Current | Projected | Winner |
 |--------|---------|-----------|--------|
-| Tasks solved | 47 | 400 | 400 |
-| Total score | 105,695 | ~900,000 | **962,070** |
-| Avg pts/task | 2,249 | 2,249 | 2,405 |
-| % of winner | 93.5% | 93.5% | 100% |
+| Tasks solved | 48 | 400 | 400 |
+| Total score | 108,128 | ~901,000 | **962,070** |
+| Avg pts/task | 2,253 | 2,253 | 2,405 |
+| % of winner | 93.7% | 93.7% | 100% |
 
 **Winner**: Code Golf International (962,070 pts) - [Final Leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/)
 
-**Projection**: At current avg (2,249 pts/task), we project ~900,000 points if all 400 tasks solved (93.5% of winner). See [PROJECTION.md](./PROJECTION.md) for details.
+**Projection**: At current avg (2,253 pts/task), we project ~901,000 points if all 400 tasks solved (93.7% of winner). See [PROJECTION.md](./PROJECTION.md) for details.
 
 This showcase demonstrates the `/evolve-size` capability. The techniques transfer to any code golf challenge.
 
