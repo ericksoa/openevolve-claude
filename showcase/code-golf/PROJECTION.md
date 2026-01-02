@@ -1,5 +1,28 @@
 # Score Projection Tracker
 
+## Official Competition Winner (DO NOT MODIFY)
+
+<!--
+  ⚠️ IMPORTANT: DO NOT CHANGE THIS SECTION ⚠️
+
+  This is the actual winning score from the Kaggle competition.
+  Source: https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/
+
+  This value is fixed and used to calculate our % of winner metrics.
+-->
+
+| Place | Team | Score |
+|-------|------|-------|
+| 1st | Code Golf International | **962,070** |
+| 2nd | jailctf merger | 961,805 |
+| 3rd | ox jam! | 961,784 |
+| 4th | FuunAgent | 957,810 |
+| 5th | HIMAGINE THE FUTURE. | 957,568 |
+
+**Winner avg per task**: 962,070 ÷ 400 = **2,405 pts/task**
+
+---
+
 ## Current Status
 
 | Metric | Value |
@@ -7,7 +30,8 @@
 | Tasks Solved | 41 / 400 |
 | Total Score | 91,078 |
 | Avg Score/Task | 2,221 |
-| Projected Final | ~888,400 (92.2% of winner) |
+| **% of Winner Avg** | 92.3% (2,221 ÷ 2,405) |
+| Projected Final (if all 400 solved) | ~888,400 (92.3% of winner) |
 
 ---
 
