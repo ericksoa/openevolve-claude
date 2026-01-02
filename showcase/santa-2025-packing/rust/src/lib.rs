@@ -343,6 +343,82 @@ impl Default for Packing {
     }
 }
 
+impl Packing {
+    /// Generate an SVG visualization of the packing
+    pub fn to_svg(&self, width: usize, height: usize) -> String {
+        if self.trees.is_empty() {
+            return format!(
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\">\n\
+                  <rect width=\"100%\" height=\"100%\" fill=\"#f0f0f0\"/>\n\
+                  <text x=\"50%\" y=\"50%\" text-anchor=\"middle\" fill=\"#666\">No trees</text>\n\
+                </svg>",
+                width, height, width, height
+            );
+        }
+
+        // Calculate bounds
+        let mut min_x = f64::INFINITY;
+        let mut min_y = f64::INFINITY;
+        let mut max_x = f64::NEG_INFINITY;
+        let mut max_y = f64::NEG_INFINITY;
+
+        for tree in &self.trees {
+            let (bmin_x, bmin_y, bmax_x, bmax_y) = tree.bounds();
+            min_x = min_x.min(bmin_x);
+            min_y = min_y.min(bmin_y);
+            max_x = max_x.max(bmax_x);
+            max_y = max_y.max(bmax_y);
+        }
+
+        let data_width = max_x - min_x;
+        let data_height = max_y - min_y;
+        let side = data_width.max(data_height);
+
+        // Add margin
+        let margin = side * 0.05;
+        let view_min_x = min_x - margin;
+        let view_min_y = min_y - margin;
+        let view_size = side + 2.0 * margin;
+
+        let mut svg = format!(
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"{} {} {} {}\">\n\
+              <rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#f8f8f8\" stroke=\"#ccc\" stroke-width=\"0.01\"/>\n\
+              <rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"none\" stroke=\"#2196F3\" stroke-width=\"0.02\" stroke-dasharray=\"0.05,0.05\"/>\n",
+            width, height,
+            view_min_x, -view_min_y - view_size, view_size, view_size,
+            view_min_x, -view_min_y - view_size, view_size, view_size,
+            min_x, -max_y, side, side
+        );
+
+        // Draw trees with gradient colors
+        for (i, tree) in self.trees.iter().enumerate() {
+            let hue = (i as f64 / self.trees.len() as f64 * 120.0) as u32; // Green gradient
+            let color = format!("hsl({}, 70%, 40%)", hue);
+            let stroke_color = format!("hsl({}, 70%, 30%)", hue);
+
+            let points: String = tree.vertices()
+                .iter()
+                .map(|(x, y)| format!("{:.4},{:.4}", x, -y))
+                .collect::<Vec<_>>()
+                .join(" ");
+
+            svg.push_str(&format!(
+                "  <polygon points=\"{}\" fill=\"{}\" stroke=\"{}\" stroke-width=\"0.005\" opacity=\"0.8\"/>\n",
+                points, color, stroke_color
+            ));
+        }
+
+        // Add info text
+        svg.push_str(&format!(
+            "  <text x=\"{}\" y=\"{}\" font-size=\"0.15\" fill=\"#333\">n={}, side={:.4}</text>\n</svg>",
+            view_min_x + 0.05, -view_min_y - view_size + 0.2,
+            self.trees.len(), self.side_length()
+        ));
+
+        svg
+    }
+}
+
 /// Trait for packing algorithms
 pub trait PackingAlgorithm: Send + Sync {
     /// Pack n trees and return the packing

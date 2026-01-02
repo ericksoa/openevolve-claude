@@ -1,13 +1,19 @@
-//! Evolved Packing Algorithm - Generation 78b BETTER WAVE COMPACTION
+//! Evolved Packing Algorithm - Generation 77j POST-SA GLOBAL ROTATION
 //!
-//! MUTATION: More aggressive wave compaction with finer steps
+//! MUTATION STRATEGY: POST-SA GLOBAL ROTATION OPTIMIZATION
+//! Key insight: Top solutions use global rotation (3° steps) to find optimal orientation.
+//! After SA, we rotate the ENTIRE packing 0-15° in 1° steps to find the best orientation.
 //!
-//! Changes from Gen74a (baseline 89.26):
-//! - wave_passes: 3 -> 5 (more compaction passes)
-//! - wave steps: added 0.005 for finer movement
-//! - center_pull_strength: 0.07 -> 0.08 (slightly stronger)
+//! When we rotate:
+//! - All tree positions rotate around the center
+//! - All tree angles adjust by the same amount
+//! - We pick the rotation that minimizes bounding box side length
 //!
-//! Hypothesis: More wave passes with finer steps will compact trees better
+//! Hypothesis: This addresses a known gap - we never try global rotation like top solutions.
+//!
+//! Changes from Gen76d:
+//! - Add post_sa_global_rotation() method
+//! - Call it after wave_compaction for each n
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -61,7 +67,7 @@ impl Default for EvolvedConfig {
             sa_min_temp: 0.00001,
             translation_scale: 0.055,
             rotation_granularity: 45.0,
-            center_pull_strength: 0.08,  // GEN78b: slightly increased from 0.07
+            center_pull_strength: 0.09,
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
@@ -73,9 +79,9 @@ impl Default for EvolvedConfig {
             hot_restart_interval: 800,
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
-            compression_prob: 0.20,
-            wave_passes: 5,  // GEN78b: increased from 3
-            late_stage_threshold: 140,  // CHANGED: was 160, now 140 (last 30%)
+            compression_prob: 0.25,
+            wave_passes: 3,
+            late_stage_threshold: 150,
             fine_angle_step: 15.0,
         }
     }
@@ -127,6 +133,9 @@ impl EvolvedPacker {
 
                 self.wave_compaction(&mut trees);
 
+                // NEW: Post-SA global rotation - try rotating entire packing
+                self.post_sa_global_rotation(&mut trees);
+
                 let side = compute_side_length(&trees);
                 strategy_trees[s_idx] = trees.clone();
 
@@ -151,6 +160,62 @@ impl EvolvedPacker {
         }
 
         packings
+    }
+
+    /// NEW: Post-SA global rotation optimization
+    /// Try rotating the entire packing 0-45° in 1° steps to find optimal orientation
+    fn post_sa_global_rotation(&self, trees: &mut Vec<PlacedTree>) {
+        if trees.len() <= 1 {
+            return;
+        }
+
+        let original = trees.clone();
+        let mut best_angle = 0.0;
+        let mut best_side = compute_side_length(trees);
+
+        // Try rotating entire packing from 0 to 45 degrees (beyond that it's symmetric for trees)
+        // Use 1 degree steps for fine-grained search
+        for angle_step in 1..=45 {
+            let angle_deg = angle_step as f64;
+            let rotated = self.rotate_all_trees(&original, angle_deg);
+            let side = compute_side_length(&rotated);
+
+            if side < best_side - 0.0001 {
+                best_side = side;
+                best_angle = angle_deg;
+            }
+        }
+
+        // Apply best rotation if we found an improvement
+        if best_angle > 0.0 {
+            *trees = self.rotate_all_trees(&original, best_angle);
+        }
+    }
+
+    /// Rotate all trees around the packing center by the given angle
+    fn rotate_all_trees(&self, trees: &[PlacedTree], angle_deg: f64) -> Vec<PlacedTree> {
+        if trees.is_empty() {
+            return Vec::new();
+        }
+
+        // Find center of the packing
+        let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
+        let center_x = (min_x + max_x) / 2.0;
+        let center_y = (min_y + max_y) / 2.0;
+
+        let rad = angle_deg * PI / 180.0;
+        let cos_a = rad.cos();
+        let sin_a = rad.sin();
+
+        trees.iter().map(|t| {
+            // Translate to origin, rotate, translate back
+            let dx = t.x - center_x;
+            let dy = t.y - center_y;
+            let new_x = dx * cos_a - dy * sin_a + center_x;
+            let new_y = dx * sin_a + dy * cos_a + center_y;
+            let new_angle = (t.angle_deg + angle_deg).rem_euclid(360.0);
+            PlacedTree::new(new_x, new_y, new_angle)
+        }).collect()
     }
 
     fn wave_compaction(&self, trees: &mut Vec<PlacedTree>) {
@@ -185,7 +250,7 @@ impl EvolvedPacker {
                     continue;
                 }
 
-                for step in [0.10, 0.05, 0.02, 0.01, 0.005] {  // GEN78b: added 0.005
+                for step in [0.10, 0.05, 0.02, 0.01] {
                     let new_x = old_x + dx * step;
                     let new_y = old_y + dy * step;
 

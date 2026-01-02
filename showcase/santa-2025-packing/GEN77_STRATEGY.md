@@ -1,5 +1,31 @@
 # Gen77 Strategy: GA + AlphaEvolve + Online Research
 
+## Gen77 Results Summary (COMPLETED)
+
+**All post-SA refinement attempts FAILED to improve on baseline:**
+
+| Candidate | Approach | Score | vs Baseline |
+|-----------|----------|-------|-------------|
+| Gen76d (baseline) | None | ~87.86 | - |
+| Gen77i | Post-SA angle refinement (during strategy) | 89.05 | -1.4% |
+| Gen77j | Post-SA global rotation | (not tested solo) | - |
+| Gen77l | Combined (angle + rotation + repositioning) | 89.27 | -1.6% |
+| Gen77m | Final-only angle refinement | 88.61 | -0.9% |
+
+**Key Learnings:**
+1. **Post-SA refinement disrupts optimization**: The SA finds a local optimum specific to 45° angles. Changing angles afterwards breaks the delicate geometric balance.
+2. **Discrete angles are a feature, not a bug**: The 45° constraint during SA helps avoid local minima and creates consistent structure.
+3. **Strategy isolation matters**: Modifying intermediate packings during incremental building hurts subsequent placements.
+4. **Top solutions likely use different fundamental approaches**: Continuous angles work for them because they optimize differently from the start, not as post-processing.
+
+**Conclusion**: Gen76d remains the champion at 87.86. Future work should focus on:
+- Different SA move strategies (not post-SA changes)
+- Better initial placement strategies
+- More search attempts or iterations
+- Fundamentally different algorithms (NFP, LP-based)
+
+---
+
 ## Executive Summary
 
 Gen76d achieved **87.86** using 3-way crossover. Target is **~69** (27% gap remaining).

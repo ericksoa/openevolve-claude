@@ -19,6 +19,10 @@ path = "src/submit.rs"
 name = "analyze"
 path = "src/analyze.rs"
 
+[[bin]]
+name = "visualize"
+path = "src/bin/visualize.rs"
+
 [dependencies]
 rand = "0.8"
 rayon = "1.10"

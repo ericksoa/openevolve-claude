@@ -1,13 +1,13 @@
-//! Evolved Packing Algorithm - Generation 78b BETTER WAVE COMPACTION
+//! Evolved Packing Algorithm - Generation 78a STRONGER COMPRESSION
 //!
-//! MUTATION: More aggressive wave compaction with finer steps
+//! MUTATION: Increase compression probability and strength
 //!
 //! Changes from Gen74a (baseline 89.26):
-//! - wave_passes: 3 -> 5 (more compaction passes)
-//! - wave steps: added 0.005 for finer movement
-//! - center_pull_strength: 0.07 -> 0.08 (slightly stronger)
+//! - compression_prob: 0.20 -> 0.35 (more frequent compression moves)
+//! - compression_factor range: 0.02..0.08 -> 0.03..0.12 (stronger pulls)
+//! - center_pull_strength: 0.07 -> 0.10 (stronger center pull)
 //!
-//! Hypothesis: More wave passes with finer steps will compact trees better
+//! Hypothesis: More aggressive compression will reduce bounding box size
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -61,7 +61,7 @@ impl Default for EvolvedConfig {
             sa_min_temp: 0.00001,
             translation_scale: 0.055,
             rotation_granularity: 45.0,
-            center_pull_strength: 0.08,  // GEN78b: slightly increased from 0.07
+            center_pull_strength: 0.10,  // GEN78a: increased from 0.07
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
@@ -73,8 +73,8 @@ impl Default for EvolvedConfig {
             hot_restart_interval: 800,
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
-            compression_prob: 0.20,
-            wave_passes: 5,  // GEN78b: increased from 3
+            compression_prob: 0.35,  // GEN78a: increased from 0.20
+            wave_passes: 3,
             late_stage_threshold: 140,  // CHANGED: was 160, now 140 (last 30%)
             fine_angle_step: 15.0,
         }
@@ -185,7 +185,7 @@ impl EvolvedPacker {
                     continue;
                 }
 
-                for step in [0.10, 0.05, 0.02, 0.01, 0.005] {  // GEN78b: added 0.005
+                for step in [0.10, 0.05, 0.02, 0.01] {
                     let new_x = old_x + dx * step;
                     let new_y = old_y + dy * step;
 
@@ -803,7 +803,7 @@ impl EvolvedPacker {
             return false;
         }
 
-        let compression_factor = rng.gen_range(0.02..0.08);
+        let compression_factor = rng.gen_range(0.03..0.12);  // GEN78a: was 0.02..0.08
         let new_x = old_x + dx * compression_factor;
         let new_y = old_y + dy * compression_factor;
 

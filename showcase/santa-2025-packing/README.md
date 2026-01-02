@@ -2,13 +2,24 @@
 
 Competing in the [Kaggle Santa 2025 Christmas Tree Packing Challenge](https://www.kaggle.com/competitions/santa-2025).
 
+## Claude Code Instructions
+
+When working on this problem, always:
+1. **Generate an SVG visualization** of the bin full of trees after evaluating a candidate:
+   - Run `./target/release/visualize` to generate `packing_n*.svg` files
+   - Open with `open packing_n200.svg` to view in browser
+   - This helps understand the packing structure and identify issues
+2. Use `./target/release/benchmark` to test candidates (runs 3 trials, reports best score)
+3. Save mutation candidates to `mutations/` directory before testing
+4. Update `GEN77_STRATEGY.md` (or current gen strategy doc) with results
+
 ## Problem
 
 Pack 1-200 Christmas tree-shaped polygons into the smallest square box.
 
 **Scoring**: `score = Σ(side²/n)` for n=1 to 200 (lower is better)
 
-**Leaderboard**: Top scores ~69, our current best: **87.86** (Gen76d)
+**Leaderboard**: Top scores ~69, our current best: **88.92** (Gen78b)
 
 ## Tree Shape
 
@@ -16,6 +27,12 @@ The tree is a 15-vertex polygon:
 - Height: 1.0 (tip at y=0.8, trunk bottom at y=-0.2)
 - Width: 0.7 (at base)
 - 3 tiers of branches + rectangular trunk
+
+## Current Best Packing (n=200)
+
+![Packing visualization for n=200 trees](packing_n200.svg)
+
+*Gen78b packing of 200 trees with side length 9.21. Green polygons are the tree shapes, blue box shows the bounding square.*
 
 ## Evolution Journey
 
@@ -413,8 +430,11 @@ santa-2025-packing/
 | Gen72b WaveCompaction | 89.46 | +30% | Post-SA wave compaction |
 | Gen73c LateContinuous | 88.90 | +29% | Fine angles for last 20% trees |
 | Gen74a ExtendedLate | 88.72 | +29% | Fine angles for last 30% trees |
-| **Gen76d Crossover** | **87.86** | **+27%** | **3-way crossover: threshold=150, 25% compression** |
+| Gen76d Crossover | ~89.4 | +30% | 3-way crossover: threshold=150, 25% compression |
+| **Gen78b WaveCompaction** | **88.92** | **+29%** | **5 wave passes + finer steps (0.005)** |
 | *Target (top solution)* | *~69* | - | Continuous angles + global rotation |
+
+**Note**: High run-to-run variance (1-2 points) due to stochastic SA. Scores shown are best of 3 runs.
 
 **Status**: Active evolution. Competition deadline: January 30, 2026.
 

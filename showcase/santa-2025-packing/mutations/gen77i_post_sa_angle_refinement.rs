@@ -1,13 +1,20 @@
-//! Evolved Packing Algorithm - Generation 78b BETTER WAVE COMPACTION
+//! Evolved Packing Algorithm - Generation 77i POST-SA ANGLE REFINEMENT
 //!
-//! MUTATION: More aggressive wave compaction with finer steps
+//! MUTATION STRATEGY: POST-SA ANGLE GRADIENT DESCENT
+//! Key insight: SA works well with 45° angles, but after SA is done,
+//! we can safely try small continuous angle adjustments without destabilizing.
 //!
-//! Changes from Gen74a (baseline 89.26):
-//! - wave_passes: 3 -> 5 (more compaction passes)
-//! - wave steps: added 0.005 for finer movement
-//! - center_pull_strength: 0.07 -> 0.08 (slightly stronger)
+//! After SA completes, for each tree:
+//! - Try angles ±2°, ±4°, ±6° from current angle
+//! - Keep any improvement that doesn't cause overlap
+//! - This allows us to get continuous angle benefits without breaking SA
 //!
-//! Hypothesis: More wave passes with finer steps will compact trees better
+//! Hypothesis: This bridges the gap between our discrete angles and top solutions'
+//! continuous angles, potentially gaining 1-3% improvement.
+//!
+//! Changes from Gen76d:
+//! - Add post_sa_angle_refinement() method
+//! - Call it after wave_compaction for each n
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -61,7 +68,7 @@ impl Default for EvolvedConfig {
             sa_min_temp: 0.00001,
             translation_scale: 0.055,
             rotation_granularity: 45.0,
-            center_pull_strength: 0.08,  // GEN78b: slightly increased from 0.07
+            center_pull_strength: 0.09,
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
@@ -73,9 +80,9 @@ impl Default for EvolvedConfig {
             hot_restart_interval: 800,
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
-            compression_prob: 0.20,
-            wave_passes: 5,  // GEN78b: increased from 3
-            late_stage_threshold: 140,  // CHANGED: was 160, now 140 (last 30%)
+            compression_prob: 0.25,
+            wave_passes: 3,
+            late_stage_threshold: 150,
             fine_angle_step: 15.0,
         }
     }
@@ -127,6 +134,9 @@ impl EvolvedPacker {
 
                 self.wave_compaction(&mut trees);
 
+                // NEW: Post-SA angle refinement - try small angle adjustments
+                self.post_sa_angle_refinement(&mut trees);
+
                 let side = compute_side_length(&trees);
                 strategy_trees[s_idx] = trees.clone();
 
@@ -151,6 +161,69 @@ impl EvolvedPacker {
         }
 
         packings
+    }
+
+    /// NEW: Post-SA angle gradient descent
+    /// After SA, try small angle adjustments on each tree to find better fits
+    fn post_sa_angle_refinement(&self, trees: &mut Vec<PlacedTree>) {
+        if trees.len() <= 1 {
+            return;
+        }
+
+        let initial_side = compute_side_length(trees);
+
+        // Try refining angles for boundary trees first (they affect bounding box most)
+        let boundary_info = self.find_boundary_trees_with_edges(trees);
+        let boundary_indices: Vec<usize> = boundary_info.iter().map(|(i, _)| *i).collect();
+
+        // First pass: boundary trees only
+        for &idx in &boundary_indices {
+            self.try_angle_refinement(trees, idx);
+        }
+
+        // Second pass: all other trees
+        for idx in 0..trees.len() {
+            if !boundary_indices.contains(&idx) {
+                self.try_angle_refinement(trees, idx);
+            }
+        }
+
+        // Only keep changes if they improved or maintained the side length
+        let final_side = compute_side_length(trees);
+        if final_side > initial_side + 0.001 {
+            // This shouldn't happen since we only keep improvements, but safety check
+        }
+    }
+
+    #[inline]
+    fn try_angle_refinement(&self, trees: &mut Vec<PlacedTree>, idx: usize) {
+        let old_x = trees[idx].x;
+        let old_y = trees[idx].y;
+        let old_angle = trees[idx].angle_deg;
+        let old_side = compute_side_length(trees);
+
+        // Try small angle adjustments: ±2°, ±4°, ±6°
+        let angle_deltas = [2.0, -2.0, 4.0, -4.0, 6.0, -6.0, 1.0, -1.0, 3.0, -3.0];
+
+        for &delta in &angle_deltas {
+            let new_angle = (old_angle + delta).rem_euclid(360.0);
+            trees[idx] = PlacedTree::new(old_x, old_y, new_angle);
+
+            if has_overlap(trees, idx) {
+                // Revert if overlap
+                trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
+                continue;
+            }
+
+            let new_side = compute_side_length(trees);
+            if new_side < old_side - 0.0001 {
+                // Found improvement - keep it and stop trying more deltas
+                return;
+            } else {
+                // No improvement - revert
+                trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
+            }
+        }
     }
 
     fn wave_compaction(&self, trees: &mut Vec<PlacedTree>) {
@@ -185,7 +258,7 @@ impl EvolvedPacker {
                     continue;
                 }
 
-                for step in [0.10, 0.05, 0.02, 0.01, 0.005] {  // GEN78b: added 0.005
+                for step in [0.10, 0.05, 0.02, 0.01] {
                     let new_x = old_x + dx * step;
                     let new_y = old_y + dy * step;
 
