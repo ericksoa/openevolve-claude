@@ -19,7 +19,7 @@ Pack 1-200 Christmas tree-shaped polygons into the smallest square box.
 
 **Scoring**: `score = Σ(side²/n)` for n=1 to 200 (lower is better)
 
-**Leaderboard**: Top scores ~69, our current best: **88.22** (Gen83a - TIES ALL-TIME BEST!)
+**Leaderboard**: Top scores ~69, our current best: **87.36** (Gen84c - NEW ALL-TIME BEST!)
 
 ## Tree Shape
 
@@ -32,9 +32,9 @@ The tree is a 15-vertex polygon:
 
 ![Packing visualization for n=200 trees](packing_n200.svg)
 
-*Gen83a packing of 200 trees. Green polygons are the tree shapes, blue box shows the bounding square.*
+*Gen84c packing of 200 trees. Green polygons are the tree shapes, blue box shows the bounding square.*
 
-## Current Best Algorithm (Gen83a - CROSSOVER)
+## Current Best Algorithm (Gen84c - EXTREME 4+1 SPLIT)
 
 ```rust
 // 6 parallel placement strategies
@@ -69,14 +69,14 @@ for attempt in 0..200 {
 // - 28,000 iterations per pass
 // - NOTE: SA still uses 45° angles only (maintains stability)
 
-// Gen83a CROSSOVER: Bidirectional wave compaction
-// Combines Gen80b (outside-in) with Gen82a (inside-out)
+// Gen84c CROSSOVER: Extreme 4+1 split (evolved from Gen83a)
+// More outside-in waves for better settling, one inside-out for gap filling
 for wave in 0..5 {
-    // CROSSOVER KEY: First 3 waves outside-in, last 2 waves inside-out
-    let tree_order = if wave < 3 {
-        trees_sorted_by_distance_from_center.desc()  // Outside-in
+    // CROSSOVER KEY: First 4 waves outside-in, last 1 wave inside-out
+    let tree_order = if wave < 4 {
+        trees_sorted_by_distance_from_center.desc()  // Outside-in (4 waves)
     } else {
-        trees_sorted_by_distance_from_center.asc()   // Inside-out
+        trees_sorted_by_distance_from_center.asc()   // Inside-out (1 wave)
     };
 
     for tree in tree_order {

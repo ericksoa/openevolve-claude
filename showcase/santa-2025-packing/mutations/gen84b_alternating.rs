@@ -1,12 +1,16 @@
-//! Evolved Packing Algorithm - Generation 84c EXTREME SPLIT (4+1)
+//! Evolved Packing Algorithm - Generation 84b ALTERNATING PATTERN
 //!
-//! CROSSOVER: Extreme ratio of Gen83a (4+1 instead of 3+2)
+//! CROSSOVER: Alternating between outside-in and inside-out each wave
 //!
-//! Strategy: First 4 waves use outside-in (far trees first),
-//!           Last 1 wave uses inside-out (close trees first)
+//! Strategy: O-I-O-I-O pattern (outside-in for odd waves, inside-out for even)
+//! - Wave 1: outside-in
+//! - Wave 2: inside-out
+//! - Wave 3: outside-in
+//! - Wave 4: inside-out
+//! - Wave 5: outside-in
 //!
-//! Hypothesis: One final inside-out pass for gap filling after 4 outside-in waves.
-//! More extreme ratio than Gen83a to test limits.
+//! Hypothesis: Interleaving creates better settling opportunities than
+//! consecutive blocks (3+2 or 2+3).
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -157,7 +161,7 @@ impl EvolvedPacker {
             return;
         }
 
-        // GEN84c: EXTREME SPLIT - outside-in first (4), then inside-out (1)
+        // GEN84b: ALTERNATING pattern O-I-O-I-O
         for wave in 0..self.config.wave_passes {
             let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
             let center_x = (min_x + max_x) / 2.0;
@@ -172,12 +176,12 @@ impl EvolvedPacker {
                 })
                 .collect();
 
-            // CROSSOVER EXTREME: First 4 waves outside-in, last 1 wave inside-out
-            if wave < 4 {
+            // ALTERNATING: odd waves (0,2,4) = outside-in, even waves (1,3) = inside-out
+            if wave % 2 == 0 {
                 // Outside-in: far trees first (descending)
                 tree_distances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
             } else {
-                // Inside-out: close trees first (ascending) - final settling pass
+                // Inside-out: close trees first (ascending)
                 tree_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
             }
 

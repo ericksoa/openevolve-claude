@@ -1,12 +1,17 @@
-//! Evolved Packing Algorithm - Generation 84c EXTREME SPLIT (4+1)
+//! Evolved Packing Algorithm - Generation 66 BETTER PLACEMENT
 //!
-//! CROSSOVER: Extreme ratio of Gen83a (4+1 instead of 3+2)
+//! MUTATION STRATEGY: IMPROVED INITIAL PLACEMENT
+//! Focus on better initial placement rather than SA tuning.
 //!
-//! Strategy: First 4 waves use outside-in (far trees first),
-//!           Last 1 wave uses inside-out (close trees first)
+//! Key insight: Better initial placement = less SA work needed.
+//! Increase search attempts and tune placement scoring weights.
 //!
-//! Hypothesis: One final inside-out pass for gap filling after 4 outside-in waves.
-//! More extreme ratio than Gen83a to test limits.
+//! Changes from Gen62:
+//! - Increase search_attempts from 200 to 300
+//! - Increase extension_penalty for tighter initial placements
+//! - Higher neighbor_proximity bonus for dense packing
+//!
+//! Target: Better initial placements lead to better final results
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -44,15 +49,14 @@ pub struct EvolvedConfig {
     pub hot_restart_temp: f64,
     pub elite_pool_size: usize,
     pub compression_prob: f64,
-    pub wave_passes: usize,
-    pub late_stage_threshold: usize,
-    pub fine_angle_step: f64,
+    pub extension_penalty_weight: f64,  // Gen66: weight for extension penalty
+    pub neighbor_bonus_weight: f64,     // Gen66: weight for neighbor proximity bonus
 }
 
 impl Default for EvolvedConfig {
     fn default() -> Self {
         Self {
-            search_attempts: 200,
+            search_attempts: 300,      // Gen66: increased from 200
             direction_samples: 64,
             sa_iterations: 28000,
             sa_initial_temp: 0.45,
@@ -60,7 +64,7 @@ impl Default for EvolvedConfig {
             sa_min_temp: 0.00001,
             translation_scale: 0.055,
             rotation_granularity: 45.0,
-            center_pull_strength: 0.08,
+            center_pull_strength: 0.07,
             sa_passes: 2,
             early_exit_threshold: 2500,
             boundary_focus_prob: 0.85,
@@ -73,9 +77,8 @@ impl Default for EvolvedConfig {
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
             compression_prob: 0.20,
-            wave_passes: 5,
-            late_stage_threshold: 140,
-            fine_angle_step: 15.0,
+            extension_penalty_weight: 0.12,  // Gen66: increased from 0.08
+            neighbor_bonus_weight: 1.5,      // Gen66: multiplier for neighbor bonus
         }
     }
 }
@@ -124,8 +127,6 @@ impl EvolvedPacker {
                     self.local_search(&mut trees, n, pass, strategy, &mut rng);
                 }
 
-                self.wave_compaction(&mut trees);
-
                 let side = compute_side_length(&trees);
                 strategy_trees[s_idx] = trees.clone();
 
@@ -152,144 +153,6 @@ impl EvolvedPacker {
         packings
     }
 
-    fn wave_compaction(&self, trees: &mut Vec<PlacedTree>) {
-        if trees.len() <= 1 {
-            return;
-        }
-
-        // GEN84c: EXTREME SPLIT - outside-in first (4), then inside-out (1)
-        for wave in 0..self.config.wave_passes {
-            let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
-            let center_x = (min_x + max_x) / 2.0;
-            let center_y = (min_y + max_y) / 2.0;
-
-            // Calculate distances from center
-            let mut tree_distances: Vec<(usize, f64)> = trees.iter().enumerate()
-                .map(|(i, t)| {
-                    let dx = t.x - center_x;
-                    let dy = t.y - center_y;
-                    (i, (dx * dx + dy * dy).sqrt())
-                })
-                .collect();
-
-            // CROSSOVER EXTREME: First 4 waves outside-in, last 1 wave inside-out
-            if wave < 4 {
-                // Outside-in: far trees first (descending)
-                tree_distances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-            } else {
-                // Inside-out: close trees first (ascending) - final settling pass
-                tree_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-            }
-
-            // Phase 1: Move RIGHT
-            for &(idx, _) in &tree_distances {
-                let old_x = trees[idx].x;
-                let old_y = trees[idx].y;
-                let old_angle = trees[idx].angle_deg;
-
-                if old_x >= center_x { continue; }
-                let dx = center_x - old_x;
-                if dx < 0.02 { continue; }
-
-                for step in [0.10, 0.05, 0.02, 0.01, 0.005] {
-                    let new_x = old_x + dx * step;
-                    trees[idx] = PlacedTree::new(new_x, old_y, old_angle);
-                    if has_overlap(trees, idx) {
-                        trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
-                    } else {
-                        break;
-                    }
-                }
-            }
-
-            // Phase 2: Move LEFT
-            for &(idx, _) in &tree_distances {
-                let old_x = trees[idx].x;
-                let old_y = trees[idx].y;
-                let old_angle = trees[idx].angle_deg;
-
-                if old_x <= center_x { continue; }
-                let dx = old_x - center_x;
-                if dx < 0.02 { continue; }
-
-                for step in [0.10, 0.05, 0.02, 0.01, 0.005] {
-                    let new_x = old_x - dx * step;
-                    trees[idx] = PlacedTree::new(new_x, old_y, old_angle);
-                    if has_overlap(trees, idx) {
-                        trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
-                    } else {
-                        break;
-                    }
-                }
-            }
-
-            // Phase 3: Move UP
-            for &(idx, _) in &tree_distances {
-                let old_x = trees[idx].x;
-                let old_y = trees[idx].y;
-                let old_angle = trees[idx].angle_deg;
-
-                if old_y >= center_y { continue; }
-                let dy = center_y - old_y;
-                if dy < 0.02 { continue; }
-
-                for step in [0.10, 0.05, 0.02, 0.01, 0.005] {
-                    let new_y = old_y + dy * step;
-                    trees[idx] = PlacedTree::new(old_x, new_y, old_angle);
-                    if has_overlap(trees, idx) {
-                        trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
-                    } else {
-                        break;
-                    }
-                }
-            }
-
-            // Phase 4: Move DOWN
-            for &(idx, _) in &tree_distances {
-                let old_x = trees[idx].x;
-                let old_y = trees[idx].y;
-                let old_angle = trees[idx].angle_deg;
-
-                if old_y <= center_y { continue; }
-                let dy = old_y - center_y;
-                if dy < 0.02 { continue; }
-
-                for step in [0.10, 0.05, 0.02, 0.01, 0.005] {
-                    let new_y = old_y - dy * step;
-                    trees[idx] = PlacedTree::new(old_x, new_y, old_angle);
-                    if has_overlap(trees, idx) {
-                        trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
-                    } else {
-                        break;
-                    }
-                }
-            }
-
-            // Phase 5: Diagonal movement
-            for (idx, _dist) in tree_distances {
-                let old_x = trees[idx].x;
-                let old_y = trees[idx].y;
-                let old_angle = trees[idx].angle_deg;
-                let dx = center_x - old_x;
-                let dy = center_y - old_y;
-                let dist = (dx * dx + dy * dy).sqrt();
-
-                if dist < 0.05 { continue; }
-
-                for step in [0.10, 0.05, 0.02, 0.01, 0.005] {
-                    let new_x = old_x + dx * step;
-                    let new_y = old_y + dy * step;
-                    trees[idx] = PlacedTree::new(new_x, new_y, old_angle);
-                    if has_overlap(trees, idx) {
-                        trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
-                    } else {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
     fn find_placement_with_strategy(
         &self,
         existing: &[PlacedTree],
@@ -313,12 +176,7 @@ impl EvolvedPacker {
         let mut best_tree = PlacedTree::new(0.0, 0.0, 90.0);
         let mut best_score = f64::INFINITY;
 
-        let angles = if n >= self.config.late_stage_threshold {
-            self.select_fine_angles_for_strategy(n, strategy)
-        } else {
-            self.select_angles_for_strategy(n, strategy)
-        };
-
+        let angles = self.select_angles_for_strategy(n, strategy);
         let (min_x, min_y, max_x, max_y) = compute_bounds(existing);
         let current_width = max_x - min_x;
         let current_height = max_y - min_y;
@@ -398,42 +256,6 @@ impl EvolvedPacker {
                 }
             }
         }
-    }
-
-    #[inline]
-    fn select_fine_angles_for_strategy(&self, n: usize, strategy: PlacementStrategy) -> Vec<f64> {
-        let base_angles = self.select_angles_for_strategy(n, strategy);
-        let mut fine_angles = Vec::with_capacity(24);
-
-        for &angle in &base_angles {
-            fine_angles.push(angle);
-        }
-
-        for &base in &base_angles {
-            let plus_15 = (base + 15.0).rem_euclid(360.0);
-            let minus_15 = (base - 15.0).rem_euclid(360.0);
-
-            if !fine_angles.contains(&plus_15) {
-                fine_angles.push(plus_15);
-            }
-            if !fine_angles.contains(&minus_15) {
-                fine_angles.push(minus_15);
-            }
-        }
-
-        for &base in &base_angles {
-            let plus_30 = (base + 30.0).rem_euclid(360.0);
-            let minus_30 = (base - 30.0).rem_euclid(360.0);
-
-            if !fine_angles.contains(&plus_30) {
-                fine_angles.push(plus_30);
-            }
-            if !fine_angles.contains(&minus_30) {
-                fine_angles.push(minus_30);
-            }
-        }
-
-        fine_angles
     }
 
     #[inline]
@@ -539,7 +361,7 @@ impl EvolvedPacker {
 
         let x_extension = (pack_max_x - old_max_x).max(0.0) + (old_min_x - pack_min_x).max(0.0);
         let y_extension = (pack_max_y - old_max_y).max(0.0) + (old_min_y - pack_min_y).max(0.0);
-        let extension_penalty = (x_extension + y_extension) * 0.08;
+        let extension_penalty = (x_extension + y_extension) * self.config.extension_penalty_weight;  // Gen66: use config
 
         let gap_penalty = self.estimate_unusable_gap(tree, existing) * self.config.gap_penalty_weight;
 
@@ -547,7 +369,7 @@ impl EvolvedPacker {
         let center_y = (pack_min_y + pack_max_y) / 2.0;
         let center_penalty = (center_x.abs() + center_y.abs()) * 0.005 / (n as f64).sqrt();
 
-        let neighbor_bonus = self.neighbor_proximity_bonus(tree, existing);
+        let neighbor_bonus = self.neighbor_proximity_bonus(tree, existing) * self.config.neighbor_bonus_weight;  // Gen66: use config
 
         side_score + balance_penalty + extension_penalty + gap_penalty + center_penalty + density_bonus - neighbor_bonus
     }
@@ -766,9 +588,11 @@ impl EvolvedPacker {
                 boundary_cache_iter = iter;
             }
 
+            // NEW: Check if we should do a compression move
             let do_compression = rng.gen::<f64>() < self.config.compression_prob;
 
             if do_compression {
+                // Try radius-based compression
                 let old_trees = trees.clone();
                 let success = self.compression_move(trees, rng);
 
@@ -795,6 +619,7 @@ impl EvolvedPacker {
                     iterations_without_improvement += 1;
                 }
             } else {
+                // Regular move
                 let do_fill_move = rng.gen::<f64>() < self.config.fill_move_prob;
 
                 let (idx, edge) = if do_fill_move {
@@ -854,16 +679,20 @@ impl EvolvedPacker {
         }
     }
 
+    // NEW: Radius-based compression move
     fn compression_move(&self, trees: &mut [PlacedTree], rng: &mut impl Rng) -> bool {
         if trees.is_empty() {
             return false;
         }
 
+        // Compute center of bounding box
         let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
         let center_x = (min_x + max_x) / 2.0;
         let center_y = (min_y + max_y) / 2.0;
 
+        // Pick a tree, preferably one that's far from center
         let idx = if rng.gen::<f64>() < 0.7 {
+            // Pick tree with largest distance from center
             let mut max_dist = 0.0;
             let mut max_idx = 0;
             for (i, tree) in trees.iter().enumerate() {
@@ -884,6 +713,7 @@ impl EvolvedPacker {
         let old_y = trees[idx].y;
         let old_angle = trees[idx].angle_deg;
 
+        // Compute direction toward center
         let dx = center_x - old_x;
         let dy = center_y - old_y;
         let dist = (dx * dx + dy * dy).sqrt();
@@ -892,7 +722,8 @@ impl EvolvedPacker {
             return false;
         }
 
-        let compression_factor = rng.gen_range(0.02..0.08);
+        // Move toward center proportionally to distance
+        let compression_factor = rng.gen_range(0.02..0.08);  // Move 2-8% of distance toward center
         let new_x = old_x + dx * compression_factor;
         let new_y = old_y + dy * compression_factor;
 
@@ -990,7 +821,7 @@ impl EvolvedPacker {
                     trees[idx] = PlacedTree::new(old_x + dx, old_y + dy, old_angle);
                 }
                 2 => {
-                    let angles = [45.0, 90.0, -45.0, -90.0];
+                    let angles = [45.0, 90.0, -45.0, -90.0, 30.0, -30.0];
                     let delta = angles[rng.gen_range(0..angles.len())];
                     let new_angle = (old_angle + delta).rem_euclid(360.0);
                     trees[idx] = PlacedTree::new(old_x, old_y, new_angle);

@@ -1,12 +1,12 @@
-//! Evolved Packing Algorithm - Generation 84c EXTREME SPLIT (4+1)
+//! Evolved Packing Algorithm - Generation 84d STRONGER COMPRESSION
 //!
-//! CROSSOVER: Extreme ratio of Gen83a (4+1 instead of 3+2)
+//! CROSSOVER: Gen83a bidirectional waves + increased compression probability
 //!
-//! Strategy: First 4 waves use outside-in (far trees first),
-//!           Last 1 wave uses inside-out (close trees first)
+//! Strategy: Keep Gen83a's 3+2 bidirectional waves but increase
+//! compression probability from 20% to 35% during SA.
 //!
-//! Hypothesis: One final inside-out pass for gap filling after 4 outside-in waves.
-//! More extreme ratio than Gen83a to test limits.
+//! Hypothesis: More aggressive compression during SA + bidirectional wave
+//! creates synergy for better overall compaction.
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -72,7 +72,7 @@ impl Default for EvolvedConfig {
             hot_restart_interval: 800,
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
-            compression_prob: 0.20,
+            compression_prob: 0.35,  // Increased from 0.20
             wave_passes: 5,
             late_stage_threshold: 140,
             fine_angle_step: 15.0,
@@ -157,7 +157,7 @@ impl EvolvedPacker {
             return;
         }
 
-        // GEN84c: EXTREME SPLIT - outside-in first (4), then inside-out (1)
+        // GEN84d: Same as Gen83a (3+2 bidirectional) but with stronger compression
         for wave in 0..self.config.wave_passes {
             let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
             let center_x = (min_x + max_x) / 2.0;
@@ -172,12 +172,12 @@ impl EvolvedPacker {
                 })
                 .collect();
 
-            // CROSSOVER EXTREME: First 4 waves outside-in, last 1 wave inside-out
-            if wave < 4 {
+            // Gen83a pattern: First 3 waves outside-in, last 2 waves inside-out
+            if wave < 3 {
                 // Outside-in: far trees first (descending)
                 tree_distances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
             } else {
-                // Inside-out: close trees first (ascending) - final settling pass
+                // Inside-out: close trees first (ascending)
                 tree_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
             }
 

@@ -1,12 +1,12 @@
-//! Evolved Packing Algorithm - Generation 84c EXTREME SPLIT (4+1)
+//! Evolved Packing Algorithm - Generation 84a INVERSE SPLIT
 //!
-//! CROSSOVER: Extreme ratio of Gen83a (4+1 instead of 3+2)
+//! CROSSOVER: Inverse of Gen83a (2+3 instead of 3+2)
 //!
-//! Strategy: First 4 waves use outside-in (far trees first),
-//!           Last 1 wave uses inside-out (close trees first)
+//! Strategy: First 2 waves use inside-out (close trees first),
+//!           Last 3 waves use outside-in (far trees first)
 //!
-//! Hypothesis: One final inside-out pass for gap filling after 4 outside-in waves.
-//! More extreme ratio than Gen83a to test limits.
+//! Hypothesis: Settling inner trees first, then outer trees, may work better.
+//! This is the inverse of Gen83a's successful 3+2 pattern.
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -157,7 +157,7 @@ impl EvolvedPacker {
             return;
         }
 
-        // GEN84c: EXTREME SPLIT - outside-in first (4), then inside-out (1)
+        // GEN84a: INVERSE SPLIT - inside-out first (2), then outside-in (3)
         for wave in 0..self.config.wave_passes {
             let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
             let center_x = (min_x + max_x) / 2.0;
@@ -172,13 +172,13 @@ impl EvolvedPacker {
                 })
                 .collect();
 
-            // CROSSOVER EXTREME: First 4 waves outside-in, last 1 wave inside-out
-            if wave < 4 {
+            // CROSSOVER INVERSE: First 2 waves inside-out, last 3 waves outside-in
+            if wave < 2 {
+                // Inside-out: close trees first (ascending)
+                tree_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            } else {
                 // Outside-in: far trees first (descending)
                 tree_distances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-            } else {
-                // Inside-out: close trees first (ascending) - final settling pass
-                tree_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
             }
 
             // Phase 1: Move RIGHT
