@@ -11,83 +11,119 @@
 
 ---
 
-## Phase 1: Re-Golf Scan (1-2 sessions)
+## Phase 0: Document Missing READMEs + Evolve (Priority!)
 
-### High Priority (600+ bytes - V.Hard tier)
+**15 solutions are missing README documentation.** For each:
+1. Read the task JSON to understand the problem
+2. Read the current solution to understand the approach
+3. Write a README.md documenting the pattern and algorithm
+4. Attempt to evolve/re-golf while context is fresh
 
-These drag down our average significantly:
+### Missing READMEs by Priority
 
-| Task | Current | Target | Potential Gain | Notes |
-|------|---------|--------|----------------|-------|
-| `0e206a2e` | 1,384 | ~600 | +784 pts | Rotated template - needs algorithm rework |
-| `2dd70a9a` | 1,163 | ~600 | +563 pts | Periodic pattern - check for simpler approach |
+#### V.Hard (600+ bytes) - Document + Major Re-golf
+| Task | Bytes | Status |
+|------|-------|--------|
+| `2dd70a9a` | 1,163 | Missing README, high re-golf priority |
+| `1b60fb0c` | 933 | Missing README |
+| `150deff5` | 684 | Missing README |
+| `1a07d186` | 635 | Missing README |
 
-**Strategy**: Fresh session, read task + current solution, look for completely different algorithm.
+#### Hard (300-600 bytes) - Document + Try Re-golf
+| Task | Bytes | Status |
+|------|-------|--------|
+| `0a938d79` | 539 | Missing README, medium re-golf priority |
+| `1bfc4729` | 406 | Missing README |
+| `11852cab` | 333 | Missing README (batch 4) |
+| `178fcbfb` | 304 | Missing README |
 
-### Medium Priority (500-600 bytes)
+#### Medium (100-300 bytes) - Document + Quick Golf Check
+| Task | Bytes | Status |
+|------|-------|--------|
+| `1caeab9d` | 280 | Missing README |
+| `1e32b0e9` | 207 | Missing README (batch 4) |
+| `363442ee` | 205 | Missing README |
+| `1190e5a7` | 188 | Missing README (batch 4) |
+| `10fcaaa3` | 176 | Missing README (batch 4) |
+| `1b2d62fb` | 170 | Missing README |
+| `1cf80156` | 138 | Missing README (batch 4) |
 
-| Task | Current | Target | Potential Gain | Notes |
-|------|---------|--------|----------------|-------|
-| `045e512c` | 591 | ~400 | +191 pts | Template matching |
-| `0a938d79` | 539 | ~400 | +139 pts | Fill pattern grid |
-| `a64e4611` | 523 | ~400 | +123 pts | Largest rectangle + cross |
+### README Template
 
-**Strategy**: Quick scan with fresh context - apply new tricks learned in recent batches.
+```markdown
+# Task [TASK_ID]
 
-### Quick Wins Check (300-500 bytes)
+## Pattern
+[One-line description of what the task does]
 
-Scan these for obvious improvements using new tricks:
+## Algorithm
+[2-3 sentences explaining the approach]
 
-```
-178fcbfb (304), 05f2a901 (326), 11852cab (333), 06df4c85 (378),
-1bfc4729 (406), 0b148d64 (454), 2bcee788 (465)
+## Key Tricks
+- [Golf trick 1]
+- [Golf trick 2]
+
+## Evolution History
+| Gen | Bytes | Change |
+|-----|-------|--------|
+| 1 | XXX | Initial solution |
 ```
 
 ---
 
-## Phase 2: New Tasks (2-3 sessions)
+## Phase 1: Re-Golf V.Hard (High Priority)
 
-### From Analyzed Queue (Medium difficulty preferred)
+After documenting, these need major algorithm rework:
 
-Pick 6-8 tasks from the analyzed list, prioritizing Medium difficulty:
+| Task | Current | Target | Potential Gain | Notes |
+|------|---------|--------|----------------|-------|
+| `0e206a2e` | 1,384 | ~600 | +784 pts | Rotated template (has README) |
+| `2dd70a9a` | 1,163 | ~600 | +563 pts | Periodic pattern (needs README) |
+| `1b60fb0c` | 933 | ~600 | +333 pts | (needs README) |
 
-| Task | Pattern | Est. Difficulty |
-|------|---------|-----------------|
-| `0a938d79` | Fill pattern grid | Medium |
-| `178fcbfb` | Fill cross pattern gaps | Medium |
-| `1f876c06` | Diagonal line propagation | Medium |
-| `22233c11` | Horizontal line interpolation | Medium |
-| `2281f1f4` | Sparse to dense fill | Medium |
-| `228f6490` | Diagonal shape continuation | Medium |
-| `2bee17df` | Extract rectangular patch | Medium |
-| `3428a4f5` | Replace one color | Medium |
+**Strategy**: Fresh session per task. Document → Understand → Rethink algorithm.
+
+---
+
+## Phase 2: Re-Golf Hard/Medium (Medium Priority)
+
+| Task | Current | Target | Potential Gain | Notes |
+|------|---------|--------|----------------|-------|
+| `045e512c` | 591 | ~400 | +191 pts | Template matching (has README) |
+| `0a938d79` | 539 | ~400 | +139 pts | Fill pattern grid (needs README) |
+| `a64e4611` | 523 | ~400 | +123 pts | Largest rectangle (has README) |
+
+---
+
+## Phase 3: New Tasks (Lower Priority)
+
+Only after documentation is complete. Pick from Medium difficulty analyzed list.
 
 ---
 
 ## Execution Order
 
-### Session 1 (Fresh Context)
-1. **Re-golf `0e206a2e`** (1384 bytes) - biggest potential gain
-   - Read task JSON fresh
-   - Analyze current algorithm
-   - Brainstorm completely different approaches
-   - Target: <700 bytes
+### Session 1: Document + Re-golf `2dd70a9a` (1163 bytes)
+1. Read `tasks/2dd70a9a.json`
+2. Read current solution, understand approach
+3. Write README.md documenting pattern
+4. Attempt major algorithm rework
+5. Target: <700 bytes
 
-### Session 2 (Fresh Context)
-2. **Re-golf `2dd70a9a`** (1163 bytes)
-   - Same approach as above
-   - Target: <700 bytes
+### Session 2: Document + Re-golf `1b60fb0c` (933 bytes)
+Same process as Session 1
 
-### Session 3 (Fresh Context)
-3. **Quick scan of 500-600 byte solutions**
-   - `045e512c`, `0a938d79`, `a64e4611`
-   - Apply recent tricks (walrus, tuple iteration, 1D array, etc.)
-   - 10-15 min per task, move on if no quick win
+### Session 3: Document batch (3-4 medium/hard tasks)
+- `0a938d79`, `1bfc4729`, `11852cab`, `178fcbfb`
+- Quick golf attempt on each
+- Write READMEs
 
-### Session 4-5 (Fresh Context each)
-4. **New tasks batch** (2-3 per session)
-   - Pick from Medium difficulty analyzed tasks
-   - Clear context between batches
+### Session 4: Document batch (remaining 7 medium tasks)
+- All the 100-300 byte solutions
+- Quick golf check
+- Write READMEs
+
+### Session 5+: New tasks or continued re-golf
 
 ---
 
@@ -95,11 +131,10 @@ Pick 6-8 tasks from the analyzed list, prioritizing Medium difficulty:
 
 | Metric | Current | Target |
 |--------|---------|--------|
+| READMEs Complete | 26/41 | 41/41 |
 | Total Score | 89,131 | 92,000+ |
 | Avg Score/Task | 2,174 | 2,200+ |
 | V.Hard Avg | 1,540 | 1,700+ |
-
-**Key goal**: Reduce `0e206a2e` and `2dd70a9a` by 400+ bytes each = +1,300 pts
 
 ---
 
@@ -116,23 +151,37 @@ cat tasks/<task_id>.json | python3 -m json.tool
 
 # Check current solution
 cat <task_id>/solution.py && wc -c <task_id>/solution.py
+
+# Check for missing READMEs
+for d in */; do [ -f "${d}solution.py" ] && [ ! -f "${d}README.md" ] && echo "$d"; done
 ```
 
 ---
 
 ## Resume Prompts
 
-### For Re-Golf Session:
+### For Document + Re-Golf Session:
 ```
-Re-golf ARC task <task_id>. Current solution is <bytes> bytes.
-Read tasks/<task_id>.json and <task_id>/solution.py.
-Look for a completely different algorithm approach.
-Target: reduce by 200+ bytes.
+Document and re-golf ARC task <task_id>. Current solution is <bytes> bytes.
+
+1. Read tasks/<task_id>.json - understand the pattern
+2. Read <task_id>/solution.py - understand current approach
+3. Write <task_id>/README.md documenting the pattern and algorithm
+4. Attempt to re-golf with fresh perspective
+
+Target: reduce by 100+ bytes if possible.
+Working directory: /Users/aerickson/Documents/Claude Code Projects/agentic-evolve/showcase/code-golf
 ```
 
-### For New Task Session:
+### For Documentation Batch Session:
 ```
-Solve ARC code golf tasks. Pick 2-3 from the Medium difficulty analyzed list.
+Document missing READMEs for these ARC tasks: <task1>, <task2>, <task3>
+
+For each task:
+1. Read tasks/<task_id>.json
+2. Read <task_id>/solution.py
+3. Write <task_id>/README.md with pattern description and algorithm explanation
+4. Quick golf check - apply any obvious tricks
+
 Working directory: /Users/aerickson/Documents/Claude Code Projects/agentic-evolve/showcase/code-golf
-Clear context between complex tasks.
 ```
