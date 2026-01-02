@@ -11,7 +11,7 @@ When working on this problem, always:
    - This helps understand the packing structure and identify issues
 2. Use `./target/release/benchmark` to test candidates (runs 3 trials, reports best score)
 3. Save mutation candidates to `mutations/` directory before testing
-4. Update `GEN77_STRATEGY.md` (or current gen strategy doc) with results
+4. Update the current gen strategy doc (e.g., `GEN78_STRATEGY.md`) with results
 
 ## Problem
 
@@ -173,7 +173,7 @@ Analyzed a [70.1 score solution](https://github.com/berkaycamur/Santa-Competitio
 2. Dedicated compaction/squeeze passes
 3. Continuous angle optimization (careful - Gen54 showed pitfalls)
 
-## Current Best Algorithm (Gen76d)
+## Current Best Algorithm (Gen78b)
 
 ```rust
 // 6 parallel placement strategies
@@ -184,8 +184,8 @@ strategies = [ClockwiseSpiral, CounterclockwiseSpiral, Grid,
 for attempt in 0..200 {
     let dir = select_direction_for_strategy(n, strategy, attempt);
 
-    // Gen76d: Use finer angles for late-stage trees (last 25%)
-    let angles = if n >= 150 {  // Crossover: between Gen73c (160) and Gen74a (140)
+    // Gen78b: Use finer angles for late-stage trees (last 30%)
+    let angles = if n >= 140 {
         // Last 30% of trees: 15° step angles (24 total)
         [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165,
          180, 195, 210, 225, 240, 255, 270, 285, 300, 315, 330, 345]
@@ -200,18 +200,18 @@ for attempt in 0..200 {
     }
 }
 
-// SA optimization with Gen76d's crossover parameters:
+// SA optimization parameters:
 // - 85% boundary-focused moves
-// - 25% compression probability (from Gen71a crossover)
-// - center_pull_strength: 0.09 (from Gen71a crossover)
+// - 20% compression probability
+// - center_pull_strength: 0.08
 // - Hot restarts from elite pool
 // - 28,000 iterations per pass
 // - NOTE: SA still uses 45° angles only (maintains stability)
 
-// Wave compaction post-processing (from Gen72b)
-for wave in 0..3 {
+// Gen78b: Enhanced wave compaction (5 passes, finer steps)
+for wave in 0..5 {  // Increased from 3 to 5
     for tree in trees_sorted_by_distance_from_center.desc() {
-        try_move_toward_center(tree, [0.10, 0.05, 0.02, 0.01]);
+        try_move_toward_center(tree, [0.10, 0.05, 0.02, 0.01, 0.005]);  // Added 0.005
     }
 }
 ```
@@ -219,8 +219,8 @@ for wave in 0..3 {
 ## What Works
 
 1. **ConcentricRings placement** - Structured > chaotic
-2. **Gentle radius compression** - Pull trees toward center (20% prob, 0.07 strength)
-3. **Wave compaction post-processing** - Outside-in structured compression after SA
+2. **Gentle radius compression** - Pull trees toward center (20% prob, 0.08 strength)
+3. **Enhanced wave compaction** (Gen78b) - 5 passes with finer steps [0.10, 0.05, 0.02, 0.01, 0.005]
 4. **Hot restarts with elite pool** - Escape local optima
 5. **Boundary-focused SA** (85% probability) - Move trees that define bbox
 6. **Binary search for placement** - Fast, precise positioning
@@ -251,7 +251,7 @@ for wave in 0..3 {
 20. **Extending fine angles to 40%** (Gen75a) - More trees with fine angles doesn't help
 21. **Finer 10° steps** (Gen75b) - Marginal gain for 22% more runtime
 22. **Two-tier angle granularity** (Gen75c) - More complexity = worse
-23. **More wave passes** (Gen75d) - 5 waves worse than 3
+23. **More wave passes alone** (Gen75d) - 5 waves without finer steps didn't help (but Gen78b's 5 waves + 0.005 step DID help)
 
 ### Phase 9: Surgical Improvements (Gen68-Gen71)
 **Goal**: Small, targeted parameter changes to break the plateau
@@ -374,6 +374,21 @@ Tested 8 candidates using crossover (combining best features from multiple gener
 - Gen73c: Late-stage continuous angles concept
 - Gen74a: Extended threshold approach
 - Gen71a: Compression probability and center pull strength
+
+### Phase 15: Wave Compaction Refinement (Gen78)
+**Goal**: Improve wave compaction after Gen77's post-SA experiments failed
+
+| Gen | Strategy | Score | Learning |
+|-----|----------|-------|----------|
+| 78a | Stronger compression (35%, 0.10 pull) | 89.64 | Too aggressive - hurts packing |
+| **78b** | **5 wave passes + finer 0.005 step** | **88.92** | **NEW BEST!** More passes with finer steps |
+
+**Key insights**:
+1. **Stronger compression hurts** - Gen78a's 35% compression probability was too aggressive
+2. **More wave passes + finer steps help** - 5 passes with added 0.005 step improves compaction
+3. **High run-to-run variance** - Scores vary 1-2 points due to stochastic SA
+
+**Gen78b innovation**: Enhanced wave compaction with 5 passes (instead of 3) and finer step sizes [0.10, 0.05, 0.02, 0.01, 0.005]. The added 0.005 step allows trees to settle into tighter positions.
 
 ## Running
 
