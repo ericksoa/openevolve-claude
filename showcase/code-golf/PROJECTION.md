@@ -4,83 +4,89 @@
 
 | Metric | Value |
 |--------|-------|
-| Tasks Solved | 7 / 400 |
-| Total Score | 16,261 |
-| Avg Score/Task | 2,323 |
+| Tasks Solved | 16 / 400 |
+| Total Score | 35,153 |
+| Avg Score/Task | 2,196 |
 
 ---
 
 ## Tasks by Difficulty
 
-### Easy (< 100 bytes) - 4 tasks
+### Easy (< 100 bytes) - 5 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
 |------|-------|-------|-------------|-------------|
 | 0520fde7 | 57 | 2,443 | ~2,450 | 99.7% |
+| 0d3d703e | 58 | 2,442 | ~2,450 | 99.7% |
 | 007bbfb7 | 65 | 2,435 | ~2,450 | 99.4% |
 | 1e0a9b12 | 69 | 2,431 | ~2,450 | 99.2% |
 | 017c7c7b | 80 | 2,420 | ~2,445 | 99.0% |
-| **Avg** | 68 | 2,432 | 2,449 | **99.3%** |
+| **Avg** | 66 | 2,434 | 2,449 | **99.4%** |
 
-### Medium (100-250 bytes) - 2 tasks
+### Medium (100-300 bytes) - 6 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
 |------|-------|-------|-------------|-------------|
-| 0ca9ddb6 | 207 | 2,293 | ~2,400 | 95.5% |
-| 00d62c1b | 238 | 2,262 | ~2,390 | 94.6% |
-| **Avg** | 223 | 2,278 | 2,395 | **95.1%** |
+| 05269061 | 113 | 2,387 | ~2,420 | 98.6% |
+| 08ed6ac7 | 142 | 2,358 | ~2,400 | 98.3% |
+| 0ca9ddb6 | 207 | 2,293 | ~2,380 | 96.3% |
+| 00d62c1b | 219 | 2,281 | ~2,370 | 96.2% |
+| 0962bcdd | 241 | 2,259 | ~2,370 | 95.3% |
+| 025d127b | 266 | 2,234 | ~2,360 | 94.7% |
+| **Avg** | 201 | 2,299 | 2,383 | **96.5%** |
 
-### Hard (250+ bytes) - 1 task
+### Hard (300-600 bytes) - 4 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
 |------|-------|-------|-------------|-------------|
-| a64e4611 | 523 | 1,977 | ~2,250 | 87.9% |
-| **Avg** | 523 | 1,977 | 2,250 | **87.9%** |
+| 06df4c85 | 378 | 2,122 | ~2,300 | 92.3% |
+| 0b148d64 | 454 | 2,046 | ~2,250 | 90.9% |
+| a64e4611 | 523 | 1,977 | ~2,200 | 89.9% |
+| 045e512c | 591 | 1,909 | ~2,150 | 88.8% |
+| **Avg** | 487 | 2,014 | 2,225 | **90.5%** |
+
+### Very Hard (600+ bytes) - 1 task
+| Task | Bytes | Score | Est. Winner | % of Winner |
+|------|-------|-------|-------------|-------------|
+| 0e206a2e | 1384 | 1,116 | ~1,800 | 62.0% |
+| **Avg** | 1384 | 1,116 | 1,800 | **62.0%** |
 
 ---
 
 ## Projection Model
 
-Assuming task distribution: 200 easy, 150 medium, 50 hard
+Assuming task distribution: 200 easy, 120 medium, 60 hard, 20 very hard
 
 | Tier | # Tasks | Our Avg | Projected | Winner Est. |
 |------|---------|---------|-----------|-------------|
-| Easy | 200 | 2,432 | 486,400 | 490,000 |
-| Medium | 150 | 2,278 | 341,700 | 359,250 |
-| Hard | 50 | 1,977 | 98,850 | 112,500 |
-| **Total** | 400 | - | **926,950** | **961,750** |
+| Easy | 200 | 2,434 | 486,800 | 489,800 |
+| Medium | 120 | 2,299 | 275,880 | 285,960 |
+| Hard | 60 | 2,014 | 120,840 | 133,500 |
+| V.Hard | 20 | 1,116 | 22,320 | 36,000 |
+| **Total** | 400 | - | **905,840** | **945,260** |
 
-**Projected Final: 926,950 points (96.4% of winner)**
+**Projected Final: ~906,000 points (95.8% of winner)**
 
 ---
 
 ## Progress Over Time
 
 ```
-Score Projection (thousands)
+Score Projection (thousands) vs Tasks Solved
 │
-1000 ┤                                                    ●────── Winner: 962k
-     │                                               ●────────── Projected: 927k
- 900 ┤
-     │
- 800 ┤
-     │
- 700 ┤
-     │
- 600 ┤
-     │
- 500 ┤
-     │
- 400 ┤
-     │
- 300 ┤
-     │
- 200 ┤
-     │
- 100 ┤
-     │
-  16 ┤ ●─ Current: 16k (7 tasks)
-     │
-   0 ┼────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────
-     0   40   80  120  160  200  240  280  320  360  400
-                        Tasks Solved
+960 ┤                                              ════════ Winner: 962k
+    │
+940 ┤
+    │                                    ╭───────────────── Target: 906k
+920 ┤                               ╭───╯
+    │                          ╭───╯
+900 ┤                     ╭───╯
+    │                ╭───╯
+880 ┤           ╭───╯
+    │      ╭───╯
+860 ┤ ●───╯
+    │
+    ┼────┬────┬────┬────┬────┬────┬────┬────┬────
+    0    2    4    6    8   10   12   14   16  tasks
+
+Current: 35,134 pts (16 tasks) → Projected: 906k
 ```
 
 ---
@@ -96,44 +102,58 @@ Score Projection (thousands)
 | 5 | 007bbfb7 | Easy | 65 | 2,435 | 11,537 | 923k |
 | 6 | 1e0a9b12 | Easy | 69 | 2,431 | 13,968 | 925k |
 | 7 | 0ca9ddb6 | Medium | 207 | 2,293 | 16,261 | 927k |
+| 8 | 0d3d703e | Easy | 58 | 2,442 | 18,703 | 934k |
+| 9 | 05269061 | Medium | 113 | 2,387 | 21,090 | 936k |
+| 10 | 08ed6ac7 | Medium | 142 | 2,358 | 23,448 | 935k |
+| 11 | 0962bcdd | Medium | 241 | 2,259 | 25,707 | 929k |
+| 12 | 025d127b | Medium | 266 | 2,234 | 27,941 | 924k |
+| 13 | 06df4c85 | Hard | 378 | 2,122 | 30,063 | 916k |
+| 14 | 0b148d64 | Hard | 454 | 2,046 | 32,109 | 910k |
+| 15 | 045e512c | Hard | 591 | 1,909 | 34,018 | 902k |
+| 16 | 0e206a2e | V.Hard | 1384 | 1,116 | 35,134 | 878k |
 
 ---
 
 ## ASCII Projection Graph
 
 ```
-Projected Final Score (k) vs Tasks Solved
+Projected Score vs Actual Progress
 │
-980 ┤                                          ═══════════ Winner (962k)
+950k┤════════════════════════════════════════════════ Winner (962k)
     │
-960 ┤
+940k┤         ●
+    │        ╱ ╲
+930k┤   ●───●   ●───●
+    │  ╱         ╲   ╲
+920k┤ ●           ●   ●───●
+    │╱                     ╲
+910k●                       ●───●
+    │                            ╲
+900k┤                             ●
+    │                              ╲
+890k┤                               ●
+    │                                ╲
+880k┤                                 ● ← Current (16 tasks)
     │
-940 ┤          ╭──────────────────────────────────────────── Trend
-    │         ╱
-920 ┤   ●────●
-    │  ╱
-900 ┤ ●
-    │╱
-880 ┤●
-    │
-860 ┤
-    ┼────┬────┬────┬────┬────┬────┬────┬────
-    0    1    2    3    4    5    6    7   tasks
+    ┼──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬
+    1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
 
-Legend: ● = actual projection at that point
+Note: Projection dropped after task 16 (very hard, 1384 bytes)
+      Need more easy/medium tasks to recover projection
 ```
 
 ---
 
 ## Key Insights
 
-1. **Easy tasks are nearly optimal** - We're at 99%+ of winner on easy tasks
-2. **Medium tasks have room** - 95% of winner, ~5 bytes/task to gain
-3. **Hard tasks are the gap** - 88% of winner, biggest opportunity
-4. **Projection improving** - Started at 890k (after hard task), now at 927k
+1. **Easy tasks: 99.4%** - Nearly optimal, minimal room for improvement
+2. **Medium tasks: 96.5%** - Good performance, 3-4% gap
+3. **Hard tasks: 90.5%** - 10% gap, significant byte savings possible
+4. **Very Hard tasks: 62%** - 0e206a2e at 1384 bytes is dragging down average
 
-## Next Steps to Improve Projection
+## Recommendations
 
-1. Solve more easy tasks (quick wins, high scores)
-2. Re-golf medium tasks (target: under 150 bytes each)
-3. Re-golf hard task a64e4611 (target: under 400 bytes)
+1. **Focus on easy tasks** - Quick wins, high scores, stabilize projection
+2. **Re-golf very hard task** - 0e206a2e needs major algorithm rework (1384→~600 bytes)
+3. **Avoid very hard tasks** - They tank the projection; skip or defer
+4. **Target medium tasks** - Best effort/reward ratio

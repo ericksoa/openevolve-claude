@@ -1,0 +1,1 @@
+solve=lambda g:[[b"0564312098"[c]&15for c in r]for r in g]

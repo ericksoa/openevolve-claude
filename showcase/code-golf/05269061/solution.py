@@ -1,0 +1,1 @@
+r=range(7);solve=lambda g:[[(c:={(i+j)%3:g[i][j]for i in r for j in r if g[i][j]})[(i+j)%3]for j in r]for i in r]

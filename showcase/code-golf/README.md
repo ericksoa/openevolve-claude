@@ -8,27 +8,36 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 7 / 400 (1.8%) |
-| **Total Score** | 16,261 points |
-| **Projected Final** | ~927,000 points ([details](./PROJECTION.md)) |
+| **Solved** | 16 / 400 (4.0%) |
+| **Total Score** | 35,134 points |
+| **Projected Final** | ~906,000 points ([details](./PROJECTION.md)) |
 
 ---
 
-## Solved Problems (7)
+## Solved Problems (16)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
 | [`0520fde7`](./0520fde7/README.md) | Grid AND comparison | **57** | 2,443 | [solution.py](./0520fde7/solution.py) |
+| [`0d3d703e`](./0d3d703e/README.md) | Color mapping (LUT) | **58** | 2,442 | [solution.py](./0d3d703e/solution.py) |
 | [`007bbfb7`](./007bbfb7/README.md) | Outer product grid | **65** | 2,435 | [solution.py](./007bbfb7/solution.py) |
 | [`1e0a9b12`](./1e0a9b12/README.md) | Gravity (drop cells) | **69** | 2,431 | [solution.py](./1e0a9b12/solution.py) |
 | [`017c7c7b`](./017c7c7b/README.md) | Extend pattern + double | **80** | 2,420 | [solution.py](./017c7c7b/solution.py) |
+| [`05269061`](./05269061/README.md) | Diagonal color cycle | **113** | 2,387 | [solution.py](./05269061/solution.py) |
+| [`08ed6ac7`](./08ed6ac7/README.md) | Column rank labeling | **142** | 2,358 | [solution.py](./08ed6ac7/solution.py) |
 | [`0ca9ddb6`](./0ca9ddb6/README.md) | Color spread from seeds | **207** | 2,293 | [solution.py](./0ca9ddb6/solution.py) |
 | [`00d62c1b`](./00d62c1b/README.md) | Fill enclosed regions | **238** | 2,262 | [solution.py](./00d62c1b/solution.py) |
+| [`0962bcdd`](./0962bcdd/README.md) | T-junction detection | **241** | 2,259 | [solution.py](./0962bcdd/solution.py) |
+| [`025d127b`](./025d127b/README.md) | Parallelogram to rect | **266** | 2,234 | [solution.py](./025d127b/solution.py) |
+| [`06df4c85`](./06df4c85/README.md) | Grid line completion | **378** | 2,122 | [solution.py](./06df4c85/solution.py) |
+| [`0b148d64`](./0b148d64/README.md) | Quadrant extraction | **454** | 2,046 | [solution.py](./0b148d64/solution.py) |
 | [`a64e4611`](./a64e4611/README.md) | Largest rectangle + cross | **523** | 1,977 | [solution.py](./a64e4611/solution.py) |
+| [`045e512c`](./045e512c/README.md) | Template matching | **591** | 1,909 | [solution.py](./045e512c/solution.py) |
+| [`0e206a2e`](./0e206a2e/README.md) | Rotated template placement | **1384** | 1,116 | [solution.py](./0e206a2e/solution.py) |
 
 ---
 
-## Unsolved Problems (393)
+## Unsolved Problems (384)
 
 <details>
 <summary>Click to expand full list of unsolved tasks</summary>
