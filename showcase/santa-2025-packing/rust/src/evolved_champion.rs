@@ -1,12 +1,11 @@
-//! Evolved Packing Algorithm - Generation 84c EXTREME SPLIT (4+1)
+//! Evolved Packing Algorithm - Generation 87d GREEDY BACKTRACKING WAVE (CHAMPION)
 //!
-//! CROSSOVER: Extreme ratio of Gen83a (4+1 instead of 3+2)
+//! MUTATION: Post-wave greedy pass targeting boundary-defining trees
 //!
-//! Strategy: First 4 waves use outside-in (far trees first),
-//!           Last 1 wave uses inside-out (close trees first)
+//! Strategy: After wave compaction, additional greedy pass focusing on
+//!           trees that define the bounding box edges.
 //!
-//! Hypothesis: One final inside-out pass for gap filling after 4 outside-in waves.
-//! More extreme ratio than Gen83a to test limits.
+//! This is the current champion after Gen90 plateau.
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -47,6 +46,7 @@ pub struct EvolvedConfig {
     pub wave_passes: usize,
     pub late_stage_threshold: usize,
     pub fine_angle_step: f64,
+    pub swap_prob: f64,  // GEN90c: Probability of boundary swap operation
 }
 
 impl Default for EvolvedConfig {
@@ -76,6 +76,7 @@ impl Default for EvolvedConfig {
             wave_passes: 5,
             late_stage_threshold: 140,
             fine_angle_step: 15.0,
+            swap_prob: 0.0,  // GEN90d: Disabled swap (didn't help)
         }
     }
 }
@@ -152,12 +153,44 @@ impl EvolvedPacker {
         packings
     }
 
+    // GEN87d: Find trees that are on the bounding box boundary
+    fn find_boundary_defining_trees(&self, trees: &[PlacedTree]) -> Vec<(usize, BoundaryEdge)> {
+        if trees.is_empty() {
+            return Vec::new();
+        }
+
+        let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
+        let eps = 0.001; // Tighter tolerance for boundary-defining trees
+
+        let mut boundary_trees = Vec::new();
+
+        for (i, tree) in trees.iter().enumerate() {
+            let (bx1, by1, bx2, by2) = tree.bounds();
+
+            // Check if this tree defines any edge of the bounding box
+            if (bx1 - min_x).abs() < eps {
+                boundary_trees.push((i, BoundaryEdge::Left));
+            }
+            if (bx2 - max_x).abs() < eps {
+                boundary_trees.push((i, BoundaryEdge::Right));
+            }
+            if (by1 - min_y).abs() < eps {
+                boundary_trees.push((i, BoundaryEdge::Bottom));
+            }
+            if (by2 - max_y).abs() < eps {
+                boundary_trees.push((i, BoundaryEdge::Top));
+            }
+        }
+
+        boundary_trees
+    }
+
     fn wave_compaction(&self, trees: &mut Vec<PlacedTree>) {
         if trees.len() <= 1 {
             return;
         }
 
-        // GEN84c: EXTREME SPLIT - outside-in first (4), then inside-out (1)
+        // GEN84c base: EXTREME SPLIT - outside-in first (4), then inside-out (1)
         for wave in 0..self.config.wave_passes {
             let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
             let center_x = (min_x + max_x) / 2.0;
@@ -265,7 +298,7 @@ impl EvolvedPacker {
                 }
             }
 
-            // Phase 5: Diagonal movement
+            // Phase 5: Diagonal movement (unchanged)
             for (idx, _dist) in tree_distances {
                 let old_x = trees[idx].x;
                 let old_y = trees[idx].y;
@@ -284,6 +317,85 @@ impl EvolvedPacker {
                         trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
                     } else {
                         break;
+                    }
+                }
+            }
+        }
+
+        // GEN87d: GREEDY BACKTRACKING PASS
+        // Focus on boundary-defining trees and try aggressive inward moves
+        for _greedy_pass in 0..3 { // Multiple greedy passes
+            let boundary_trees = self.find_boundary_defining_trees(trees);
+            let current_side = compute_side_length(trees);
+
+            for (idx, edge) in boundary_trees {
+                let old_x = trees[idx].x;
+                let old_y = trees[idx].y;
+                let old_angle = trees[idx].angle_deg;
+
+                let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
+                let center_x = (min_x + max_x) / 2.0;
+                let center_y = (min_y + max_y) / 2.0;
+
+                // Determine movement direction based on which edge this tree defines
+                let (dx, dy) = match edge {
+                    BoundaryEdge::Left => (0.1, 0.0),    // Move right
+                    BoundaryEdge::Right => (-0.1, 0.0),  // Move left
+                    BoundaryEdge::Top => (0.0, -0.1),    // Move down
+                    BoundaryEdge::Bottom => (0.0, 0.1),  // Move up
+                    BoundaryEdge::Corner => {
+                        // Move toward center
+                        let dx = center_x - old_x;
+                        let dy = center_y - old_y;
+                        let dist = (dx * dx + dy * dy).sqrt();
+                        if dist > 0.01 {
+                            (dx / dist * 0.1, dy / dist * 0.1)
+                        } else {
+                            continue;
+                        }
+                    }
+                    BoundaryEdge::None => continue,
+                };
+
+                // Try aggressive movement with multiple step sizes
+                let mut success = false;
+                for scale in [1.0, 0.5, 0.25, 0.1, 0.05] {
+                    let new_x = old_x + dx * scale;
+                    let new_y = old_y + dy * scale;
+                    trees[idx] = PlacedTree::new(new_x, new_y, old_angle);
+
+                    if !has_overlap(trees, idx) {
+                        let new_side = compute_side_length(trees);
+                        if new_side < current_side {
+                            success = true;
+                            break;
+                        }
+                    }
+                    // Revert
+                    trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
+                }
+
+                // If movement failed, try with rotation
+                if !success {
+                    for rot_delta in [45.0, -45.0, 90.0, -90.0] {
+                        let new_angle = (old_angle + rot_delta).rem_euclid(360.0);
+
+                        for scale in [1.0, 0.5, 0.25, 0.1] {
+                            let new_x = old_x + dx * scale;
+                            let new_y = old_y + dy * scale;
+                            trees[idx] = PlacedTree::new(new_x, new_y, new_angle);
+
+                            if !has_overlap(trees, idx) {
+                                let new_side = compute_side_length(trees);
+                                if new_side < current_side {
+                                    success = true;
+                                    break;
+                                }
+                            }
+                            trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
+                        }
+
+                        if success { break; }
                     }
                 }
             }
@@ -766,9 +878,37 @@ impl EvolvedPacker {
                 boundary_cache_iter = iter;
             }
 
-            let do_compression = rng.gen::<f64>() < self.config.compression_prob;
+            // GEN90c: Try swap before compression
+            let do_swap = rng.gen::<f64>() < self.config.swap_prob;
+            let do_compression = !do_swap && rng.gen::<f64>() < self.config.compression_prob;
 
-            if do_compression {
+            if do_swap {
+                let old_trees = trees.clone();
+                let success = self.swap_move(trees, &boundary_info, rng);
+
+                if success {
+                    let new_side = compute_side_length(trees);
+                    let delta = new_side - current_side;
+
+                    if delta <= 0.0 || rng.gen::<f64>() < (-delta / temp).exp() {
+                        current_side = new_side;
+                        if current_side < best_side {
+                            best_side = current_side;
+                            best_config = trees.clone();
+                            iterations_without_improvement = 0;
+                            self.update_elite_pool(&mut elite_pool, current_side, trees.clone());
+                        } else {
+                            iterations_without_improvement += 1;
+                        }
+                    } else {
+                        *trees = old_trees;
+                        iterations_without_improvement += 1;
+                    }
+                } else {
+                    *trees = old_trees;
+                    iterations_without_improvement += 1;
+                }
+            } else if do_compression {
                 let old_trees = trees.clone();
                 let success = self.compression_move(trees, rng);
 
@@ -899,6 +1039,60 @@ impl EvolvedPacker {
         trees[idx] = PlacedTree::new(new_x, new_y, old_angle);
 
         !has_overlap(trees, idx)
+    }
+
+    // GEN90c: Swap positions of two boundary trees
+    fn swap_move(&self, trees: &mut [PlacedTree], boundary_info: &[(usize, BoundaryEdge)], rng: &mut impl Rng) -> bool {
+        if boundary_info.len() < 2 {
+            return false;
+        }
+
+        // Pick two different boundary trees
+        let idx1_pos = rng.gen_range(0..boundary_info.len());
+        let mut idx2_pos = rng.gen_range(0..boundary_info.len() - 1);
+        if idx2_pos >= idx1_pos {
+            idx2_pos += 1;
+        }
+
+        let (idx1, edge1) = boundary_info[idx1_pos];
+        let (idx2, edge2) = boundary_info[idx2_pos];
+
+        // Prefer swapping trees on opposite edges
+        let is_opposite = matches!(
+            (edge1, edge2),
+            (BoundaryEdge::Left, BoundaryEdge::Right) |
+            (BoundaryEdge::Right, BoundaryEdge::Left) |
+            (BoundaryEdge::Top, BoundaryEdge::Bottom) |
+            (BoundaryEdge::Bottom, BoundaryEdge::Top)
+        );
+
+        // 70% chance to only swap opposite edges, 30% swap any boundary pair
+        if !is_opposite && rng.gen::<f64>() > 0.30 {
+            return false;
+        }
+
+        // Save old positions
+        let old_x1 = trees[idx1].x;
+        let old_y1 = trees[idx1].y;
+        let old_angle1 = trees[idx1].angle_deg;
+
+        let old_x2 = trees[idx2].x;
+        let old_y2 = trees[idx2].y;
+        let old_angle2 = trees[idx2].angle_deg;
+
+        // Swap positions (keep angles)
+        trees[idx1] = PlacedTree::new(old_x2, old_y2, old_angle1);
+        trees[idx2] = PlacedTree::new(old_x1, old_y1, old_angle2);
+
+        // Check for overlaps
+        if has_overlap(trees, idx1) || has_overlap(trees, idx2) {
+            // Revert
+            trees[idx1] = PlacedTree::new(old_x1, old_y1, old_angle1);
+            trees[idx2] = PlacedTree::new(old_x2, old_y2, old_angle2);
+            return false;
+        }
+
+        true
     }
 
     fn update_elite_pool(&self, pool: &mut Vec<(f64, Vec<PlacedTree>)>, score: f64, config: Vec<PlacedTree>) {
