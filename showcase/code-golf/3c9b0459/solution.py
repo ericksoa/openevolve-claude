@@ -1,0 +1,1 @@
+solve=lambda g:[r[::-1]for r in g[::-1]]

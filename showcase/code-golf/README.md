@@ -8,20 +8,21 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 42 / 400 (10.5%) |
-| **Total Score** | 93,789 points |
-| **Avg Score/Task** | 2,233 points |
-| **% of Winner Avg** | 92.8% (winner: 2,405 pts/task) |
-| **Projected Final** | ~893,200 points ([details](./PROJECTION.md)) |
+| **Solved** | 43 / 400 (10.8%) |
+| **Total Score** | 96,249 points |
+| **Avg Score/Task** | 2,238 points |
+| **% of Winner Avg** | 93.1% (winner: 2,405 pts/task) |
+| **Projected Final** | ~895,200 points ([details](./PROJECTION.md)) |
 
 <!-- Competition winner: Code Golf International with 962,070 pts (DO NOT MODIFY) -->
 
 ---
 
-## Solved Problems (42)
+## Solved Problems (43)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
+| [`3c9b0459`](./3c9b0459/README.md) | 180° rotation | **40** | 2,460 | [solution.py](./3c9b0459/solution.py) |
 | [`25d8a9c8`](./25d8a9c8/README.md) | Row uniformity check | **50** | 2,450 | [solution.py](./25d8a9c8/solution.py) |
 | [`0520fde7`](./0520fde7/README.md) | Grid AND comparison | **57** | 2,443 | [solution.py](./0520fde7/solution.py) |
 | [`0d3d703e`](./0d3d703e/README.md) | Color mapping (LUT) | **58** | 2,442 | [solution.py](./0d3d703e/solution.py) |
@@ -67,7 +68,7 @@
 
 ---
 
-## Unsolved Problems (358)
+## Unsolved Problems (357)
 
 ### Analyzed Tasks (34)
 
@@ -480,10 +481,10 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 | Metric | Current | Projected | Winner |
 |--------|---------|-----------|--------|
-| Tasks solved | 42 | 400 | 400 |
-| Total score | 93,789 | ~893,200 | **962,070** |
-| Avg pts/task | 2,233 | 2,233 | 2,405 |
-| % of winner | 92.8% | 92.8% | 100% |
+| Tasks solved | 43 | 400 | 400 |
+| Total score | 96,249 | ~895,200 | **962,070** |
+| Avg pts/task | 2,238 | 2,238 | 2,405 |
+| % of winner | 93.1% | 93.1% | 100% |
 
 **Winner**: Code Golf International (962,070 pts) - [Final Leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/)
 
