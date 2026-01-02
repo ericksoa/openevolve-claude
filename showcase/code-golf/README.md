@@ -11,7 +11,10 @@
 | **Solved** | 41 / 400 (10.3%) |
 | **Total Score** | 91,078 points |
 | **Avg Score/Task** | 2,221 points |
-| **Projected Final** | ~887,200 points ([details](./PROJECTION.md)) |
+| **% of Winner Avg** | 92.3% (winner: 2,405 pts/task) |
+| **Projected Final** | ~888,400 points ([details](./PROJECTION.md)) |
+
+<!-- Competition winner: Code Golf International with 962,070 pts (DO NOT MODIFY) -->
 
 ---
 
@@ -473,13 +476,18 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 ## Competition Status
 
-| Metric | Current | Target | Winner |
-|--------|---------|--------|--------|
-| Tasks solved | 41 | 400 | 400 |
-| Total score | 90,958 | ~887,200 | 962,070 |
-| Competition status | Ended (Oct 2025) | - | - |
+<!-- DO NOT MODIFY winner score - this is the actual competition result -->
 
-**Projection**: At current performance levels (avg 2,218 pts/task), we project a final score of ~887,200 points (92.1% of winner). See [PROJECTION.md](./PROJECTION.md) for details.
+| Metric | Current | Projected | Winner |
+|--------|---------|-----------|--------|
+| Tasks solved | 41 | 400 | 400 |
+| Total score | 91,078 | ~888,400 | **962,070** |
+| Avg pts/task | 2,221 | 2,221 | 2,405 |
+| % of winner | 92.3% | 92.3% | 100% |
+
+**Winner**: Code Golf International (962,070 pts) - [Final Leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/)
+
+**Projection**: At current avg (2,221 pts/task), we project ~888,400 points if all 400 tasks solved (92.3% of winner). See [PROJECTION.md](./PROJECTION.md) for details.
 
 This showcase demonstrates the `/evolve-size` capability. The techniques transfer to any code golf challenge.
 
