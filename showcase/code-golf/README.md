@@ -9,7 +9,7 @@
 | Metric | Value |
 |--------|-------|
 | **Solved** | 16 / 400 (4.0%) |
-| **Total Score** | 35,134 points |
+| **Total Score** | 35,153 points |
 | **Projected Final** | ~906,000 points ([details](./PROJECTION.md)) |
 
 ---
@@ -26,7 +26,7 @@
 | [`05269061`](./05269061/README.md) | Diagonal color cycle | **113** | 2,387 | [solution.py](./05269061/solution.py) |
 | [`08ed6ac7`](./08ed6ac7/README.md) | Column rank labeling | **142** | 2,358 | [solution.py](./08ed6ac7/solution.py) |
 | [`0ca9ddb6`](./0ca9ddb6/README.md) | Color spread from seeds | **207** | 2,293 | [solution.py](./0ca9ddb6/solution.py) |
-| [`00d62c1b`](./00d62c1b/README.md) | Fill enclosed regions | **238** | 2,262 | [solution.py](./00d62c1b/solution.py) |
+| [`00d62c1b`](./00d62c1b/README.md) | Fill enclosed regions | **219** | 2,281 | [solution.py](./00d62c1b/solution.py) |
 | [`0962bcdd`](./0962bcdd/README.md) | T-junction detection | **241** | 2,259 | [solution.py](./0962bcdd/solution.py) |
 | [`025d127b`](./025d127b/README.md) | Parallelogram to rect | **266** | 2,234 | [solution.py](./025d127b/solution.py) |
 | [`06df4c85`](./06df4c85/README.md) | Grid line completion | **378** | 2,122 | [solution.py](./06df4c85/solution.py) |
@@ -39,27 +39,78 @@
 
 ## Unsolved Problems (384)
 
+### Analyzed Tasks (60)
+
+| Task ID | Pattern | Est. Difficulty |
+|---------|---------|-----------------|
+| `05f2a901` | Move shape to reference | Medium |
+| `09629e4f` | Fill grid segments | Medium |
+| `0a938d79` | Fill pattern grid | Medium |
+| `0dfd9992` | Color substitution pairs | Hard |
+| `10fcaaa3` | Expand tiling pattern | Medium |
+| `11852cab` | Extract grid region | Hard |
+| `1190e5a7` | Vertical/horizontal fills | Medium |
+| `137eaa0f` | Symmetry reflection | Hard |
+| `150deff5` | Grid extraction borders | Hard |
+| `178fcbfb` | Fill cross pattern gaps | Medium |
+| `1a07d186` | XOR difference detection | Hard |
+| `1b2d62fb` | Conditional grid coloring | Hard |
+| `1b60fb0c` | Bounding box extraction | Hard |
+| `1bfc4729` | Diagonal movement | Hard |
+| `1c786137` | Corner rectangle frames | Medium |
+| `1caeab9d` | Line intersection marking | Medium |
+| `1cf80156` | Corners edge inference | Hard |
+| `1e32b0e9` | Grid coordinate mapping | Hard |
+| `1f0c79e5` | Colored region swap | Hard |
+| `1f642eb9` | Marker position projection | Hard |
+| `1f85a75f` | Extract rare color region | Hard |
+| `1f876c06` | Diagonal line propagation | Medium |
+| `1fad071e` | Count matching blocks | Hard |
+| `2013d3e2` | Symmetry axis extraction | Medium |
+| `2204b7a8` | Border region coloring | Medium |
+| `22168020` | Copy pattern to endpoints | Hard |
+| `22233c11` | Horizontal line interpolation | Medium |
+| `2281f1f4` | Sparse to dense fill | Medium |
+| `228f6490` | Diagonal shape continuation | Medium |
+| `22eb0ac0` | Marker color detection | Hard |
+| `234bbc79` | Bounding box intersection | Very Hard |
+| `23581191` | Minority shape rule | Hard |
+| `239be575` | Small pattern movement | Easy |
+| `23b5c85d` | Rare color ray extension | Hard |
+| `253bf280` | Position-based lines | Hard |
+| `25d487eb` | Container fill with color | Hard |
+| `25d8a9c8` | Cross-based split regions | Very Hard |
+| `25ff71a9` | Pattern isolation | Hard |
+| `264363fd` | Grid region coloring | Very Hard |
+| `272f95fa` | Grid cell quadrant coloring | Very Hard |
+| `27a28665` | Pattern shape classification | Easy |
+| `28bf18c6` | Extract and duplicate shape | Medium |
+| `28e73c20` | Nested recursive maze | Very Hard |
+| `29623171` | Grid cell fill by quadrant | Hard |
+| `29c11459` | Horizontal line splitting | Easy |
+| `29ec7d0e` | Fill missing pattern | Hard |
+| `2bcee788` | Color replacement by marker | Medium |
+| `2bee17df` | Extract rectangular patch | Medium |
+| `2c608aff` | Connect marked cross lines | Hard |
+| `2dc579da` | Remove noise keep signal | Hard |
+| `2dd70a9a` | Periodic pattern completion | Medium |
+| `2dee498d` | Shape replication | Hard |
+| `31aa019c` | Vertical background lines | Hard |
+| `321b1fc6` | Find unique odd pattern | Hard |
+| `32597951` | Extract repeating tile | Easy |
+| `3345333e` | Shape copy across shape | Hard |
+| `3428a4f5` | Replace one color | Medium |
+| `3618c87e` | Grid splitting with marker | Hard |
+| `3631a71a` | Remove colored block | Hard |
+| `363442ee` | Fill bottom row pattern | Easy |
+
+### Remaining Tasks (324)
+
 <details>
-<summary>Click to expand full list of unsolved tasks</summary>
+<summary>Click to expand full list of remaining tasks</summary>
 
 | Task ID | Task ID | Task ID | Task ID |
 |---------|---------|---------|---------|
-| `025d127b` | `045e512c` | `05269061` | `05f2a901` |
-| `06df4c85` | `08ed6ac7` | `09629e4f` | `0962bcdd` |
-| `0a938d79` | `0b148d64` | `0e206a2e` | `10fcaaa3` |
-| `11852cab` | `1190e5a7` | `137eaa0f` | `150deff5` |
-| `178fcbfb` | `1a07d186` | `1b2d62fb` | `1b60fb0c` |
-| `1bfc4729` | `1c786137` | `1caeab9d` | `1cf80156` |
-| `1e32b0e9` | `1f0c79e5` | `1f642eb9` | `1f85a75f` |
-| `1f876c06` | `1fad071e` | `2013d3e2` | `22168020` |
-| `22233c11` | `2281f1f4` | `228f6490` | `22eb0ac0` |
-| `234bbc79` | `23581191` | `253bf280` | `25d487eb` |
-| `25d8a9c8` | `25ff71a9` | `264363fd` | `272f95fa` |
-| `27a28665` | `28bf18c6` | `28e73c20` | `29623171` |
-| `29c11459` | `29ec7d0e` | `2bcee788` | `2bee17df` |
-| `2c608aff` | `2dc579da` | `2dd70a9a` | `2dee498d` |
-| `31aa019c` | `321b1fc6` | `32597951` | `3345333e` |
-| `3428a4f5` | `3618c87e` | `3631a71a` | `363442ee` |
 | `36d67576` | `36fdfd69` | `3906de3d` | `39a8645d` |
 | `39e1d7f9` | `3aa6fb7a` | `3ac3eb23` | `3af2c5a8` |
 | `3bd67248` | `3bdb4ada` | `3befdf3e` | `3c9b0459` |
@@ -411,11 +462,13 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 ## Competition Status
 
-| Metric | Current | Target |
-|--------|---------|--------|
-| Tasks solved | 4 | 400 |
-| Total score | 9,102 | ~960,000+ |
-| Competition status | Ended (Oct 2025) | - |
+| Metric | Current | Target | Winner |
+|--------|---------|--------|--------|
+| Tasks solved | 16 | 400 | 400 |
+| Total score | 35,153 | ~906,000 | 962,070 |
+| Competition status | Ended (Oct 2025) | - | - |
+
+**Projection**: At current performance levels, we project a final score of ~906,000 points (95.8% of winner).
 
 This showcase demonstrates the `/evolve-size` capability. The techniques transfer to any code golf challenge.
 
