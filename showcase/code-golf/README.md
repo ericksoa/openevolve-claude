@@ -9,7 +9,7 @@
 | Metric | Value |
 |--------|-------|
 | **Solved** | 41 / 400 (10.3%) |
-| **Total Score** | 91,070 points |
+| **Total Score** | 91,078 points |
 | **Avg Score/Task** | 2,221 points |
 | **Projected Final** | ~887,200 points ([details](./PROJECTION.md)) |
 
@@ -29,7 +29,7 @@
 | [`1bfc4729`](./1bfc4729/README.md) | Dual frame pattern | **108** | 2,392 | [solution.py](./1bfc4729/solution.py) |
 | [`05269061`](./05269061/README.md) | Diagonal color cycle | **113** | 2,387 | [solution.py](./05269061/solution.py) |
 | [`137eaa0f`](./137eaa0f/README.md) | Symmetry reflection | **130** | 2,370 | [solution.py](./137eaa0f/solution.py) |
-| [`1cf80156`](./1cf80156/) | Bounding box extraction | **138** | 2,362 | [solution.py](./1cf80156/solution.py) |
+| [`1cf80156`](./1cf80156/README.md) | Bounding box extraction | **130** | 2,370 | [solution.py](./1cf80156/solution.py) |
 | [`08ed6ac7`](./08ed6ac7/README.md) | Column rank labeling | **142** | 2,358 | [solution.py](./08ed6ac7/solution.py) |
 | [`09629e4f`](./09629e4f/README.md) | Fill grid segments | **170** | 2,330 | [solution.py](./09629e4f/solution.py) |
 | [`239be575`](./239be575/README.md) | Small pattern movement | **170** | 2,330 | [solution.py](./239be575/solution.py) |
@@ -46,7 +46,7 @@
 | [`1c786137`](./1c786137/README.md) | Corner rectangle frames | **249** | 2,251 | [solution.py](./1c786137/solution.py) |
 | [`025d127b`](./025d127b/README.md) | Parallelogram to rect | **266** | 2,234 | [solution.py](./025d127b/solution.py) |
 | [`32597951`](./32597951/README.md) | Extract repeating tile | **274** | 2,226 | [solution.py](./32597951/solution.py) |
-| [`1caeab9d`](./1caeab9d/) | Line intersection marking | **280** | 2,220 | [solution.py](./1caeab9d/solution.py) |
+| [`1caeab9d`](./1caeab9d/README.md) | Line intersection marking | **207** | 2,293 | [solution.py](./1caeab9d/solution.py) |
 | [`178fcbfb`](./178fcbfb/README.md) | Extend markers to lines | **217** | 2,283 | [solution.py](./178fcbfb/solution.py) |
 | [`05f2a901`](./05f2a901/README.md) | Move shape to reference | **326** | 2,174 | [solution.py](./05f2a901/solution.py) |
 | [`11852cab`](./11852cab/README.md) | 4-fold rotational symmetry | **280** | 2,220 | [solution.py](./11852cab/solution.py) |
@@ -54,7 +54,7 @@
 | [`1a07d186`](./1a07d186/README.md) | Line projection | **434** | 2,066 | [solution.py](./1a07d186/solution.py) |
 | [`0b148d64`](./0b148d64/README.md) | Quadrant extraction | **454** | 2,046 | [solution.py](./0b148d64/solution.py) |
 | [`2bcee788`](./2bcee788/README.md) | Color replacement by marker | **465** | 2,035 | [solution.py](./2bcee788/solution.py) |
-| [`150deff5`](./150deff5/) | Grid extraction borders | **494** | 2,006 | [solution.py](./150deff5/solution.py) |
+| [`150deff5`](./150deff5/README.md) | Grid extraction borders | **494** | 2,006 | [solution.py](./150deff5/solution.py) |
 | [`a64e4611`](./a64e4611/README.md) | Largest rectangle + cross | **523** | 1,977 | [solution.py](./a64e4611/solution.py) |
 | [`045e512c`](./045e512c/README.md) | Template matching | **591** | 1,909 | [solution.py](./045e512c/solution.py) |
 | [`2dd70a9a`](./2dd70a9a/README.md) | U-shape connector | **673** | 1,827 | [solution.py](./2dd70a9a/solution.py) |

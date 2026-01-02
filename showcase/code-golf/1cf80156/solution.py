@@ -1,3 +1,1 @@
-def solve(g):
- I,J=zip(*[(i,j)for i,r in enumerate(g)for j,v in enumerate(r)if v])
- return[r[min(J):max(J)+1]for r in g[min(I):max(I)+1]]
+def solve(g):E=enumerate;a,b=zip(*[(i,j)for i,r in E(g)for j,v in E(r)if v]);return[r[min(b):max(b)+1]for r in g[min(a):max(a)+1]]
