@@ -10,8 +10,8 @@
 |--------|-------|
 | **Solved** | 41 / 400 (10.3%) |
 | **Total Score** | 90,752 points |
-| **Avg Score/Task** | 2,213 points |
-| **Projected Final** | ~884,000 points ([details](./PROJECTION.md)) |
+| **Avg Score/Task** | 2,214 points |
+| **Projected Final** | ~885,400 points ([details](./PROJECTION.md)) |
 
 ---
 
@@ -476,10 +476,10 @@ python evaluator.py <task_id> solutions/<task_id>.py
 | Metric | Current | Target | Winner |
 |--------|---------|--------|--------|
 | Tasks solved | 41 | 400 | 400 |
-| Total score | 90,612 | ~884,000 | 962,070 |
+| Total score | 90,752 | ~885,400 | 962,070 |
 | Competition status | Ended (Oct 2025) | - | - |
 
-**Projection**: At current performance levels (avg 2,210 pts/task), we project a final score of ~884,000 points (91.9% of winner). See [PROJECTION.md](./PROJECTION.md) for details.
+**Projection**: At current performance levels (avg 2,214 pts/task), we project a final score of ~885,400 points (92.0% of winner). See [PROJECTION.md](./PROJECTION.md) for details.
 
 This showcase demonstrates the `/evolve-size` capability. The techniques transfer to any code golf challenge.
 

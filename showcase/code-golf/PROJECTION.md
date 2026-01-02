@@ -5,9 +5,9 @@
 | Metric | Value |
 |--------|-------|
 | Tasks Solved | 41 / 400 |
-| Total Score | 90,665 |
-| Avg Score/Task | 2,211 |
-| Projected Final | ~884,000 (91.9% of winner) |
+| Total Score | 90,752 |
+| Avg Score/Task | 2,214 |
+| Projected Final | ~885,400 (92.0% of winner) |
 
 ---
 
@@ -48,15 +48,15 @@
 | 1c786137 | 249 | 2,251 | ~2,330 | 96.6% |
 | 025d127b | 266 | 2,234 | ~2,320 | 96.3% |
 | 32597951 | 274 | 2,226 | ~2,310 | 96.4% |
+| 178fcbfb | 217 | 2,283 | ~2,350 | 97.1% |
 | 1caeab9d | 280 | 2,220 | ~2,300 | 96.5% |
-| **Avg** | **187** | **2,303** | **2,359** | **97.6%** |
+| 11852cab | 280 | 2,220 | ~2,300 | 96.5% |
+| **Avg** | **193** | **2,305** | **2,358** | **97.8%** |
 
-### Hard (300-600 bytes) - 10 tasks
+### Hard (300-600 bytes) - 8 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
 |------|-------|-------|-------------|-------------|
-| 178fcbfb | 304 | 2,196 | ~2,280 | 96.3% |
 | 05f2a901 | 326 | 2,174 | ~2,260 | 96.2% |
-| 11852cab | 280 | 2,220 | ~2,250 | 98.7% |
 | 06df4c85 | 378 | 2,122 | ~2,220 | 95.6% |
 | 1a07d186 | 434 | 2,066 | ~2,150 | 96.1% |
 | 0b148d64 | 454 | 2,046 | ~2,150 | 95.2% |
@@ -64,7 +64,7 @@
 | 150deff5 | 494 | 2,006 | ~2,100 | 95.5% |
 | a64e4611 | 523 | 1,977 | ~2,100 | 94.1% |
 | 045e512c | 591 | 1,909 | ~2,050 | 93.1% |
-| **Avg** | **430** | **2,070** | **2,170** | **95.4%** |
+| **Avg** | **456** | **2,042** | **2,143** | **95.3%** |
 
 ### Very Hard (600+ bytes) - 3 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
@@ -83,14 +83,14 @@ Based on 41 solved tasks with tier distribution:
 | Tier | Solved | Our Avg | Assumed # | Projected | Winner Est. |
 |------|--------|---------|-----------|-----------|-------------|
 | Easy | 7 | 2,433 | 180 | 437,940 | 440,820 |
-| Medium | 21 | 2,303 | 140 | 322,420 | 330,260 |
-| Hard | 10 | 2,070 | 60 | 124,200 | 130,200 |
+| Medium | 23 | 2,305 | 140 | 322,700 | 330,120 |
+| Hard | 8 | 2,042 | 60 | 122,520 | 128,580 |
 | V.Hard | 3 | 1,503 | 20 | 30,060 | 34,340 |
-| **Total** | **41** | **2,210** | **400** | **914,620** | **935,620** |
+| **Total** | **41** | **2,214** | **400** | **913,220** | **933,860** |
 
-**Conservative estimate (current avg × 400)**: 2,210 × 400 = **884,000 points**
+**Conservative estimate (current avg × 400)**: 2,214 × 400 = **885,400 points**
 
-**Optimistic estimate (tier-weighted)**: **914,620 points** (if we maintain tier averages)
+**Optimistic estimate (tier-weighted)**: **913,220 points** (if we maintain tier averages)
 
 ---
 
@@ -121,16 +121,17 @@ If we could reduce:
 - `0a938d79`: 539→237 bytes = **+302 points** (56% reduction)
 - `1a07d186`: 635→434 bytes = **+201 points** (32% reduction)
 - `150deff5`: 684→494 bytes = **+190 points** (28% reduction)
+- `178fcbfb`: 304→217 bytes = **+87 points** (29% reduction) - AlphaEvolve 10 gens
 - `11852cab`: 333→280 bytes = **+53 points** (16% reduction) - AlphaEvolve 10 gens
 
 ---
 
 ## Key Insights
 
-1. **Easy tasks: 99.4%** - Nearly optimal, minimal room for improvement
-2. **Medium tasks: 97.6%** - Good performance, 2-3% gap
-3. **Hard tasks: 95.4%** - 5% gap, some byte savings possible
-4. **Very Hard tasks: 87.5%** - 12.5% gap, major rework needed for 0e206a2e
+1. **Easy tasks (7): 99.4%** - Nearly optimal, minimal room for improvement
+2. **Medium tasks (23): 97.8%** - Good performance, 2% gap
+3. **Hard tasks (8): 95.3%** - 5% gap, some byte savings possible
+4. **Very Hard tasks (3): 87.5%** - 12.5% gap, major rework needed for 0e206a2e
 
 ## Recommendations
 
