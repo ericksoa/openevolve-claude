@@ -664,6 +664,88 @@ Tricks are stored in `.evolve/size/tricks.json` and persist across evolution run
 
 ---
 
+## Task Documentation (REQUIRED)
+
+After evolution completes, you MUST create/update the task's README.md with detailed generation-by-generation documentation.
+
+### README.md Template
+
+```markdown
+# Task {task_id}: {short_description}
+
+## Problem
+
+{Brief description of what the task does with input/output example}
+
+## Solution Stats
+
+- **Bytes**: {final_bytes}
+- **Score**: {2500 - final_bytes} points
+- **Status**: Passing all tests
+
+---
+
+## Evolution Journey
+
+### Generation-by-Generation Progress
+
+| Gen | Bytes | Change | Code Snippet | Insight |
+|-----|-------|--------|--------------|---------|
+| 0 | {baseline} | Baseline | `{key_part_of_code}` | Initial working solution |
+| 1 | {gen1} | -{delta} | `{changed_part}` | {what_changed_and_why} |
+| 2 | {gen2} | -{delta} | `{changed_part}` | {what_changed_and_why} |
+| ... | ... | ... | ... | ... |
+| N | {final} | **Champion** | `{final_key_part}` | {final_insight} |
+
+### Key Breakthroughs
+
+{Describe the 1-3 most impactful changes that led to byte savings}
+
+---
+
+## Algorithm
+
+{Numbered steps explaining how the solution works}
+
+## Key Golf Tricks Used
+
+- {trick_1}: `before` → `after` (saves N bytes)
+- {trick_2}: `before` → `after` (saves N bytes)
+- ...
+
+## Champion Solution ({final_bytes} bytes)
+
+\`\`\`python
+{full_solution_code}
+\`\`\`
+```
+
+### Documentation Requirements
+
+1. **Generation Table**: MUST include every generation where bytes changed, showing:
+   - The byte count
+   - What specifically changed in the code
+   - Why it saved bytes
+
+2. **Code Snippets**: Show the actual code that changed, not just descriptions
+
+3. **Tricks Section**: Document each golf trick with before/after examples
+
+4. **Save Intermediate Solutions**: During evolution, save each generation's code to `{task_id}/gen{N}.py` for reference
+
+### Example Generation Table
+
+| Gen | Bytes | Change | Code Snippet | Insight |
+|-----|-------|--------|--------------|---------|
+| 0 | 280 | Baseline | `s=[(i,j)for i in range(H)...]` | Edge detection flood fill |
+| 1 | 262 | -18 | `g=[o:=[0]*w,*[[0,*r,0]for r in G],o]` | Padding approach |
+| 2 | 241 | -21 | `g[a][b]=1;s+=(a+1,b),...` | Walrus + tuple extend |
+| 3 | 238 | -3 | `[4,0,0,3][c]` | Marker=1 simplifies lookup |
+| 4 | 223 | -15 | `def f(a,b):...f(a+1,b)` | Recursive flood fill |
+| 5 | 219 | -4 | `a>~0` | ~0 trick for bounds check |
+
+---
+
 ## Resume Capability
 
 When running `/evolve-size --resume`:
