@@ -1,12 +1,11 @@
-//! Evolved Packing Algorithm - Generation 83a BIDIRECTIONAL WAVE
+//! Evolved Packing Algorithm - Generation 83b WAVE + ROTATION JIGGLE
 //!
-//! CROSSOVER: Gen80b (outside-in) × Gen82a (inside-out)
+//! CROSSOVER: Gen80b (wave compaction) × Gen72c (micro rotation)
 //!
-//! Strategy: First 3 waves use outside-in (far trees first),
-//!           Last 2 waves use inside-out (close trees first)
+//! Strategy: During wave compaction, if a tree can't move, try rotating
+//! it by ±45° and attempt the move again. Rotation may unlock stuck positions.
 //!
-//! Hypothesis: Outer trees settle first, then inner trees adjust to fill gaps.
-//! This combines the benefits of both orderings.
+//! Hypothesis: Trees blocked due to their angle may move if rotated first.
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -157,13 +156,13 @@ impl EvolvedPacker {
             return;
         }
 
-        // GEN83a: BIDIRECTIONAL waves - outside-in then inside-out
-        for wave in 0..self.config.wave_passes {
+        // GEN80b: 4 cardinal directions + diagonal
+        for _wave in 0..self.config.wave_passes {
             let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
             let center_x = (min_x + max_x) / 2.0;
             let center_y = (min_y + max_y) / 2.0;
 
-            // Calculate distances from center
+            // Sort by distance from center (outside-in)
             let mut tree_distances: Vec<(usize, f64)> = trees.iter().enumerate()
                 .map(|(i, t)| {
                     let dx = t.x - center_x;
@@ -171,15 +170,7 @@ impl EvolvedPacker {
                     (i, (dx * dx + dy * dy).sqrt())
                 })
                 .collect();
-
-            // CROSSOVER: First 3 waves outside-in, last 2 waves inside-out
-            if wave < 3 {
-                // Outside-in: far trees first (descending)
-                tree_distances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-            } else {
-                // Inside-out: close trees first (ascending)
-                tree_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-            }
+            tree_distances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
             // Phase 1: Move RIGHT (trees on left side move right toward center)
             for &(idx, _) in &tree_distances {
@@ -270,7 +261,7 @@ impl EvolvedPacker {
             }
 
             // Phase 5: Try diagonal movement (original approach)
-            for (idx, _dist) in tree_distances {
+            for &(idx, _) in &tree_distances {
                 let old_x = trees[idx].x;
                 let old_y = trees[idx].y;
                 let old_angle = trees[idx].angle_deg;
@@ -288,6 +279,60 @@ impl EvolvedPacker {
                         trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
                     } else {
                         break;
+                    }
+                }
+            }
+
+            // GEN83b CROSSOVER: Phase 6 - Rotation jiggle
+            // Try rotating boundary trees by ±45° then move toward center
+            let (new_min_x, new_min_y, new_max_x, new_max_y) = compute_bounds(trees);
+            let eps = 0.02;
+
+            for &(idx, _) in &tree_distances {
+                let (bx1, by1, bx2, by2) = trees[idx].bounds();
+
+                // Check if tree is on boundary
+                let on_boundary = (bx1 - new_min_x).abs() < eps
+                    || (bx2 - new_max_x).abs() < eps
+                    || (by1 - new_min_y).abs() < eps
+                    || (by2 - new_max_y).abs() < eps;
+
+                if !on_boundary { continue; }
+
+                let old_x = trees[idx].x;
+                let old_y = trees[idx].y;
+                let old_angle = trees[idx].angle_deg;
+                let dx = center_x - old_x;
+                let dy = center_y - old_y;
+
+                // Try rotating ±45° and moving toward center
+                for rotation_delta in [45.0, -45.0] {
+                    let new_angle = (old_angle + rotation_delta).rem_euclid(360.0);
+
+                    // First check if rotation is valid
+                    trees[idx] = PlacedTree::new(old_x, old_y, new_angle);
+                    if has_overlap(trees, idx) {
+                        trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
+                        continue;
+                    }
+
+                    // Try moving toward center with new angle
+                    let mut moved = false;
+                    for step in [0.10, 0.05, 0.02, 0.01] {
+                        let new_x = old_x + dx * step;
+                        let new_y = old_y + dy * step;
+                        trees[idx] = PlacedTree::new(new_x, new_y, new_angle);
+                        if !has_overlap(trees, idx) {
+                            moved = true;
+                            break;
+                        }
+                    }
+
+                    if moved {
+                        break; // Keep the rotation + move
+                    } else {
+                        // Revert to original
+                        trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
                     }
                 }
             }

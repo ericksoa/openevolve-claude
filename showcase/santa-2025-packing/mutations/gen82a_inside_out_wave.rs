@@ -1,12 +1,12 @@
-//! Evolved Packing Algorithm - Generation 83a BIDIRECTIONAL WAVE
+//! Evolved Packing Algorithm - Generation 82a INSIDE-OUT WAVE
 //!
-//! CROSSOVER: Gen80b (outside-in) × Gen82a (inside-out)
+//! MUTATION: Wave compaction with inside-out processing order
 //!
-//! Strategy: First 3 waves use outside-in (far trees first),
-//!           Last 2 waves use inside-out (close trees first)
+//! Changes from Gen80b (baseline 88.44):
+//! - Instead of outside-in (far trees first), try inside-out (close trees first)
+//! - Moving center trees first may create better structure for outer trees
 //!
-//! Hypothesis: Outer trees settle first, then inner trees adjust to fill gaps.
-//! This combines the benefits of both orderings.
+//! Hypothesis: Settling the center first creates a stable core for compaction
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -157,13 +157,13 @@ impl EvolvedPacker {
             return;
         }
 
-        // GEN83a: BIDIRECTIONAL waves - outside-in then inside-out
-        for wave in 0..self.config.wave_passes {
+        // GEN82a: Inside-out processing order (close trees first)
+        for _wave in 0..self.config.wave_passes {
             let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
             let center_x = (min_x + max_x) / 2.0;
             let center_y = (min_y + max_y) / 2.0;
 
-            // Calculate distances from center
+            // Sort by distance from center (INSIDE-OUT: close trees first)
             let mut tree_distances: Vec<(usize, f64)> = trees.iter().enumerate()
                 .map(|(i, t)| {
                     let dx = t.x - center_x;
@@ -171,15 +171,7 @@ impl EvolvedPacker {
                     (i, (dx * dx + dy * dy).sqrt())
                 })
                 .collect();
-
-            // CROSSOVER: First 3 waves outside-in, last 2 waves inside-out
-            if wave < 3 {
-                // Outside-in: far trees first (descending)
-                tree_distances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-            } else {
-                // Inside-out: close trees first (ascending)
-                tree_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-            }
+            tree_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
             // Phase 1: Move RIGHT (trees on left side move right toward center)
             for &(idx, _) in &tree_distances {

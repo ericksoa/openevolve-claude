@@ -1,12 +1,12 @@
-//! Evolved Packing Algorithm - Generation 83a BIDIRECTIONAL WAVE
+//! Evolved Packing Algorithm - Generation 82b DOUBLE PASSES
 //!
-//! CROSSOVER: Gen80b (outside-in) × Gen82a (inside-out)
+//! MUTATION: Wave compaction with double the wave passes (10 instead of 5)
 //!
-//! Strategy: First 3 waves use outside-in (far trees first),
-//!           Last 2 waves use inside-out (close trees first)
+//! Changes from Gen80b (baseline 88.44):
+//! - Increase wave_passes from 5 to 10
+//! - More settling iterations may find additional compaction opportunities
 //!
-//! Hypothesis: Outer trees settle first, then inner trees adjust to fill gaps.
-//! This combines the benefits of both orderings.
+//! Hypothesis: More passes through R→L→U→D→diagonal gives more settling time
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -73,7 +73,7 @@ impl Default for EvolvedConfig {
             hot_restart_temp: 0.35,
             elite_pool_size: 3,
             compression_prob: 0.20,
-            wave_passes: 5,
+            wave_passes: 10,  // GEN82b: Doubled from 5 to 10
             late_stage_threshold: 140,
             fine_angle_step: 15.0,
         }
@@ -157,13 +157,13 @@ impl EvolvedPacker {
             return;
         }
 
-        // GEN83a: BIDIRECTIONAL waves - outside-in then inside-out
-        for wave in 0..self.config.wave_passes {
+        // GEN80b: 4 cardinal directions + diagonal
+        for _wave in 0..self.config.wave_passes {
             let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
             let center_x = (min_x + max_x) / 2.0;
             let center_y = (min_y + max_y) / 2.0;
 
-            // Calculate distances from center
+            // Sort by distance from center (outside-in)
             let mut tree_distances: Vec<(usize, f64)> = trees.iter().enumerate()
                 .map(|(i, t)| {
                     let dx = t.x - center_x;
@@ -171,15 +171,7 @@ impl EvolvedPacker {
                     (i, (dx * dx + dy * dy).sqrt())
                 })
                 .collect();
-
-            // CROSSOVER: First 3 waves outside-in, last 2 waves inside-out
-            if wave < 3 {
-                // Outside-in: far trees first (descending)
-                tree_distances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-            } else {
-                // Inside-out: close trees first (ascending)
-                tree_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-            }
+            tree_distances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
             // Phase 1: Move RIGHT (trees on left side move right toward center)
             for &(idx, _) in &tree_distances {

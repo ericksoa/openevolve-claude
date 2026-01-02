@@ -1,12 +1,13 @@
-//! Evolved Packing Algorithm - Generation 83a BIDIRECTIONAL WAVE
+//! Evolved Packing Algorithm - Generation 81a 8-DIRECTIONAL WAVE
 //!
-//! CROSSOVER: Gen80b (outside-in) × Gen82a (inside-out)
+//! MUTATION: Wave compaction with 8 directions (4 cardinal + 4 diagonal)
 //!
-//! Strategy: First 3 waves use outside-in (far trees first),
-//!           Last 2 waves use inside-out (close trees first)
+//! Changes from Gen80b (baseline 88.44):
+//! - Add 4 diagonal directions: NE, NW, SE, SW
+//! - Each diagonal phase moves trees from the opposite quadrant
+//! - Total 9 phases: R→L→U→D→NE→NW→SE→SW→center
 //!
-//! Hypothesis: Outer trees settle first, then inner trees adjust to fill gaps.
-//! This combines the benefits of both orderings.
+//! Hypothesis: 8 directions may find positions that 4 cardinal + diagonal miss
 
 use crate::{Packing, PlacedTree};
 use rand::Rng;
@@ -157,13 +158,13 @@ impl EvolvedPacker {
             return;
         }
 
-        // GEN83a: BIDIRECTIONAL waves - outside-in then inside-out
-        for wave in 0..self.config.wave_passes {
+        // GEN81a: 8 directions + final diagonal = 9 phases
+        for _wave in 0..self.config.wave_passes {
             let (min_x, min_y, max_x, max_y) = compute_bounds(trees);
             let center_x = (min_x + max_x) / 2.0;
             let center_y = (min_y + max_y) / 2.0;
 
-            // Calculate distances from center
+            // Sort by distance from center (outside-in)
             let mut tree_distances: Vec<(usize, f64)> = trees.iter().enumerate()
                 .map(|(i, t)| {
                     let dx = t.x - center_x;
@@ -171,23 +172,14 @@ impl EvolvedPacker {
                     (i, (dx * dx + dy * dy).sqrt())
                 })
                 .collect();
+            tree_distances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
-            // CROSSOVER: First 3 waves outside-in, last 2 waves inside-out
-            if wave < 3 {
-                // Outside-in: far trees first (descending)
-                tree_distances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-            } else {
-                // Inside-out: close trees first (ascending)
-                tree_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-            }
-
-            // Phase 1: Move RIGHT (trees on left side move right toward center)
+            // Phase 1: Move RIGHT (trees left of center)
             for &(idx, _) in &tree_distances {
                 let old_x = trees[idx].x;
                 let old_y = trees[idx].y;
                 let old_angle = trees[idx].angle_deg;
 
-                // Only move trees that are to the left of center
                 if old_x >= center_x { continue; }
                 let dx = center_x - old_x;
                 if dx < 0.02 { continue; }
@@ -203,13 +195,12 @@ impl EvolvedPacker {
                 }
             }
 
-            // Phase 2: Move LEFT (trees on right side move left toward center)
+            // Phase 2: Move LEFT (trees right of center)
             for &(idx, _) in &tree_distances {
                 let old_x = trees[idx].x;
                 let old_y = trees[idx].y;
                 let old_angle = trees[idx].angle_deg;
 
-                // Only move trees that are to the right of center
                 if old_x <= center_x { continue; }
                 let dx = old_x - center_x;
                 if dx < 0.02 { continue; }
@@ -225,13 +216,12 @@ impl EvolvedPacker {
                 }
             }
 
-            // Phase 3: Move UP (trees below center move up toward center)
+            // Phase 3: Move UP (trees below center)
             for &(idx, _) in &tree_distances {
                 let old_x = trees[idx].x;
                 let old_y = trees[idx].y;
                 let old_angle = trees[idx].angle_deg;
 
-                // Only move trees that are below center
                 if old_y >= center_y { continue; }
                 let dy = center_y - old_y;
                 if dy < 0.02 { continue; }
@@ -247,13 +237,12 @@ impl EvolvedPacker {
                 }
             }
 
-            // Phase 4: Move DOWN (trees above center move down toward center)
+            // Phase 4: Move DOWN (trees above center)
             for &(idx, _) in &tree_distances {
                 let old_x = trees[idx].x;
                 let old_y = trees[idx].y;
                 let old_angle = trees[idx].angle_deg;
 
-                // Only move trees that are above center
                 if old_y <= center_y { continue; }
                 let dy = old_y - center_y;
                 if dy < 0.02 { continue; }
@@ -269,7 +258,103 @@ impl EvolvedPacker {
                 }
             }
 
-            // Phase 5: Try diagonal movement (original approach)
+            // Phase 5: Move NE (trees in SW quadrant: x < center AND y < center)
+            for &(idx, _) in &tree_distances {
+                let old_x = trees[idx].x;
+                let old_y = trees[idx].y;
+                let old_angle = trees[idx].angle_deg;
+
+                // SW quadrant moves toward NE
+                if old_x >= center_x || old_y >= center_y { continue; }
+                let dx = center_x - old_x;
+                let dy = center_y - old_y;
+                if dx < 0.02 && dy < 0.02 { continue; }
+
+                for step in [0.10, 0.05, 0.02, 0.01, 0.005] {
+                    let new_x = old_x + dx * step;
+                    let new_y = old_y + dy * step;
+                    trees[idx] = PlacedTree::new(new_x, new_y, old_angle);
+                    if has_overlap(trees, idx) {
+                        trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            // Phase 6: Move NW (trees in SE quadrant: x > center AND y < center)
+            for &(idx, _) in &tree_distances {
+                let old_x = trees[idx].x;
+                let old_y = trees[idx].y;
+                let old_angle = trees[idx].angle_deg;
+
+                // SE quadrant moves toward NW
+                if old_x <= center_x || old_y >= center_y { continue; }
+                let dx = old_x - center_x;
+                let dy = center_y - old_y;
+                if dx < 0.02 && dy < 0.02 { continue; }
+
+                for step in [0.10, 0.05, 0.02, 0.01, 0.005] {
+                    let new_x = old_x - dx * step;
+                    let new_y = old_y + dy * step;
+                    trees[idx] = PlacedTree::new(new_x, new_y, old_angle);
+                    if has_overlap(trees, idx) {
+                        trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            // Phase 7: Move SE (trees in NW quadrant: x < center AND y > center)
+            for &(idx, _) in &tree_distances {
+                let old_x = trees[idx].x;
+                let old_y = trees[idx].y;
+                let old_angle = trees[idx].angle_deg;
+
+                // NW quadrant moves toward SE
+                if old_x >= center_x || old_y <= center_y { continue; }
+                let dx = center_x - old_x;
+                let dy = old_y - center_y;
+                if dx < 0.02 && dy < 0.02 { continue; }
+
+                for step in [0.10, 0.05, 0.02, 0.01, 0.005] {
+                    let new_x = old_x + dx * step;
+                    let new_y = old_y - dy * step;
+                    trees[idx] = PlacedTree::new(new_x, new_y, old_angle);
+                    if has_overlap(trees, idx) {
+                        trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            // Phase 8: Move SW (trees in NE quadrant: x > center AND y > center)
+            for &(idx, _) in &tree_distances {
+                let old_x = trees[idx].x;
+                let old_y = trees[idx].y;
+                let old_angle = trees[idx].angle_deg;
+
+                // NE quadrant moves toward SW
+                if old_x <= center_x || old_y <= center_y { continue; }
+                let dx = old_x - center_x;
+                let dy = old_y - center_y;
+                if dx < 0.02 && dy < 0.02 { continue; }
+
+                for step in [0.10, 0.05, 0.02, 0.01, 0.005] {
+                    let new_x = old_x - dx * step;
+                    let new_y = old_y - dy * step;
+                    trees[idx] = PlacedTree::new(new_x, new_y, old_angle);
+                    if has_overlap(trees, idx) {
+                        trees[idx] = PlacedTree::new(old_x, old_y, old_angle);
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            // Phase 9: Final diagonal movement toward center (for any remaining trees)
             for (idx, _dist) in tree_distances {
                 let old_x = trees[idx].x;
                 let old_y = trees[idx].y;

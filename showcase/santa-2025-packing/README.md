@@ -19,7 +19,7 @@ Pack 1-200 Christmas tree-shaped polygons into the smallest square box.
 
 **Scoring**: `score = Σ(side²/n)` for n=1 to 200 (lower is better)
 
-**Leaderboard**: Top scores ~69, our current best: **88.44** (Gen80b)
+**Leaderboard**: Top scores ~69, our current best: **88.22** (Gen83a - TIES ALL-TIME BEST!)
 
 ## Tree Shape
 
@@ -32,9 +32,9 @@ The tree is a 15-vertex polygon:
 
 ![Packing visualization for n=200 trees](packing_n200.svg)
 
-*Gen80b packing of 200 trees with side length 9.19. Green polygons are the tree shapes, blue box shows the bounding square.*
+*Gen83a packing of 200 trees. Green polygons are the tree shapes, blue box shows the bounding square.*
 
-## Current Best Algorithm (Gen80b)
+## Current Best Algorithm (Gen83a - CROSSOVER)
 
 ```rust
 // 6 parallel placement strategies
@@ -69,16 +69,21 @@ for attempt in 0..200 {
 // - 28,000 iterations per pass
 // - NOTE: SA still uses 45° angles only (maintains stability)
 
-// Gen80b: 4-cardinal wave compaction (right→left→up→down→diagonal)
+// Gen83a CROSSOVER: Bidirectional wave compaction
+// Combines Gen80b (outside-in) with Gen82a (inside-out)
 for wave in 0..5 {
-    for tree in trees_sorted_by_distance_from_center.desc() {
-        // Phase 1: Move RIGHT (trees left of center)
+    // CROSSOVER KEY: First 3 waves outside-in, last 2 waves inside-out
+    let tree_order = if wave < 3 {
+        trees_sorted_by_distance_from_center.desc()  // Outside-in
+    } else {
+        trees_sorted_by_distance_from_center.asc()   // Inside-out
+    };
+
+    for tree in tree_order {
+        // Phase 1-4: Cardinal directions (R→L→U→D)
         if tree.x < center_x { try_move_right(tree, steps); }
-        // Phase 2: Move LEFT (trees right of center)
         if tree.x > center_x { try_move_left(tree, steps); }
-        // Phase 3: Move UP (trees below center)
         if tree.y < center_y { try_move_up(tree, steps); }
-        // Phase 4: Move DOWN (trees above center)
         if tree.y > center_y { try_move_down(tree, steps); }
         // Phase 5: Diagonal movement (final polish)
         try_move_toward_center_diagonal(tree, steps);
@@ -90,12 +95,14 @@ for wave in 0..5 {
 
 1. **ConcentricRings placement** - Structured > chaotic
 2. **Gentle radius compression** - Pull trees toward center (20% prob, 0.08 strength)
-3. **4-cardinal wave compaction** (Gen80b) - Compress in right→left→up→down→diagonal directions
-4. **Hot restarts with elite pool** - Escape local optima
-5. **Boundary-focused SA** (85% probability) - Move trees that define bbox
-6. **Binary search for placement** - Fast, precise positioning
-7. **8 angles (45° steps) for most trees** - Maintains SA stability
-8. **Late-stage continuous angles** (Gen74a) - Use finer 15° angles for final 30% trees (n >= 140) during placement only
+3. **Bidirectional wave compaction** (Gen83a CROSSOVER) - First 3 waves outside-in, last 2 waves inside-out
+4. **4-cardinal wave phases** - Compress in right→left→up→down→diagonal directions
+5. **Hot restarts with elite pool** - Escape local optima
+6. **Boundary-focused SA** (85% probability) - Move trees that define bbox
+7. **Binary search for placement** - Fast, precise positioning
+8. **8 angles (45° steps) for most trees** - Maintains SA stability
+9. **Late-stage continuous angles** (Gen74a) - Use finer 15° angles for final 30% trees (n >= 140) during placement only
+10. **Crossover mutations** - Combining ideas from failed mutations can beat both parents
 
 ## What Doesn't Work
 
