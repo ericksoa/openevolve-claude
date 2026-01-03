@@ -8,20 +8,21 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 66 / 400 (16.5%) |
-| **Total Score** | 149,305 points |
-| **Avg Score/Task** | 2,262 points |
-| **% of Winner Avg** | 94.1% (winner: 2,405 pts/task) |
-| **Projected Final** | ~904,800 points ([details](./PROJECTION.md)) |
+| **Solved** | 67 / 400 (16.8%) |
+| **Total Score** | 151,781 points |
+| **Avg Score/Task** | 2,265 points |
+| **% of Winner Avg** | 94.2% (winner: 2,405 pts/task) |
+| **Projected Final** | ~906,000 points ([details](./PROJECTION.md)) |
 
 <!-- Competition winner: Code Golf International with 962,070 pts (DO NOT MODIFY) -->
 
 ---
 
-## Solved Problems (66)
+## Solved Problems (67)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
+| [`4c4377d9`](./4c4377d9/README.md) | Vertical flip concat | **24** | 2,476 | [solution.py](./4c4377d9/solution.py) |
 | [`3c9b0459`](./3c9b0459/README.md) | 180° rotation | **40** | 2,460 | [solution.py](./3c9b0459/solution.py) |
 | [`44f52bb0`](./44f52bb0/README.md) | Horizontal symmetry check | **46** | 2,454 | [solution.py](./44f52bb0/solution.py) |
 | [`25d8a9c8`](./25d8a9c8/README.md) | Row uniformity check | **50** | 2,450 | [solution.py](./25d8a9c8/solution.py) |
@@ -91,7 +92,7 @@
 
 ---
 
-## Unsolved Problems (335)
+## Unsolved Problems (334)
 
 ### Analyzed Tasks (18)
 

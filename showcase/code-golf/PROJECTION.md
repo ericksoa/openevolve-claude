@@ -27,17 +27,17 @@
 
 | Metric | Value |
 |--------|-------|
-| Tasks Solved | 66 / 400 |
-| Total Score | 149,305 |
-| Avg Score/Task | 2,262 |
-| **% of Winner Avg** | 94.1% (2,262 ÷ 2,405) |
+| Tasks Solved | 67 / 400 |
+| Total Score | 151,781 |
+| Avg Score/Task | 2,265 |
+| **% of Winner Avg** | 94.2% (2,265 ÷ 2,405) |
 
 ### Projected Final Standings
 
 | Scenario | Projected Score | Est. Place | Notes |
 |----------|----------------|------------|-------|
-| **Conservative** | ~904,800 | **~110th** | Current avg × 400 tasks |
-| **Optimistic** | ~918,000 | **~80th** | Tier-weighted averages maintained |
+| **Conservative** | ~906,000 | **~100th** | Current avg × 400 tasks |
+| **Optimistic** | ~919,000 | **~80th** | Tier-weighted averages maintained |
 
 *Placement estimates based on [final leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/) score distribution (rank 50 = 932,557 pts, ~500 pts/rank in mid-field).*
 
@@ -45,9 +45,10 @@
 
 ## Tasks by Difficulty
 
-### Easy (< 100 bytes) - 14 tasks
+### Easy (< 100 bytes) - 15 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
 |------|-------|-------|-------------|-------------|
+| 4c4377d9 | 24 | 2,476 | ~2,480 | 99.8% |
 | 3c9b0459 | 40 | 2,460 | ~2,465 | 99.8% |
 | 44f52bb0 | 46 | 2,454 | ~2,460 | 99.8% |
 | 25d8a9c8 | 50 | 2,450 | ~2,455 | 99.8% |
@@ -62,7 +63,7 @@
 | 27a28665 | 70 | 2,430 | ~2,450 | 99.2% |
 | 017c7c7b | 80 | 2,420 | ~2,445 | 99.0% |
 | 3428a4f5 | 88 | 2,412 | ~2,440 | 98.9% |
-| **Avg** | **64** | **2,436** | **2,450** | **99.4%** |
+| **Avg** | **61** | **2,439** | **2,452** | **99.5%** |
 
 ### Medium (100-300 bytes) - 38 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
@@ -135,19 +136,19 @@
 
 ## Projection Model
 
-Based on 66 solved tasks with tier distribution:
+Based on 67 solved tasks with tier distribution:
 
 | Tier | Solved | Our Avg | Assumed # | Projected | Winner Est. |
 |------|--------|---------|-----------|-----------|-------------|
-| Easy | 14 | 2,437 | 180 | 438,660 | 441,000 |
+| Easy | 15 | 2,439 | 180 | 439,020 | 441,360 |
 | Medium | 38 | 2,317 | 140 | 324,380 | 330,120 |
 | Hard | 11 | 2,038 | 60 | 122,280 | 127,920 |
 | V.Hard | 3 | 1,555 | 20 | 31,100 | 35,000 |
-| **Total** | **66** | **2,262** | **400** | **916,420** | **934,040** |
+| **Total** | **67** | **2,265** | **400** | **916,780** | **934,400** |
 
-**Conservative estimate (current avg × 400)**: 2,262 × 400 = **904,800 points** → **~110th place**
+**Conservative estimate (current avg × 400)**: 2,265 × 400 = **906,000 points** → **~100th place**
 
-**Optimistic estimate (tier-weighted)**: **916,420 points** → **~80th place**
+**Optimistic estimate (tier-weighted)**: **916,780 points** → **~80th place**
 
 ---
 
@@ -194,7 +195,7 @@ Tasks with byte counts significantly above tier average:
 
 ## Key Insights
 
-1. **Easy tasks (13): 99.4%** - Nearly optimal, minimal room for improvement
+1. **Easy tasks (15): 99.5%** - Nearly optimal, minimal room for improvement
 2. **Medium tasks (38): 98.3%** - Good performance, 2% gap
 3. **Hard tasks (11): 95.6%** - 4% gap, some byte savings possible
 4. **Very Hard tasks (3): 92.4%** - 7.6% gap, all 3 tasks now optimized!

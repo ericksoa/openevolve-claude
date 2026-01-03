@@ -1,0 +1,1 @@
+solve=lambda g:g[::-1]+g
