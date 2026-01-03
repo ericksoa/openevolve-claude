@@ -31,7 +31,15 @@
 | Total Score | 114,934 |
 | Avg Score/Task | 2,253 |
 | **% of Winner Avg** | 93.7% (2,253 ÷ 2,405) |
-| Projected Final (if all 400 solved) | ~901,200 (93.7% of winner) |
+
+### Projected Final Standings
+
+| Scenario | Projected Score | Est. Place | Notes |
+|----------|----------------|------------|-------|
+| **Conservative** | ~901,200 | **~110th** | Current avg × 400 tasks |
+| **Optimistic** | ~916,200 | **~80th** | Tier-weighted averages maintained |
+
+*Placement estimates based on [final leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/) score distribution (rank 50 = 932,557 pts, ~500 pts/rank in mid-field).*
 
 ---
 
@@ -122,9 +130,9 @@ Based on 51 solved tasks with tier distribution:
 | V.Hard | 3 | 1,555 | 20 | 31,100 | 35,000 |
 | **Total** | **51** | **2,253** | **400** | **916,200** | **934,740** |
 
-**Conservative estimate (current avg × 400)**: 2,253 × 400 = **901,200 points**
+**Conservative estimate (current avg × 400)**: 2,253 × 400 = **901,200 points** → **~110th place**
 
-**Optimistic estimate (tier-weighted)**: **916,200 points** (if we maintain tier averages)
+**Optimistic estimate (tier-weighted)**: **916,200 points** → **~80th place**
 
 ---
 

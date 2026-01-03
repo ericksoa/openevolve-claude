@@ -481,16 +481,21 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 <!-- DO NOT MODIFY winner score - this is the actual competition result -->
 
-| Metric | Current | Projected | Winner |
-|--------|---------|-----------|--------|
-| Tasks solved | 51 | 400 | 400 |
-| Total score | 114,934 | ~901,200 | **962,070** |
-| Avg pts/task | 2,253 | 2,253 | 2,405 |
-| % of winner | 93.7% | 93.7% | 100% |
+| Metric | Current | Projected (Conservative) | Projected (Optimistic) | Winner |
+|--------|---------|--------------------------|------------------------|--------|
+| Tasks solved | 51 | 400 | 400 | 400 |
+| Total score | 114,934 | ~901,200 | ~916,200 | **962,070** |
+| Avg pts/task | 2,253 | 2,253 | 2,291 | 2,405 |
+| % of winner | 93.7% | 93.7% | 95.2% | 100% |
+| **Est. Place** | - | **~110th** | **~80th** | 1st |
 
 **Winner**: Code Golf International (962,070 pts) - [Final Leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/)
 
-**Projection**: At current avg (2,251 pts/task), we project ~900,400 points if all 400 tasks solved (93.6% of winner). See [PROJECTION.md](./PROJECTION.md) for details.
+### Projection Methods
+- **Conservative**: Current average (2,253 pts/task) × 400 = ~901,200 pts → **~110th place**
+- **Optimistic** (tier-weighted): Maintain tier averages = ~916,200 pts → **~80th place**
+
+See [PROJECTION.md](./PROJECTION.md) for detailed tier breakdowns.
 
 This showcase demonstrates the `/evolve-size` capability. The techniques transfer to any code golf challenge.
 
