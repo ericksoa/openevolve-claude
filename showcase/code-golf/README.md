@@ -8,17 +8,17 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 55 / 400 (13.8%) |
-| **Total Score** | 123,951 points |
-| **Avg Score/Task** | 2,254 points |
-| **% of Winner Avg** | 93.7% (winner: 2,405 pts/task) |
-| **Projected Final** | ~901,600 points ([details](./PROJECTION.md)) |
+| **Solved** | 56 / 400 (14.0%) |
+| **Total Score** | 126,339 points |
+| **Avg Score/Task** | 2,256 points |
+| **% of Winner Avg** | 93.8% (winner: 2,405 pts/task) |
+| **Projected Final** | ~902,400 points ([details](./PROJECTION.md)) |
 
 <!-- Competition winner: Code Golf International with 962,070 pts (DO NOT MODIFY) -->
 
 ---
 
-## Solved Problems (55)
+## Solved Problems (56)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
@@ -35,6 +35,7 @@
 | [`017c7c7b`](./017c7c7b/README.md) | Extend pattern + double | **80** | 2,420 | [solution.py](./017c7c7b/solution.py) |
 | [`3428a4f5`](./3428a4f5/README.md) | XOR halves by separator | **88** | 2,412 | [solution.py](./3428a4f5/solution.py) |
 | [`1bfc4729`](./1bfc4729/README.md) | Dual frame pattern | **108** | 2,392 | [solution.py](./1bfc4729/solution.py) |
+| [`22168020`](./22168020/README.md) | Fill between endpoints | **112** | 2,388 | [solution.py](./22168020/solution.py) |
 | [`05269061`](./05269061/README.md) | Diagonal color cycle | **113** | 2,387 | [solution.py](./05269061/solution.py) |
 | [`137eaa0f`](./137eaa0f/README.md) | Symmetry reflection | **130** | 2,370 | [solution.py](./137eaa0f/solution.py) |
 | [`1cf80156`](./1cf80156/README.md) | Bounding box extraction | **130** | 2,370 | [solution.py](./1cf80156/solution.py) |
@@ -80,9 +81,9 @@
 
 ---
 
-## Unsolved Problems (346)
+## Unsolved Problems (345)
 
-### Analyzed Tasks (25)
+### Analyzed Tasks (24)
 
 | Task ID | Pattern | Est. Difficulty |
 |---------|---------|-----------------|
@@ -90,7 +91,6 @@
 | `1f642eb9` | Marker position projection | Hard |
 | `1f85a75f` | Extract rare color region | Hard |
 | `1fad071e` | Count matching blocks | Hard |
-| `22168020` | Copy pattern to endpoints | Hard |
 | `22eb0ac0` | Marker color detection | Hard |
 | `234bbc79` | Bounding box intersection | Very Hard |
 | `23581191` | Minority shape rule | Hard |
@@ -483,17 +483,17 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 | Metric | Current | Projected (Conservative) | Projected (Optimistic) | Winner |
 |--------|---------|--------------------------|------------------------|--------|
-| Tasks solved | 55 | 400 | 400 | 400 |
-| Total score | 123,951 | ~902,000 | ~916,000 | **962,070** |
-| Avg pts/task | 2,254 | 2,254 | 2,290 | 2,405 |
-| % of winner | 93.7% | 93.7% | 95.2% | 100% |
+| Tasks solved | 56 | 400 | 400 | 400 |
+| Total score | 126,339 | ~902,400 | ~916,500 | **962,070** |
+| Avg pts/task | 2,256 | 2,256 | 2,291 | 2,405 |
+| % of winner | 93.8% | 93.8% | 95.3% | 100% |
 | **Est. Place** | - | **~110th** | **~80th** | 1st |
 
 **Winner**: Code Golf International (962,070 pts) - [Final Leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/)
 
 ### Projection Methods
-- **Conservative**: Current average (2,254 pts/task) × 400 = ~902,000 pts → **~110th place**
-- **Optimistic** (tier-weighted): Maintain tier averages = ~916,000 pts → **~80th place**
+- **Conservative**: Current average (2,256 pts/task) × 400 = ~902,400 pts → **~110th place**
+- **Optimistic** (tier-weighted): Maintain tier averages = ~916,500 pts → **~80th place**
 
 See [PROJECTION.md](./PROJECTION.md) for detailed tier breakdowns.
 
