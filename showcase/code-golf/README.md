@@ -8,8 +8,8 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 57 / 400 (14.3%) |
-| **Total Score** | 128,657 points |
+| **Solved** | 58 / 400 (14.5%) |
+| **Total Score** | 130,896 points |
 | **Avg Score/Task** | 2,257 points |
 | **% of Winner Avg** | 93.8% (winner: 2,405 pts/task) |
 | **Projected Final** | ~902,800 points ([details](./PROJECTION.md)) |
@@ -18,7 +18,7 @@
 
 ---
 
-## Solved Problems (57)
+## Solved Problems (58)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
@@ -61,6 +61,7 @@
 | [`0dfd9992`](./0dfd9992/README.md) | Color substitution pairs | **239** | 2,261 | [solution.py](./0dfd9992/solution.py) |
 | [`0962bcdd`](./0962bcdd/README.md) | T-junction detection | **241** | 2,259 | [solution.py](./0962bcdd/solution.py) |
 | [`1c786137`](./1c786137/README.md) | Corner rectangle frames | **249** | 2,251 | [solution.py](./1c786137/solution.py) |
+| [`1f0c79e5`](./1f0c79e5/README.md) | Diagonal ray extension | **261** | 2,239 | [solution.py](./1f0c79e5/solution.py) |
 | [`025d127b`](./025d127b/README.md) | Parallelogram to rect | **266** | 2,234 | [solution.py](./025d127b/solution.py) |
 | [`32597951`](./32597951/README.md) | Extract repeating tile | **274** | 2,226 | [solution.py](./32597951/solution.py) |
 | [`1caeab9d`](./1caeab9d/README.md) | Line intersection marking | **207** | 2,293 | [solution.py](./1caeab9d/solution.py) |
@@ -82,13 +83,12 @@
 
 ---
 
-## Unsolved Problems (344)
+## Unsolved Problems (343)
 
-### Analyzed Tasks (23)
+### Analyzed Tasks (22)
 
 | Task ID | Pattern | Est. Difficulty |
 |---------|---------|-----------------|
-| `1f0c79e5` | Colored region swap | Hard |
 | `1f642eb9` | Marker position projection | Hard |
 | `1fad071e` | Count matching blocks | Hard |
 | `22eb0ac0` | Marker color detection | Hard |

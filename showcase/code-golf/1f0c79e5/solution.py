@@ -1,0 +1,1 @@
+def solve(g):R=range(9);P={(r,c)for r in R for c in R if g[r][c]};r0,c0=min(P);C=max(g[r][c]for r,c in P);O=[[0]*9for _ in R];[9>(x:=r+k*((a>r0)*2-1))>-1<(y:=c+k*((b>c0)*2-1))<9and O[x].__setitem__(y,C)for a,b in P if g[a][b]<3for k in R for r,c in P];return O
