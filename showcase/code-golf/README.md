@@ -8,17 +8,17 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 56 / 400 (14.0%) |
-| **Total Score** | 126,339 points |
-| **Avg Score/Task** | 2,256 points |
+| **Solved** | 57 / 400 (14.3%) |
+| **Total Score** | 128,657 points |
+| **Avg Score/Task** | 2,257 points |
 | **% of Winner Avg** | 93.8% (winner: 2,405 pts/task) |
-| **Projected Final** | ~902,400 points ([details](./PROJECTION.md)) |
+| **Projected Final** | ~902,800 points ([details](./PROJECTION.md)) |
 
 <!-- Competition winner: Code Golf International with 962,070 pts (DO NOT MODIFY) -->
 
 ---
 
-## Solved Problems (56)
+## Solved Problems (57)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
@@ -48,6 +48,7 @@
 | [`10fcaaa3`](./10fcaaa3/README.md) | 2x2 tiling + diagonal 8s | **174** | 2,326 | [solution.py](./10fcaaa3/solution.py) |
 | [`1f876c06`](./1f876c06/README.md) | Diagonal line propagation | **174** | 2,326 | [solution.py](./1f876c06/solution.py) |
 | [`3aa6fb7a`](./3aa6fb7a/README.md) | L-shaped 8s + corner 1 | **178** | 2,322 | [solution.py](./3aa6fb7a/solution.py) |
+| [`1f85a75f`](./1f85a75f/README.md) | Extract rare color region | **182** | 2,318 | [solution.py](./1f85a75f/solution.py) |
 | [`1190e5a7`](./1190e5a7/README.md) | Count cells by grid lines | **124** | 2,376 | [solution.py](./1190e5a7/solution.py) |
 | [`363442ee`](./363442ee/README.md) | Fill bottom row pattern | **144** | 2,356 | [solution.py](./363442ee/solution.py) |
 | [`28e73c20`](./28e73c20/README.md) | Spiral maze generation | **149** | 2,351 | [solution.py](./28e73c20/solution.py) |
@@ -81,15 +82,14 @@
 
 ---
 
-## Unsolved Problems (345)
+## Unsolved Problems (344)
 
-### Analyzed Tasks (24)
+### Analyzed Tasks (23)
 
 | Task ID | Pattern | Est. Difficulty |
 |---------|---------|-----------------|
 | `1f0c79e5` | Colored region swap | Hard |
 | `1f642eb9` | Marker position projection | Hard |
-| `1f85a75f` | Extract rare color region | Hard |
 | `1fad071e` | Count matching blocks | Hard |
 | `22eb0ac0` | Marker color detection | Hard |
 | `234bbc79` | Bounding box intersection | Very Hard |
@@ -483,17 +483,17 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 | Metric | Current | Projected (Conservative) | Projected (Optimistic) | Winner |
 |--------|---------|--------------------------|------------------------|--------|
-| Tasks solved | 56 | 400 | 400 | 400 |
-| Total score | 126,339 | ~902,400 | ~916,500 | **962,070** |
-| Avg pts/task | 2,256 | 2,256 | 2,291 | 2,405 |
+| Tasks solved | 57 | 400 | 400 | 400 |
+| Total score | 128,657 | ~902,800 | ~916,700 | **962,070** |
+| Avg pts/task | 2,257 | 2,257 | 2,292 | 2,405 |
 | % of winner | 93.8% | 93.8% | 95.3% | 100% |
 | **Est. Place** | - | **~110th** | **~80th** | 1st |
 
 **Winner**: Code Golf International (962,070 pts) - [Final Leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/)
 
 ### Projection Methods
-- **Conservative**: Current average (2,256 pts/task) × 400 = ~902,400 pts → **~110th place**
-- **Optimistic** (tier-weighted): Maintain tier averages = ~916,500 pts → **~80th place**
+- **Conservative**: Current average (2,257 pts/task) × 400 = ~902,800 pts → **~110th place**
+- **Optimistic** (tier-weighted): Maintain tier averages = ~916,700 pts → **~80th place**
 
 See [PROJECTION.md](./PROJECTION.md) for detailed tier breakdowns.
 
