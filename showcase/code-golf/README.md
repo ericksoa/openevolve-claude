@@ -8,8 +8,8 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 70 / 400 (17.5%) |
-| **Total Score** | 158,844 points |
+| **Solved** | 71 / 400 (17.8%) |
+| **Total Score** | 161,119 points |
 | **Avg Score/Task** | 2,269 points |
 | **% of Winner Avg** | 94.3% (winner: 2,405 pts/task) |
 | **Projected Final** | ~907,600 points ([details](./PROJECTION.md)) |
@@ -18,7 +18,7 @@
 
 ---
 
-## Solved Problems (70)
+## Solved Problems (71)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
@@ -66,6 +66,7 @@
 | [`1e32b0e9`](./1e32b0e9/README.md) | Grid template completion | **201** | 2,299 | [solution.py](./1e32b0e9/solution.py) |
 | [`23b5c85d`](./23b5c85d/README.md) | Smallest colored rectangle | **201** | 2,299 | [solution.py](./23b5c85d/solution.py) |
 | [`00d62c1b`](./00d62c1b/README.md) | Fill enclosed regions | **219** | 2,281 | [solution.py](./00d62c1b/solution.py) |
+| [`3de23699`](./3de23699/README.md) | Extract marker-bounded region | **225** | 2,275 | [solution.py](./3de23699/solution.py) |
 | [`0a938d79`](./0a938d79/README.md) | Alternating stripe pattern | **237** | 2,263 | [solution.py](./0a938d79/solution.py) |
 | [`0dfd9992`](./0dfd9992/README.md) | Color substitution pairs | **239** | 2,261 | [solution.py](./0dfd9992/solution.py) |
 | [`3bdb4ada`](./3bdb4ada/README.md) | Middle row stripe | **239** | 2,261 | [solution.py](./3bdb4ada/solution.py) |
@@ -490,8 +491,8 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 | Metric | Current | Projected (Conservative) | Projected (Optimistic) | Winner |
 |--------|---------|--------------------------|------------------------|--------|
-| Tasks solved | 70 | 400 | 400 | 400 |
-| Total score | 158,844 | ~907,600 | ~920,000 | **962,070** |
+| Tasks solved | 71 | 400 | 400 | 400 |
+| Total score | 161,119 | ~907,600 | ~920,000 | **962,070** |
 | Avg pts/task | 2,269 | 2,269 | 2,300 | 2,405 |
 | % of winner | 94.3% | 94.3% | 95.6% | 100% |
 | **Est. Place** | - | **~100th** | **~80th** | 1st |

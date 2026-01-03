@@ -1,0 +1,1 @@
+def solve(G,E=enumerate):L=[v for r,R in E(G)for j,v in E(R)if v];m,p=sorted({*L},key=L.count);R,C=zip(*[(r,j)for r,R in E(G)for j,v in E(R)if v==m]);return[[(m,v)[v!=p]for v in r[min(C)+1:max(C)]]for r in G[min(R)+1:max(R)]]
