@@ -8,11 +8,11 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 50 / 400 (12.5%) |
-| **Total Score** | 112,566 points |
-| **Avg Score/Task** | 2,251 points |
-| **% of Winner Avg** | 93.6% (winner: 2,405 pts/task) |
-| **Projected Final** | ~900,000 points ([details](./PROJECTION.md)) |
+| **Solved** | 51 / 400 (12.8%) |
+| **Total Score** | 114,934 points |
+| **Avg Score/Task** | 2,253 points |
+| **% of Winner Avg** | 93.7% (winner: 2,405 pts/task) |
+| **Projected Final** | ~901,000 points ([details](./PROJECTION.md)) |
 
 <!-- Competition winner: Code Golf International with 962,070 pts (DO NOT MODIFY) -->
 
@@ -38,6 +38,7 @@
 | [`05269061`](./05269061/README.md) | Diagonal color cycle | **113** | 2,387 | [solution.py](./05269061/solution.py) |
 | [`137eaa0f`](./137eaa0f/README.md) | Symmetry reflection | **130** | 2,370 | [solution.py](./137eaa0f/solution.py) |
 | [`1cf80156`](./1cf80156/README.md) | Bounding box extraction | **130** | 2,370 | [solution.py](./1cf80156/solution.py) |
+| [`2bee17df`](./2bee17df/README.md) | Cross line fill | **132** | 2,368 | [solution.py](./2bee17df/solution.py) |
 | [`08ed6ac7`](./08ed6ac7/README.md) | Column rank labeling | **142** | 2,358 | [solution.py](./08ed6ac7/solution.py) |
 | [`09629e4f`](./09629e4f/README.md) | Fill grid segments | **170** | 2,330 | [solution.py](./09629e4f/solution.py) |
 | [`239be575`](./239be575/README.md) | Small pattern movement | **170** | 2,330 | [solution.py](./239be575/solution.py) |
@@ -75,9 +76,9 @@
 
 ---
 
-## Unsolved Problems (351)
+## Unsolved Problems (350)
 
-### Analyzed Tasks (29)
+### Analyzed Tasks (28)
 
 | Task ID | Pattern | Est. Difficulty |
 |---------|---------|-----------------|
@@ -101,7 +102,6 @@
 | `272f95fa` | Grid cell quadrant coloring | Very Hard |
 | `29623171` | Grid cell fill by quadrant | Hard |
 | `29ec7d0e` | Fill missing pattern | Hard |
-| `2bee17df` | Extract rectangular patch | Medium |
 | `2c608aff` | Connect marked cross lines | Hard |
 | `2dc579da` | Remove noise keep signal | Hard |
 | `2dee498d` | Shape replication | Hard |
@@ -483,10 +483,10 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 | Metric | Current | Projected | Winner |
 |--------|---------|-----------|--------|
-| Tasks solved | 50 | 400 | 400 |
-| Total score | 112,566 | ~900,400 | **962,070** |
-| Avg pts/task | 2,251 | 2,251 | 2,405 |
-| % of winner | 93.6% | 93.6% | 100% |
+| Tasks solved | 51 | 400 | 400 |
+| Total score | 114,934 | ~901,200 | **962,070** |
+| Avg pts/task | 2,253 | 2,253 | 2,405 |
+| % of winner | 93.7% | 93.7% | 100% |
 
 **Winner**: Code Golf International (962,070 pts) - [Final Leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/)
 
