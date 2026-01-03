@@ -8,8 +8,8 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 61 / 400 (15.3%) |
-| **Total Score** | 137,964 points |
+| **Solved** | 62 / 400 (15.5%) |
+| **Total Score** | 140,266 points |
 | **Avg Score/Task** | 2,262 points |
 | **% of Winner Avg** | 94.0% (winner: 2,405 pts/task) |
 | **Projected Final** | ~904,800 points ([details](./PROJECTION.md)) |
@@ -18,7 +18,7 @@
 
 ---
 
-## Solved Problems (61)
+## Solved Problems (62)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
@@ -51,6 +51,7 @@
 | [`1f876c06`](./1f876c06/README.md) | Diagonal line propagation | **174** | 2,326 | [solution.py](./1f876c06/solution.py) |
 | [`3aa6fb7a`](./3aa6fb7a/README.md) | L-shaped 8s + corner 1 | **178** | 2,322 | [solution.py](./3aa6fb7a/solution.py) |
 | [`1f85a75f`](./1f85a75f/README.md) | Extract rare color region | **182** | 2,318 | [solution.py](./1f85a75f/solution.py) |
+| [`23581191`](./23581191/README.md) | Cross lines intersection | **198** | 2,302 | [solution.py](./23581191/solution.py) |
 | [`1190e5a7`](./1190e5a7/README.md) | Count cells by grid lines | **124** | 2,376 | [solution.py](./1190e5a7/solution.py) |
 | [`363442ee`](./363442ee/README.md) | Fill bottom row pattern | **144** | 2,356 | [solution.py](./363442ee/solution.py) |
 | [`28e73c20`](./28e73c20/README.md) | Spiral maze generation | **149** | 2,351 | [solution.py](./28e73c20/solution.py) |
@@ -86,14 +87,13 @@
 
 ---
 
-## Unsolved Problems (339)
+## Unsolved Problems (338)
 
-### Analyzed Tasks (19)
+### Analyzed Tasks (18)
 
 | Task ID | Pattern | Est. Difficulty |
 |---------|---------|-----------------|
 | `234bbc79` | Bounding box intersection | Very Hard |
-| `23581191` | Minority shape rule | Hard |
 | `23b5c85d` | Rare color ray extension | Hard |
 | `253bf280` | Position-based lines | Hard |
 | `25d487eb` | Container fill with color | Hard |
@@ -483,8 +483,8 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 | Metric | Current | Projected (Conservative) | Projected (Optimistic) | Winner |
 |--------|---------|--------------------------|------------------------|--------|
-| Tasks solved | 61 | 400 | 400 | 400 |
-| Total score | 137,964 | ~904,800 | ~918,400 | **962,070** |
+| Tasks solved | 62 | 400 | 400 | 400 |
+| Total score | 140,266 | ~904,800 | ~918,800 | **962,070** |
 | Avg pts/task | 2,262 | 2,262 | 2,296 | 2,405 |
 | % of winner | 94.0% | 94.0% | 95.4% | 100% |
 | **Est. Place** | - | **~110th** | **~80th** | 1st |
