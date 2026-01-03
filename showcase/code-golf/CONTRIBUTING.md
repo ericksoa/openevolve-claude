@@ -151,10 +151,34 @@ Create README.md **before** committing. Do not commit solutions without document
 python3 evaluator.py <task_id> <task_id>/solution.py
 ```
 
-### 6. Commit Together
+### 6. Update Project Files (REQUIRED)
+
+After every solve, update these files:
+
+**README.md:**
+- Progress Summary (solved count, total score, avg, % of winner)
+- Solved Problems table (add entry sorted by bytes)
+- Unsolved Problems (remove if listed)
+- Competition Status table (including Est. Place)
+
+**PROJECTION.md:**
+- Current Status metrics
+- Projected Final Standings (recalculate placement)
+- Tasks by Difficulty tier (add task, update averages)
+- Projection Model table
+
+**Placement Formula:**
+```
+Rank 50 = 932,557 pts, ~500 pts/rank drop
+
+Conservative place = 50 + (932,557 - (avg × 400)) / 500
+Optimistic place = 50 + (932,557 - tier_weighted_score) / 500
+```
+
+### 7. Commit Together
 ```bash
-git add <task_id>/solution.py <task_id>/README.md
-git commit -m "<task_id>: <pattern> (<bytes> bytes)"
+git add <task_id>/ README.md PROJECTION.md
+git commit -m "<task_id>: <pattern> (<bytes> bytes, +<score> pts)"
 ```
 
 ---
@@ -170,6 +194,8 @@ Before committing any solution:
 - [ ] Key tricks are documented for future reference
 - [ ] Byte history shows evolution (even if just v1)
 - [ ] **For 200+ byte solutions**: Evolution was attempted (min 5 generations)
+- [ ] **Project README.md updated** (Progress Summary, Solved Problems, Competition Status)
+- [ ] **PROJECTION.md updated** (Current Status, tier tables, Est. Place recalculated)
 
 ---
 
