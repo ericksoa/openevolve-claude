@@ -1,0 +1,1 @@
+solve=lambda g:(o:=[*map(list,g)],[exec(f"r[{k}]=c")for i,r in enumerate(o)for j,c in enumerate(g[0])for k in(j-1,j,j+1)[~i%2::2]if len(r)>k>=0<c])[0]

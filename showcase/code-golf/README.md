@@ -8,17 +8,17 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 64 / 400 (16.0%) |
-| **Total Score** | 144,501 points |
-| **Avg Score/Task** | 2,258 points |
+| **Solved** | 65 / 400 (16.3%) |
+| **Total Score** | 146,851 points |
+| **Avg Score/Task** | 2,259 points |
 | **% of Winner Avg** | 93.9% (winner: 2,405 pts/task) |
-| **Projected Final** | ~903,200 points ([details](./PROJECTION.md)) |
+| **Projected Final** | ~903,600 points ([details](./PROJECTION.md)) |
 
 <!-- Competition winner: Code Golf International with 962,070 pts (DO NOT MODIFY) -->
 
 ---
 
-## Solved Problems (64)
+## Solved Problems (65)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
@@ -55,6 +55,7 @@
 | [`1190e5a7`](./1190e5a7/README.md) | Count cells by grid lines | **124** | 2,376 | [solution.py](./1190e5a7/solution.py) |
 | [`363442ee`](./363442ee/README.md) | Fill bottom row pattern | **144** | 2,356 | [solution.py](./363442ee/solution.py) |
 | [`28e73c20`](./28e73c20/README.md) | Spiral maze generation | **149** | 2,351 | [solution.py](./28e73c20/solution.py) |
+| [`3ac3eb23`](./3ac3eb23/README.md) | Diagonal checkerboard | **150** | 2,350 | [solution.py](./3ac3eb23/solution.py) |
 | [`2013d3e2`](./2013d3e2/README.md) | Symmetry axis extraction | **152** | 2,348 | [solution.py](./2013d3e2/solution.py) |
 | [`4258a5f9`](./4258a5f9/README.md) | 3×3 box around 5s | **160** | 2,340 | [solution.py](./4258a5f9/solution.py) |
 | [`0ca9ddb6`](./0ca9ddb6/README.md) | Color spread from seeds | **207** | 2,293 | [solution.py](./0ca9ddb6/solution.py) |
@@ -485,9 +486,9 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 | Metric | Current | Projected (Conservative) | Projected (Optimistic) | Winner |
 |--------|---------|--------------------------|------------------------|--------|
-| Tasks solved | 64 | 400 | 400 | 400 |
-| Total score | 144,501 | ~903,200 | ~918,000 | **962,070** |
-| Avg pts/task | 2,258 | 2,258 | 2,295 | 2,405 |
+| Tasks solved | 65 | 400 | 400 | 400 |
+| Total score | 146,851 | ~903,600 | ~918,000 | **962,070** |
+| Avg pts/task | 2,259 | 2,259 | 2,295 | 2,405 |
 | % of winner | 93.9% | 93.9% | 95.4% | 100% |
 | **Est. Place** | - | **~110th** | **~80th** | 1st |
 
