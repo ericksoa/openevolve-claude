@@ -1,10 +1,45 @@
-# Evolution State - Gen101 Complete (Combined Strategy)
+# Evolution State - Gen102 Complete (ML + Best-of-N)
 
 ## Current Status
-- **Champion: Gen91b + Combined refinement**
-- **Score: ~89.59** (best via combined strategies)
+- **Champion: Gen91b + Best-of-5 selection**
+- **Score: ~86.55** (best via multiple runs)
 - **Target: ~70** (top leaderboard)
-- **Gap: ~28%**
+- **Gap: ~24%**
+
+## Gen102 Results Summary - ML Value Function + Best-of-N
+
+### ML Approach (Did Not Help)
+
+Attempted to train a neural network to predict final side length from partial packing state:
+- **Model**: MLP with 66K parameters
+- **Training**: 6000 samples, 50 epochs, 7.8s on M2 MPS
+- **Validation MAE**: 0.04 (quite accurate)
+
+**Re-ranking results**: -0.98% (worse than baseline)
+- Model predictions don't correlate well with actual best solutions
+- Variance in predictions doesn't match variance in quality
+
+### Best-of-N Selection (Works Well!)
+
+Simple approach: run evolved N times, pick best for each n.
+
+| Runs | Score (n=1-200) | Improvement | Time |
+|------|-----------------|-------------|------|
+| 1 | 89.71 | baseline | 3 min |
+| 5 | **86.55** | **+3.52%** | 12 min |
+| 10 (n=1-50) | 24.23 | +5.09% | 3 min |
+
+**Key insight**: Evolved algorithm has stochastic elements that produce different quality solutions. Multiple runs with selection exploits this variance.
+
+### Files Added
+- `ml/model.py` - PyTorch value function models
+- `ml/train.py` - Training pipeline with MPS support
+- `ml/beam_search.py` - ML-guided beam search (too slow)
+- `ml/rerank_strategies.py` - ML re-ranking (didn't help)
+- `rust/src/bin/best_of_n.rs` - Best-of-N selection (works!)
+- `rust/src/bin/generate_training_data.rs` - Training data generator
+
+---
 
 ## Competition Status
 - Competition ends: January 30, 2026
