@@ -8,17 +8,17 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 67 / 400 (16.8%) |
-| **Total Score** | 151,781 points |
-| **Avg Score/Task** | 2,265 points |
+| **Solved** | 68 / 400 (17.0%) |
+| **Total Score** | 154,080 points |
+| **Avg Score/Task** | 2,266 points |
 | **% of Winner Avg** | 94.2% (winner: 2,405 pts/task) |
-| **Projected Final** | ~906,000 points ([details](./PROJECTION.md)) |
+| **Projected Final** | ~906,400 points ([details](./PROJECTION.md)) |
 
 <!-- Competition winner: Code Golf International with 962,070 pts (DO NOT MODIFY) -->
 
 ---
 
-## Solved Problems (67)
+## Solved Problems (68)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
@@ -62,6 +62,7 @@
 | [`4258a5f9`](./4258a5f9/README.md) | 3×3 box around 5s | **160** | 2,340 | [solution.py](./4258a5f9/solution.py) |
 | [`0ca9ddb6`](./0ca9ddb6/README.md) | Color spread from seeds | **207** | 2,293 | [solution.py](./0ca9ddb6/solution.py) |
 | [`1e32b0e9`](./1e32b0e9/README.md) | Grid template completion | **201** | 2,299 | [solution.py](./1e32b0e9/solution.py) |
+| [`23b5c85d`](./23b5c85d/README.md) | Smallest colored rectangle | **201** | 2,299 | [solution.py](./23b5c85d/solution.py) |
 | [`00d62c1b`](./00d62c1b/README.md) | Fill enclosed regions | **219** | 2,281 | [solution.py](./00d62c1b/solution.py) |
 | [`0a938d79`](./0a938d79/README.md) | Alternating stripe pattern | **237** | 2,263 | [solution.py](./0a938d79/solution.py) |
 | [`0dfd9992`](./0dfd9992/README.md) | Color substitution pairs | **239** | 2,261 | [solution.py](./0dfd9992/solution.py) |
@@ -94,12 +95,11 @@
 
 ## Unsolved Problems (334)
 
-### Analyzed Tasks (18)
+### Analyzed Tasks (17)
 
 | Task ID | Pattern | Est. Difficulty |
 |---------|---------|-----------------|
 | `234bbc79` | Bounding box intersection | Very Hard |
-| `23b5c85d` | Rare color ray extension | Hard |
 | `253bf280` | Position-based lines | Hard |
 | `25d487eb` | Container fill with color | Hard |
 | `25ff71a9` | Pattern isolation | Hard |
@@ -488,11 +488,11 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 | Metric | Current | Projected (Conservative) | Projected (Optimistic) | Winner |
 |--------|---------|--------------------------|------------------------|--------|
-| Tasks solved | 66 | 400 | 400 | 400 |
-| Total score | 149,305 | ~904,800 | ~918,000 | **962,070** |
-| Avg pts/task | 2,262 | 2,262 | 2,295 | 2,405 |
-| % of winner | 94.1% | 94.1% | 95.4% | 100% |
-| **Est. Place** | - | **~110th** | **~80th** | 1st |
+| Tasks solved | 68 | 400 | 400 | 400 |
+| Total score | 154,080 | ~906,400 | ~919,000 | **962,070** |
+| Avg pts/task | 2,266 | 2,266 | 2,298 | 2,405 |
+| % of winner | 94.2% | 94.2% | 95.5% | 100% |
+| **Est. Place** | - | **~100th** | **~80th** | 1st |
 
 **Winner**: Code Golf International (962,070 pts) - [Final Leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/)
 

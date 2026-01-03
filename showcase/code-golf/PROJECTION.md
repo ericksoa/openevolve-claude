@@ -27,16 +27,16 @@
 
 | Metric | Value |
 |--------|-------|
-| Tasks Solved | 67 / 400 |
-| Total Score | 151,781 |
-| Avg Score/Task | 2,265 |
-| **% of Winner Avg** | 94.2% (2,265 ÷ 2,405) |
+| Tasks Solved | 68 / 400 |
+| Total Score | 154,080 |
+| Avg Score/Task | 2,266 |
+| **% of Winner Avg** | 94.2% (2,266 ÷ 2,405) |
 
 ### Projected Final Standings
 
 | Scenario | Projected Score | Est. Place | Notes |
 |----------|----------------|------------|-------|
-| **Conservative** | ~906,000 | **~100th** | Current avg × 400 tasks |
+| **Conservative** | ~906,400 | **~100th** | Current avg × 400 tasks |
 | **Optimistic** | ~919,000 | **~80th** | Tier-weighted averages maintained |
 
 *Placement estimates based on [final leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/) score distribution (rank 50 = 932,557 pts, ~500 pts/rank in mid-field).*
@@ -65,7 +65,7 @@
 | 3428a4f5 | 88 | 2,412 | ~2,440 | 98.9% |
 | **Avg** | **61** | **2,439** | **2,452** | **99.5%** |
 
-### Medium (100-300 bytes) - 38 tasks
+### Medium (100-300 bytes) - 39 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
 |------|-------|-------|-------------|-------------|
 | 1bfc4729 | 108 | 2,392 | ~2,420 | 98.8% |
@@ -85,6 +85,7 @@
 | 3aa6fb7a | 178 | 2,322 | ~2,380 | 97.6% |
 | 1f85a75f | 182 | 2,318 | ~2,380 | 97.4% |
 | 23581191 | 198 | 2,302 | ~2,370 | 97.1% |
+| 23b5c85d | 201 | 2,299 | ~2,360 | 97.4% |
 | 1190e5a7 | 124 | 2,376 | ~2,400 | 99.0% |
 | 363442ee | 144 | 2,356 | ~2,400 | 98.2% |
 | 28e73c20 | 149 | 2,351 | ~2,380 | 98.8% |
@@ -106,7 +107,7 @@
 | 178fcbfb | 217 | 2,283 | ~2,350 | 97.1% |
 | 11852cab | 280 | 2,220 | ~2,300 | 96.5% |
 | 1f0c79e5 | 261 | 2,239 | ~2,320 | 96.5% |
-| **Avg** | **182** | **2,317** | **2,358** | **98.3%** |
+| **Avg** | **183** | **2,317** | **2,358** | **98.3%** |
 
 ### Hard (300-600 bytes) - 11 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
@@ -136,17 +137,17 @@
 
 ## Projection Model
 
-Based on 67 solved tasks with tier distribution:
+Based on 68 solved tasks with tier distribution:
 
 | Tier | Solved | Our Avg | Assumed # | Projected | Winner Est. |
 |------|--------|---------|-----------|-----------|-------------|
 | Easy | 15 | 2,439 | 180 | 439,020 | 441,360 |
-| Medium | 38 | 2,317 | 140 | 324,380 | 330,120 |
+| Medium | 39 | 2,317 | 140 | 324,380 | 330,120 |
 | Hard | 11 | 2,038 | 60 | 122,280 | 127,920 |
 | V.Hard | 3 | 1,555 | 20 | 31,100 | 35,000 |
-| **Total** | **67** | **2,265** | **400** | **916,780** | **934,400** |
+| **Total** | **68** | **2,266** | **400** | **916,780** | **934,400** |
 
-**Conservative estimate (current avg × 400)**: 2,265 × 400 = **906,000 points** → **~100th place**
+**Conservative estimate (current avg × 400)**: 2,266 × 400 = **906,400 points** → **~100th place**
 
 **Optimistic estimate (tier-weighted)**: **916,780 points** → **~80th place**
 
