@@ -1,0 +1,1 @@
+solve=lambda g:[[1+6*any(a-c for a,_,c in g)]]

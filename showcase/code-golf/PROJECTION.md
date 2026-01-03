@@ -27,16 +27,16 @@
 
 | Metric | Value |
 |--------|-------|
-| Tasks Solved | 65 / 400 |
-| Total Score | 146,851 |
-| Avg Score/Task | 2,259 |
-| **% of Winner Avg** | 93.9% (2,259 ÷ 2,405) |
+| Tasks Solved | 66 / 400 |
+| Total Score | 149,305 |
+| Avg Score/Task | 2,262 |
+| **% of Winner Avg** | 94.1% (2,262 ÷ 2,405) |
 
 ### Projected Final Standings
 
 | Scenario | Projected Score | Est. Place | Notes |
 |----------|----------------|------------|-------|
-| **Conservative** | ~903,200 | **~110th** | Current avg × 400 tasks |
+| **Conservative** | ~904,800 | **~110th** | Current avg × 400 tasks |
 | **Optimistic** | ~918,000 | **~80th** | Tier-weighted averages maintained |
 
 *Placement estimates based on [final leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/) score distribution (rank 50 = 932,557 pts, ~500 pts/rank in mid-field).*
@@ -45,10 +45,11 @@
 
 ## Tasks by Difficulty
 
-### Easy (< 100 bytes) - 13 tasks
+### Easy (< 100 bytes) - 14 tasks
 | Task | Bytes | Score | Est. Winner | % of Winner |
 |------|-------|-------|-------------|-------------|
 | 3c9b0459 | 40 | 2,460 | ~2,465 | 99.8% |
+| 44f52bb0 | 46 | 2,454 | ~2,460 | 99.8% |
 | 25d8a9c8 | 50 | 2,450 | ~2,455 | 99.8% |
 | 0520fde7 | 57 | 2,443 | ~2,450 | 99.7% |
 | 22eb0ac0 | 57 | 2,443 | ~2,450 | 99.7% |
@@ -134,19 +135,19 @@
 
 ## Projection Model
 
-Based on 65 solved tasks with tier distribution:
+Based on 66 solved tasks with tier distribution:
 
 | Tier | Solved | Our Avg | Assumed # | Projected | Winner Est. |
 |------|--------|---------|-----------|-----------|-------------|
-| Easy | 13 | 2,436 | 180 | 438,480 | 441,000 |
+| Easy | 14 | 2,437 | 180 | 438,660 | 441,000 |
 | Medium | 38 | 2,317 | 140 | 324,380 | 330,120 |
 | Hard | 11 | 2,038 | 60 | 122,280 | 127,920 |
 | V.Hard | 3 | 1,555 | 20 | 31,100 | 35,000 |
-| **Total** | **65** | **2,259** | **400** | **916,240** | **934,040** |
+| **Total** | **66** | **2,262** | **400** | **916,420** | **934,040** |
 
-**Conservative estimate (current avg × 400)**: 2,259 × 400 = **903,600 points** → **~110th place**
+**Conservative estimate (current avg × 400)**: 2,262 × 400 = **904,800 points** → **~110th place**
 
-**Optimistic estimate (tier-weighted)**: **916,240 points** → **~80th place**
+**Optimistic estimate (tier-weighted)**: **916,420 points** → **~80th place**
 
 ---
 
