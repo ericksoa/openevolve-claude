@@ -8,17 +8,17 @@
 
 | Metric | Value |
 |--------|-------|
-| **Solved** | 71 / 400 (17.8%) |
-| **Total Score** | 161,119 points |
-| **Avg Score/Task** | 2,269 points |
-| **% of Winner Avg** | 94.3% (winner: 2,405 pts/task) |
-| **Projected Final** | ~907,600 points ([details](./PROJECTION.md)) |
+| **Solved** | 72 / 400 (18.0%) |
+| **Total Score** | 163,412 points |
+| **Avg Score/Task** | 2,270 points |
+| **% of Winner Avg** | 94.4% (winner: 2,405 pts/task) |
+| **Projected Final** | ~908,000 points ([details](./PROJECTION.md)) |
 
 <!-- Competition winner: Code Golf International with 962,070 pts (DO NOT MODIFY) -->
 
 ---
 
-## Solved Problems (71)
+## Solved Problems (72)
 
 | Task | Pattern | Bytes | Score | Solution |
 |------|---------|-------|-------|----------|
@@ -63,6 +63,7 @@
 | [`2013d3e2`](./2013d3e2/README.md) | Symmetry axis extraction | **152** | 2,348 | [solution.py](./2013d3e2/solution.py) |
 | [`4258a5f9`](./4258a5f9/README.md) | 3×3 box around 5s | **160** | 2,340 | [solution.py](./4258a5f9/solution.py) |
 | [`0ca9ddb6`](./0ca9ddb6/README.md) | Color spread from seeds | **207** | 2,293 | [solution.py](./0ca9ddb6/solution.py) |
+| [`253bf280`](./253bf280/README.md) | Connect 8s with 3s | **207** | 2,293 | [solution.py](./253bf280/solution.py) |
 | [`1e32b0e9`](./1e32b0e9/README.md) | Grid template completion | **201** | 2,299 | [solution.py](./1e32b0e9/solution.py) |
 | [`23b5c85d`](./23b5c85d/README.md) | Smallest colored rectangle | **201** | 2,299 | [solution.py](./23b5c85d/solution.py) |
 | [`00d62c1b`](./00d62c1b/README.md) | Fill enclosed regions | **219** | 2,281 | [solution.py](./00d62c1b/solution.py) |
@@ -96,14 +97,13 @@
 
 ---
 
-## Unsolved Problems (334)
+## Unsolved Problems (328)
 
-### Analyzed Tasks (17)
+### Analyzed Tasks (16)
 
 | Task ID | Pattern | Est. Difficulty |
 |---------|---------|-----------------|
 | `234bbc79` | Bounding box intersection | Very Hard |
-| `253bf280` | Position-based lines | Hard |
 | `25d487eb` | Container fill with color | Hard |
 | `25ff71a9` | Pattern isolation | Hard |
 | `264363fd` | Grid region coloring | Very Hard |
@@ -491,10 +491,10 @@ python evaluator.py <task_id> solutions/<task_id>.py
 
 | Metric | Current | Projected (Conservative) | Projected (Optimistic) | Winner |
 |--------|---------|--------------------------|------------------------|--------|
-| Tasks solved | 71 | 400 | 400 | 400 |
-| Total score | 161,119 | ~907,600 | ~920,000 | **962,070** |
-| Avg pts/task | 2,269 | 2,269 | 2,300 | 2,405 |
-| % of winner | 94.3% | 94.3% | 95.6% | 100% |
+| Tasks solved | 72 | 400 | 400 | 400 |
+| Total score | 163,412 | ~908,000 | ~920,000 | **962,070** |
+| Avg pts/task | 2,270 | 2,270 | 2,300 | 2,405 |
+| % of winner | 94.4% | 94.4% | 95.6% | 100% |
 | **Est. Place** | - | **~100th** | **~80th** | 1st |
 
 **Winner**: Code Golf International (962,070 pts) - [Final Leaderboard](https://clist.by/standings/neurips-2025-google-code-golf-championship-optimization-custom-metric-61087802/)
