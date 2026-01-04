@@ -144,17 +144,46 @@ This project uses the `/evolve` skill to discover novel packing algorithms throu
 | 80b | 88.44 | 4-cardinal wave phases |
 | 83a | 88.22 | Bidirectional wave crossover |
 | 84c | 87.36 | Extreme 4+1 split |
-| **91b** | **~87-88** | **Rotation-first optimization** |
+| 91b | ~87-88 | Rotation-first optimization |
+| 99-100 | - | ILP, Sparrow algorithm (all failed) |
+| 101 | 89.59 | Combined strategies (+0.38%) |
+| 102 | 86.55 | ML value function + Best-of-N discovery |
+| **103** | **~86** | **Best-of-N optimization (+3.87%)** |
 
-### Plateau Confirmed (Gen92-95)
+### Plateau and Breakthrough (Gen92-103)
 
-After 4 generations of failed attempts across different mutation strategies:
-- **Gen92**: Parameter tuning - all failed
-- **Gen93**: Algorithmic changes - all failed
-- **Gen94**: Paradigm shifts - all failed
-- **Gen95**: Global optimization - all failed
+**Gen92-98**: Algorithm plateau confirmed
+- Parameter tuning, algorithmic changes, paradigm shifts - all failed
+- Greedy incremental approach hit fundamental limit
 
-The greedy incremental approach has reached its limit. The 26-28% gap to leaderboard (~69) requires fundamentally different approaches.
+**Gen99-100**: Alternative approaches explored
+- ILP/constraint optimization - computationally intractable
+- Sparrow algorithm (from research) - worse than evolved
+- Global optimization - too many local minima
+
+**Gen101**: Combined strategies
+- Diamond/Hex patterns + Sparrow exploration + Wave compaction
+- +0.38% improvement, mostly for small N
+
+**Gen102**: ML value function
+- Trained neural network to predict packing quality
+- Model predicts well (MAE=0.04) but doesn't select well
+- **Discovery**: Simple best-of-N beats ML re-ranking!
+
+**Gen103**: Best-of-N optimization (breakthrough!)
+- Run evolved multiple times, pick best per N
+- Exploits stochastic variance in SA algorithm
+- **Best-of-20: 85.89 (+3.87%)** - best result achieved!
+
+| Approach | Score | Improvement |
+|----------|-------|-------------|
+| Single run | ~89 | baseline |
+| Best-of-5 | 86.55 | +3.52% |
+| **Best-of-20** | **85.89** | **+3.87%** |
+| Stochastic-20 | 86.09 | +2.86% |
+| Multi-strategy | 86.80 | +2.06% |
+
+**Key insight**: The evolved algorithm's default parameters are already optimal. Parameter variation and multi-strategy approaches don't help. Simple multiple runs with selection is most effective.
 
 ## Running
 
