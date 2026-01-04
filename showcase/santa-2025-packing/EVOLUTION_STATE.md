@@ -1,10 +1,41 @@
-# Evolution State - Gen102 Complete (ML + Best-of-N)
+# Evolution State - Gen103 Complete (Best-of-N Optimization)
 
 ## Current Status
-- **Champion: Gen91b + Best-of-5 selection**
-- **Score: ~86.55** (best via multiple runs)
+- **Champion: Gen91b + Best-of-25 selection**
+- **Score: ~86.1** (submission score)
 - **Target: ~70** (top leaderboard)
-- **Gap: ~24%**
+- **Gap: ~23%**
+
+## Gen103 Results Summary - Best-of-N Optimization
+
+### Approach Comparison
+
+| Approach | Score | Improvement | Notes |
+|----------|-------|-------------|-------|
+| Single run | ~89 | baseline | |
+| Best-of-5 | 86.55 | +3.52% | |
+| **Best-of-20** | **85.89** | **+3.87%** | Best observed |
+| Best-of-30 | 86.04 | +3.68% | |
+| Stochastic-20 | 86.09 | +2.86% | Random param variation |
+| Multi-strategy | 86.80 | +2.06% | 8 different configs |
+| Ultimate combo | 86.38 | +3.42% | All approaches |
+
+### Key Finding
+
+Simple best-of-N with default config outperforms:
+- Parameter variation (stochastic)
+- Different strategy configurations
+- Combined approaches
+
+The evolved algorithm's default parameters are already well-tuned. Running multiple times and selecting best per N is the most effective improvement.
+
+### Files Added
+- `rust/src/bin/stochastic_best.rs` - Parameter variation
+- `rust/src/bin/multi_strategy.rs` - Multi-config strategies
+- `rust/src/bin/ultimate_submission.rs` - Combined approach
+- `rust/src/bin/final_submission.rs` - Best-of-N submission generator
+
+---
 
 ## Gen102 Results Summary - ML Value Function + Best-of-N
 
